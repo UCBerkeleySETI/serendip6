@@ -1,0 +1,186 @@
+##################################################################
+# FITS Primary Header Block
+##################################################################
+
+SIMPLE  =                    T / file does conform to FITS standard
+BITPIX  =                    8 / number of bits per data pixel
+NAXIS   =                    0 / number of data axes
+EXTEND  =                    T / FITS dataset may contain extensions
+BLOCKED =                    T / Blocks of 2880 bytes
+ORIGIN  = 'SERENDIP VI  '   / File was created by the guppi_daq sw
+DATE    = '2011/01/01      '   / Date (dd/mm//yy) this file was written
+#
+### Core ETFITS header fields ###
+#
+HDRVER  = '1.0             '   / Header version 
+LBGPUVER'
+HASHPVER'
+FPGAVER '
+S6HPCVER'
+TELESCOP= 'AO ALFA'            / Telescope name
+DATE-OBS'                '   / Date of observation (YYYY-MM-DDThh:mm:ss UTC)
+TSYS    '                    * / System temperature
+PROJID  '                '   / Project name
+FRONTEND'                '   / Rx and feed ID
+OBSFREQ '                    * / [MHz] Centre frequency for observation
+SITELONG= -66.7552222          / Antenna longitude (degrees, float)
+SITELAT = 18.3538056           / Antenna latitude (degrees, float)
+SITEELEV= 497                  / Antenna elevation (metres, float)
+EQUINOX = 2000.0               / Equinox of coords (e.g. 2000.0) 
+FITSTYPE= 'ETFITS          '   / FITS definition for pulsar data files
+INSTRUME= 'SERENDIP VI'        / Backend ID
+COORD_MD= 'J2000'              / Coordinate mode (J2000, GAL, ECLIP, etc.)
+NINPUTS = '14'               * / Number of inputs
+BANDWID '                ' * / Bandwidth of entire backend
+FREQRES '                ' * / Width of each original spectral channel
+NSUBBAND'                '   / number of subbands
+NCHAN   = 131072             / Number of spectral bins per sub-band
+CHAN_BW '                ' * / bandwidth of each spectral bin (resolution)
+#
+### pointing correction header fields ###
+#
+# zenith angle correction coeffecients
+ZCORCO00=                      / (TDOUBLE)
+ZCORCO01=                      / (TDOUBLE)
+ZCORCO02=                      / (TDOUBLE)
+ZCORCO03=                      / (TDOUBLE)
+ZCORCO04=                      / (TDOUBLE)
+ZCORCO05=                      / (TDOUBLE)
+ZCORCO06=                      / (TDOUBLE)
+ZCORCO07=                      / (TDOUBLE)
+ZCORCO08=                      / (TDOUBLE)
+ZCORCO09=                      / (TDOUBLE)
+ZCORCO10=                      / (TDOUBLE)
+ZCORCO11=                      / (TDOUBLE)
+ZCORCO12=                      / (TDOUBLE)
+# azimuth correction coeffecients
+ACORCO00=                      / (TDOUBLE)
+ACORCO01=                      / (TDOUBLE)
+ACORCO02=                      / (TDOUBLE)
+ACORCO03=                      / (TDOUBLE)
+ACORCO04=                      / (TDOUBLE)
+ACORCO05=                      / (TDOUBLE)
+ACORCO06=                      / (TDOUBLE)
+ACORCO07=                      / (TDOUBLE)
+ACORCO08=                      / (TDOUBLE)
+ACORCO09=                      / (TDOUBLE)
+ACORCO10=                      / (TDOUBLE)
+ACORCO11=                      / (TDOUBLE)
+ACORCO12=                      / (TDOUBLE)
+# per beam pointing ellipse zenith angle offsets 
+ZELLIPS0=                      / (TDOUBLE)
+ZELLIPS1=                      / (TDOUBLE)
+ZELLIPS2=                      / (TDOUBLE)
+ZELLIPS3=                      / (TDOUBLE)
+ZELLIPS4=                      / (TDOUBLE)
+ZELLIPS5=                      / (TDOUBLE)
+ZELLIPS6=                      / (TDOUBLE)
+# per beam pointing ellipse asimuth offsets 
+AELLIPS0=                      / (TDOUBLE)
+AELLIPS1=                      / (TDOUBLE)
+AELLIPS2=                      / (TDOUBLE)
+AELLIPS3=                      / (TDOUBLE)
+AELLIPS4=                      / (TDOUBLE)
+AELLIPS5=                      / (TDOUBLE)
+AELLIPS6=                      / (TDOUBLE)
+# per beam pointing ellipse array angle offsets 
+ARRANGL0=                      / (TDOUBLE)
+ARRANGL1=                      / (TDOUBLE)
+ARRANGL2=                      / (TDOUBLE)
+ARRANGL3=                      / (TDOUBLE)
+ARRANGL4=                      / (TDOUBLE)
+ARRANGL5=                      / (TDOUBLE)
+ARRANGL6=                      / (TDOUBLE)
+END
+##################################################################
+# ETFITS Binary Table Header Block - 1 per integration - no data
+##################################################################
+### Mandatory ETFITS header fields ###
+
+XTENSION= BINTABLE             / FITS binary table
+BITPIX  =                    8 / Binary data
+NAXIS   =                    2 / 2-dimensional binary table
+NAXIS1  =                    * / width of table in bytes 
+NAXIS2  =                    * / Number of rows in table
+PCOUNT  =                    0 / size of special data area
+GCOUNT  =                    1 / one data group (required keyword)
+TFIELDS =                    * / Number of fields per row
+EXTNAME = 'AOSCRAM'          / name of this binary table extension
+NMATRIX =                    1 / 1 dataset per row
+#
+### SCRAM fields ###
+#
+### PNT SCRAM fields ###
+PNTSTIME=                      / unix time of this PNT data (TINT)
+PNTRA   = 12345                / (TDOUBLE)
+PNTDEC  =                      / (TDOUBLE)
+PNTMJD  =                      / (TDOUBLE)
+### AGC SCRAM fields ###
+AGCSTIME=                      / unix time of this AGC data (TINT)
+AGCTIME =                      / millisec past local midnight.  A time stamp for Az/Za (TINT)
+AGCAZ   =                      / Az (TDOUBLE)
+AGCZA   =                      / ZA(TDOUBLE)
+AGCLST  =                      / (TDOUBLE)
+### ALFA SHMEM SCRAM fields ###
+ALFSTIME=                      / unix time of this ALFA SHMEM data (TINT)
+ALFBIAS1=                      / AlfaFirstBias bitmap   (TINT)
+ALFBIAS2=                      / AlfaSecondBias bitmap  (TINT)
+ALFMOPOS=                      / AlfaMotorPosition      (TDOUBLE)
+### IF1 SCRAM fields ###
+IF1STIME=                      / unix time of this IF1 data  (TINT)
+IF1SYNHZ=                      / synI_freqHz_0          (TDOUBLE)
+IF1SYNDB=                      / synI_ampDB_0           (TINT)
+IF1RFFRQ=                      / rfFreq                 (TDOUBLE)
+IF1IFFRQ=                      / if1FrqMhz              (TDOUBLE)
+IF1ALFFB=                      / alfaFb                 (TINT)
+### IF2 SCRAM fields ###
+IF2STIME=                      / unix time of this IF2 data  (TINT)
+IF2ALFON=                      / useAlfa 1 = ALFA is on (TINT)
+### TT SCRAM fields ###
+TTSTIME =                      / unix time of this TT data   (TINT)
+TTTURENC=                      / TurretEncoder          (TINT)
+TTTURDEG=                      / TurretDegrees          (TDOUBLE)
+#
+END
+##################################################################
+# ETFITS Binary Table Header Block - 1 per beam/pol per integration
+##################################################################
+
+### Mandatory ETFITS header fields ###
+
+XTENSION= BINTABLE             / FITS binary table
+BITPIX  =                    8 / Binary data
+NAXIS   =                    2 / 2-dimensional binary table
+NAXIS1  =                    * / width of table in bytes 
+NAXIS2  =                    * / Number of rows in table
+PCOUNT  =                    0 / size of special data area
+GCOUNT  =                    1 / one data group (required keyword)
+TFIELDS =                    * / Number of fields per row
+EXTNAME = 'ETHITS'             / name of this binary table extension
+NMATRIX =                    1 / 1 dataset per row
+#
+### ETFITS hits metadata ###
+#
+TIME    =                      / unix time of this integration - is this fine enough res? (TINT)
+RA      =                      / derived from corrected scram azza (TDOUBLE)
+DEC     =                      / derived from corrected scram azza (TDOUBLE)
+BEAMPOL =                      / 0-13                              (TINT)
+MISSEDPK=                      / missed packets this beam/pol this integration (TINT)
+#
+END
+##################################################################
+# Data table columns
+#####################################################################
+#
+### ETFITS hits columns ###
+#
+TTYPE#  = 'DETPOW  '           / detected power in units of mean power
+TFORM#  = '1E      '           / 4-byte real 
+TTYPE#  = 'MEANPOW '           / mean power
+TFORM#  = '1E      '           / 4-byte real 
+TTYPE#  = 'FINECHAN'           / fine channel bin number
+TFORM#  = '1J      '           / 32-bit integer
+TTYPE#  = 'COARCHAN'           / coarse channel bin number
+TFORM#  = '1I      '           / 16-bit integer
+#
+END
