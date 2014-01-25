@@ -12,7 +12,7 @@
 #define DEBUGOUT 0
 
 //----------------------------------------------------------
-int write_etfits(etfits_t * etf) {
+int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
 //----------------------------------------------------------
     int row, rv;
     int nchan, nivals, nsubband;
@@ -44,13 +44,8 @@ int write_etfits(etfits_t * etf) {
     fits_report_error(stderr, *status_p);
     rv = write_integration_header(etf, scram);
 
-    // Go to the first/next ET HDU and populate the header 
-    fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"ETHITS", 0, status_p);
-    fits_report_error(stderr, *status_p);
-    write_hits_header(etf);
-
-    // write the hits themselves
-    //write_hits(etf);
+    // write the hits and their headers
+    write_hits(db, block_idx, etf);
 
     // Now update some key values if no CFITSIO errors
 #if 0
@@ -135,16 +130,19 @@ int etfits_create(etfits_t * etf) {
 }
 
 //----------------------------------------------------------
-int etfits_close(etfits_t * etf) {
+int etfits_close(etfits_t *etf) {
 //----------------------------------------------------------
-    if (!etf->status) {
-        fits_close_file(etf->fptr, &(etf->status));
+    int * status_p = &(etf->status);
+
+fprintf(stderr, "in close, status is %d\n", *status_p);
+    if (! *status_p) {
+        fits_close_file(etf->fptr, status_p);
         printf("Closing file '%s'\n", etf->filename);
     }
     printf("Done.  %s %d data rows (%f sec) in %d files (status = %d).\n",
             etf->mode=='r' ? "Read" : "Wrote", 
-            etf->tot_rows, etf->T, etf->filenum, etf->status);
-    return etf->status;
+            etf->tot_rows, etf->T, etf->filenum, *status_p);
+    return *status_p;
 }
 
 //----------------------------------------------------------
@@ -201,10 +199,11 @@ int write_integration_header(etfits_t * etf, scram_t &scram) {
 //----------------------------------------------------------
 int write_hits_header(etfits_t * etf) {
 //----------------------------------------------------------
+// TODO have to know what input (beam/pol) this is
 
     int * status_p = &(etf->status);
 
-    fits_update_key(etf->fptr, TINT,    "TIME",    &(etf->hits_hdr.time),    NULL, status_p);   
+    fits_update_key(etf->fptr, TINT,    "TIME",    &(etf->hits_hdr.time),    NULL, status_p);   // TODO get these values   
     fits_update_key(etf->fptr, TDOUBLE, "RA",      &(etf->hits_hdr.ra),      NULL, status_p);   
     fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr.dec),     NULL, status_p);   
     fits_update_key(etf->fptr, TINT,    "BEAMPOL", &(etf->hits_hdr.beampol), NULL, status_p);   
@@ -212,12 +211,11 @@ int write_hits_header(etfits_t * etf) {
 }
 
 //----------------------------------------------------------
-//int write_hits_to_etfits(s6_output_databuf_t *db, struct etfits * etf_p) {      // use typedef for etfits
-int write_hits(etfits_t * etf) {      // use typedef for etfits
+int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {      
 //----------------------------------------------------------
 #define TFIELDS 3
     long nrows, firstrow, firstelem, nelements, colnum;
-    int i, nhits;
+    int hit_i, nhits, nhits_this_input, cur_input;  // TODO should these be longs or unsigned?
     static int first_time=1;
 
     int * status_p = &(etf->status);
@@ -236,41 +234,50 @@ int write_hits(etfits_t * etf) {      // use typedef for etfits
     float* det_pow_p  = &det_pow[0];
     float* mean_pow_p = &mean_pow[0];
     int* chan_p       = &chan[0];
+    // TODO need both fine and coarse chans
 
-    nhits = hits.size();
-    // why do I need to do this?
-    for(i=0; i<nhits; i++) {
-        det_pow.push_back(hits[i].power);
-        mean_pow.push_back(hits[i].baseline);
-        chan.push_back(hits[i].chan);
-    }
+    nhits = sizeof(db->block[block_idx].hits);
 
     firstrow  = 1;
     firstelem = 1;
 
-    // for each input
-        // write hits header
-        // output detected power for all hits
+    hit_i = 0;              
+    while(hit_i < nhits) {
+        // init for first / next input
+        det_pow.clear();
+        mean_pow.clear();
+        chan.clear();
+        nhits_this_input = 0;
+        cur_input = db->block[block_idx].hits[hit_i].input;
+
+        // Go to the first/next ET HDU and populate the header 
+        fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"ETHITS", 0, status_p);
+        fits_report_error(stderr, *status_p);
+        write_hits_header(etf);
+
+        // separate the data columns for this input
+        while(db->block[block_idx].hits[hit_i].input == cur_input) {
+            det_pow.push_back(hits[hit_i].power);
+            mean_pow.push_back(hits[hit_i].baseline);
+            chan.push_back(hits[hit_i].chan);
+            nhits_this_input++;
+            hit_i++;
+        }
+        // hit_i should now reference next input or one past all inputs
+
+        // write the hits for this input
         colnum    = 1;
-        fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits, det_pow_p, status_p);
+        fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, det_pow_p, status_p);
         fits_report_error(stderr, *status_p);
-
-        // output mean power for all hits
         colnum    = 2;
-        fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits, mean_pow_p, status_p);
+        fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, mean_pow_p, status_p);
         fits_report_error(stderr, *status_p);
-
-        // output channel (freq?) for all hits
         colnum    = 3;
-        fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits, chan_p, status_p);
+        fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, chan_p, status_p);
         fits_report_error(stderr, *status_p);
+    }  // end while hit_i < nhits
 
-        //fprintf(stdout, "close file\n");
-        fits_close_file(etf->fptr, status_p);
-        fits_report_error(stderr, *status_p);
-
-    // commit this etFITS HDU ?
-
+    return *status_p;
 }
 
 //----------------------------------------------------------
@@ -379,6 +386,8 @@ int get_obs_info_from_redis(scram_t &scram,
     }
     freeReplyObject(reply);
 #endif
+
+    // TODO get the obs_enabled bool
 
     redisFree(c);       // TODO do I really want to free each time?
 
