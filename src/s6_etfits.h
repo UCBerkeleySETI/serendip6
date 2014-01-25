@@ -32,8 +32,7 @@ typedef struct {
     unsigned short  coarse_channel_bin;
 } etfits_hits_t;
     
-struct etfits
-{
+typedef struct {
     char basefilename[200]; // The base filename from which to build the true filename
     char filename[200];     // Filename of the current PSRFITs file
     long long N;            // Current number of spectra written
@@ -52,7 +51,7 @@ struct etfits
     etfits_integration_header_t integration_hdr;
     etfits_hits_header_t        hits_hdr;       // one hits HDU per beam/pol per integration
     etfits_hits_t               hits;
-};
+} etfits_t;
 
 typedef struct {
     int     PNTSTIME;
@@ -81,12 +80,12 @@ typedef struct {
     double  TTTURDEG;
 } scram_t;
 
-int write_etfits(struct etfits *etf);
-int etfits_create(struct etfits *etf);
-int etfits_close(struct etfits *etf);
-int write_integration_header(struct etfits *etf, scram_t &scram);
-int write_hits_header(struct etfits *etf);
-int write_hits(struct etfits *etf);
+int write_etfits(etfits_t * etf);
+int etfits_create(etfits_t * etf);
+int etfits_close(etfits_t * etf);
+int write_integration_header(etfits_t * etf, scram_t &scram);
+int write_hits_header(etfits_t * etf);
+int write_hits(etfits_t * etf);
 int get_obs_info_from_redis(scram_t &scram, char *hostname, int port);
 
 #endif

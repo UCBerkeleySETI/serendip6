@@ -12,7 +12,7 @@
 #define DEBUGOUT 0
 
 //----------------------------------------------------------
-int write_etfits(struct etfits *etf) {
+int write_etfits(etfits_t * etf) {
 //----------------------------------------------------------
     int row, rv;
     int nchan, nivals, nsubband;
@@ -68,7 +68,7 @@ fprintf(stderr, "status = %d  fptr = %p\n", *status_p, etf->fptr);
 }
 
 //----------------------------------------------------------
-int etfits_create(struct etfits *etf) {
+int etfits_create(etfits_t * etf) {
 //----------------------------------------------------------
     int itmp, *status;
     char ctmp[40];
@@ -125,7 +125,7 @@ int etfits_create(struct etfits *etf) {
 
     // Update the keywords that need it
     fits_get_system_time(ctmp, &itmp, status_p);      // date the file was written
-    fits_update_key(etf->fptr, TSTRING, "DATE", ctmp, NULL, status);
+    fits_update_key(etf->fptr, TSTRING, "DATE", ctmp, NULL, status_p);
 
     // TODO update code versions
 
@@ -135,7 +135,7 @@ int etfits_create(struct etfits *etf) {
 }
 
 //----------------------------------------------------------
-int etfits_close(struct etfits *etf) {
+int etfits_close(etfits_t * etf) {
 //----------------------------------------------------------
     if (!etf->status) {
         fits_close_file(etf->fptr, &(etf->status));
@@ -147,13 +147,15 @@ int etfits_close(struct etfits *etf) {
     return etf->status;
 }
 
-int write_primary_header(struct etfits *etf) {
+//----------------------------------------------------------
+int write_primary_header(etfits_t * etf) {
+//----------------------------------------------------------
     int * status_p = &(etf->status);
     // TODO
 }
 
 //----------------------------------------------------------
-int write_integration_header(struct etfits *etf, scram_t &scram) {
+int write_integration_header(etfits_t * etf, scram_t &scram) {
 //----------------------------------------------------------
     
     int status=0;
@@ -197,7 +199,7 @@ int write_integration_header(struct etfits *etf, scram_t &scram) {
 }
 
 //----------------------------------------------------------
-int write_hits_header(struct etfits *etf) {
+int write_hits_header(etfits_t * etf) {
 //----------------------------------------------------------
 
     int * status_p = &(etf->status);
@@ -211,7 +213,7 @@ int write_hits_header(struct etfits *etf) {
 
 //----------------------------------------------------------
 //int write_hits_to_etfits(s6_output_databuf_t *db, struct etfits * etf_p) {      // use typedef for etfits
-int write_hits(struct etfits * etf) {      // use typedef for etfits
+int write_hits(etfits_t * etf) {      // use typedef for etfits
 //----------------------------------------------------------
 #define TFIELDS 3
     long nrows, firstrow, firstelem, nelements, colnum;
