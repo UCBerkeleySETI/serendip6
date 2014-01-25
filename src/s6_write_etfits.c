@@ -15,14 +15,10 @@
 int etfits_create(struct etfits *etf) {
     int itmp, *status;
     char ctmp[40];
-    etfits_header_t *hdr;
+    //etfits_header_t *hdr;
 
-    hdr = &(etf->hdr);        // dereference the ptr to the header struct
+    //hdr = &(etf->hdr);        // dereference the ptr to the header struct
     status = &(etf->status);  // dereference the ptr to the CFITSIO status
-
-strcpy(etf->basefilename, "etfitstestfile");
-etf->filenum=0;
-etf->new_file=1;
 
     // Initialize the key variables if needed
     if (etf->new_file == 1) {  // first time writing to the file
@@ -44,25 +40,22 @@ etf->new_file=1;
             system(cmd);
         }
         etf->new_file = 0;
-    }
+    }   // end first time writing to the file
     etf->filenum++;
     etf->rownum = 1;
 
     sprintf(etf->filename, "%s_%04d.fits", etf->basefilename, etf->filenum);
-fprintf(stderr, "%s\n", etf->filename);
 
     // Create basic FITS file from our template
-    //char *s6_dir = getenv("S6_DIR");
-    char *s6_dir = (char *)".";
+    char *s6_dir = getenv("S6_DIR");
     char template_file[1024];
     if (s6_dir==NULL) {
+        s6_dir = (char *)".";
         fprintf(stderr, 
-                "Error: ET_DIR environment variable not set, exiting.\n");
-        exit(1);
+                "Warning: S6_DIR environment variable not set, using current directory for ETFITS template.\n");
     }
     printf("Opening file '%s'\n", etf->filename);
     sprintf(template_file, "%s/%s", s6_dir, ETFITS_TEMPLATE);
-fprintf(stderr, "%s\n", template_file);
     fits_create_template(&(etf->fptr), etf->filename, template_file, status);
 
     // Check to see if file was successfully created
@@ -78,55 +71,11 @@ fprintf(stderr, "%s\n", template_file);
     // Update the keywords that need it
     fits_get_system_time(ctmp, &itmp, status);      // date the file was written
     fits_update_key(etf->fptr, TSTRING, "DATE", ctmp, NULL, status);
+
     // TODO update code versions
 
-#if 0
-    // Go to the SINGLE DISH HDU
-    fits_movnam_hdu(etf->fptr, BINARY_TBL, "SINGLE DISH", 0, status);
+    // TODO ? This would be where to init primary header items that we do not init via a template file.
 
-    // Update the keywords that need it
-    fits_update_key(etf->fptr, TSTRING, "TELESCOP", hdr->telescope,NULL, status);
-    fits_update_key(etf->fptr, TDOUBLE, "BANDWID", &(hdr->bandwidth), NULL, status);
-    fits_update_key(etf->fptr, TSTRING, "DATE-OBS", hdr->date_obs, NULL, status);
-    fits_update_key(etf->fptr, TDOUBLE, "TSYS", &(hdr->tsys), NULL, status);
-
-    fits_update_key(etf->fptr, TSTRING, "PROJID", hdr->projid, NULL, status);
-    fits_update_key(etf->fptr, TSTRING, "FRONTEND", hdr->frontend, NULL, status);
-    fits_update_key(etf->fptr, TDOUBLE, "OBSFREQ", &(hdr->obsfreq), NULL, status);
-    fits_update_key(stf->fptr, TDOUBLE, "SCAN", &(hdr->scan), NULL, status);
-
-    fits_update_key(etf->fptr, TSTRING, "INSTRUME", hdr->instrument, NULL, status);
-    fits_update_key(etf->fptr, TSTRING, "CAL_MODE", hdr->cal_mode, NULL, status);
-    if (strcmp("OFF", hdr->cal_mode) != 0)
-    {
-        fits_update_key(etf->fptr, TDOUBLE, "CAL_FREQ", &(hdr->cal_freq), NULL, status);
-        fits_update_key(etf->fptr, TDOUBLE, "CAL_DCYC", &(hdr->cal_dcyc), NULL, status);
-        fits_update_key(etf->fptr, TDOUBLE, "CAL_PHS", &(hdr->cal_phs), NULL, status);
-    }
-    fits_update_key(etf->fptr, TINT,    "NPOL", &(hdr->npol), NULL, status);
-    fits_update_key(etf->fptr, TINT,    "NCHAN", &(hdr->nchan), NULL, status);
-    fits_update_key(etf->fptr, TDOUBLE, "CHAN_BW", &(hdr->chan_bw), NULL, status);
-    fits_update_key(etf->fptr, TINT,    "NSUBBAND", &(hdr->nsubband), NULL, status);
-    fits_update_key(etf->fptr, TDOUBLE, "EFSAMPFR", &(hdr->efsampfr), NULL, status);
-    fits_update_key(etf->fptr, TDOUBLE, "FPGACLK", &(hdr->fpgaclk), NULL, status);
-    fits_update_key(etf->fptr, TDOUBLE, "HWEXPOSR", &(hdr->hwexposr), NULL, status);
-    fits_update_key(etf->fptr, TDOUBLE, "FILTNEP", &(hdr->filtnep), NULL, status);
-    fits_update_key(etf->fptr, TDOUBLE, "STTMJD", &(hdr->sttmjd), NULL, status);
-
-    // Update the column sizes for the colums containing arrays
-    itmp = hdr->nsubband * hdr->nchan * 4;                          //num elements, not bytes
-    fits_modify_vector_len(etf->fptr, 20, itmp, status);             // DATA
-    fits_modify_vector_len(etf->fptr, 14, hdr->nsubband, status);    // SUBFREQ
-
-    // Update the TDIM field for the data column
-    sprintf(ctmp, "(%d,%d,4,1,1)", hdr->nchan, hdr->nsubband);
-    fits_update_key(etf->fptr, TSTRING, "TDIM20", ctmp, NULL, status);
-#endif
-
-    fits_flush_file(etf->fptr, status);
-fprintf(stderr, "status = %d\n", *status);
-    fits_report_error(stderr, *status);
-   
     return *status;
 }
 
@@ -134,20 +83,17 @@ fprintf(stderr, "status = %d\n", *status);
 int etfits_write_hits(struct etfits *etf) {
     int row, *status, rv;
     int nchan, nivals, nsubband;
-    etfits_header_t *hdr;
-    etfits_data_columns_t *dcols;
+    //etfits_header_t *hdr;
+    //etfits_data_columns_t *dcols;
     char* temp_str;
     double temp_dbl;
 
     scram_t scram;
     coordcof_t coordcof;
 
-    hdr = &(etf->hdr);               // dereference the ptr to the header struct
-    dcols = &(etf->data_columns);    // dereference the ptr to the subint struct
+    //hdr = &(etf->hdr);               // dereference the ptr to the header struct
+    //dcols = &(etf->data_columns);    // dereference the ptr to the subint struct
     status = &(etf->status);         // dereference the ptr to the CFITSIO status
-    nchan = hdr->nchan; 
-    nsubband = hdr->nsubband;
-    nivals = nchan * nsubband * 4;  // 4 stokes parameters
 
     // Create the initial file or change to a new one if needed.
     if (etf->new_file || (etf->multifile==1 && etf->rownum > etf->rows_per_file))
@@ -264,16 +210,13 @@ int write_integration_header(struct etfits *etf, scram_t &scram) {
     int status=0;
 
     fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"AOSCRAM", 0, &status);
-    //fits_movrel_hdu(etf->fptr, 1, NULL, &status);
-fprintf(stderr, "status = %d\n", status);
     fits_report_error(stderr, status);
 
     // observatory (scram) data 
-    fits_update_key(etf->fptr, TDOUBLE, "PNTRA   ",  &(scram.PNTRA),    NULL, &status);        // derived from corrected azza 
-fprintf(stderr, "status = %d\n", status);
-    fits_report_error(stderr, status);
-
-    fits_update_key(etf->fptr, TDOUBLE, "PNTDEC", &(scram.PNTDEC),    NULL, &status);        // derived from corrected azza
+    fits_update_key(etf->fptr, TINT,    "PNTSTIME",  &(scram.PNTSTIME), NULL, &status); 
+    fits_update_key(etf->fptr, TDOUBLE, "PNTRA",     &(scram.PNTRA),    NULL, &status);      
+    fits_update_key(etf->fptr, TDOUBLE, "PNTDEC",    &(scram.PNTDEC),   NULL, &status);      
+    fits_update_key(etf->fptr, TDOUBLE, "PNTMJD",    &(scram.PNTMJD),   NULL, &status);      
 
     fits_update_key(etf->fptr, TINT,    "AGCSTIME", &(scram.AGCSTIME),    NULL, &status); 
     fits_update_key(etf->fptr, TDOUBLE, "AGCAZ",    &(scram.AGCAZ),    NULL, &status); 
@@ -299,13 +242,11 @@ fprintf(stderr, "status = %d\n", status);
     fits_update_key(etf->fptr, TINT,    "TTSTIME",  &(scram.TTSTIME),    NULL, &status); 
     fits_update_key(etf->fptr, TINT,    "TTTURENC", &(scram.TTTURENC),    NULL, &status); 
     fits_update_key(etf->fptr, TDOUBLE, "TTTURDEG", &(scram.TTTURDEG),    NULL, &status);
-    
-    fits_flush_file(etf->fptr, &status);
-fprintf(stderr, "status = %d\n", status);
-    fits_report_error(stderr, status);
 #if 0
     fits_update_key(etf->fptr, TINT,    "MISSEDPK", &(scram.MISSEDPK),    NULL, &status);    // missed packets per input per second 
 #endif
+
+    fits_report_error(stderr, status);
 }
 
 
@@ -354,8 +295,6 @@ int get_obs_info_from_redis(scram_t &scram, coordcof_t &coordcof, char *hostname
     unsigned int j;
     redisContext *c;
     redisReply *reply;
-    //const char *hostname = (argc > 1) ? argv[1] : "127.0.0.1";
-    //int port = (argc > 2) ? atoi(argv[2]) : 6379;
 
     struct timeval timeout = { 1, 500000 }; // 1.5 seconds
 
@@ -370,30 +309,22 @@ int get_obs_info_from_redis(scram_t &scram, coordcof_t &coordcof, char *hostname
         exit(1);
     }
 
-    /* PING server */
-    reply = (redisReply *)redisCommand(c,"PING");
-    printf("PING: %s\n", reply->str);
+    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:PNT        PNTSTIME PNTRA PNTDEC PNTMJD");
+    if ( reply->type == REDIS_REPLY_ERROR )
+        printf( "Error: %s\n", reply->str );
+    else if ( reply->type != REDIS_REPLY_ARRAY )
+        printf( "Unexpected type: %d\n", reply->type );
+    else {
+    scram.PNTSTIME  = atoi(reply->element[0]->str);
+    scram.PNTRA     = atof(reply->element[1]->str);
+    scram.PNTDEC    = atof(reply->element[2]->str);
+    scram.PNTMJD    = atof(reply->element[3]->str);
+    }
     freeReplyObject(reply);
-
-    reply =  (redisReply *)redisCommand(c,"GET SCRAM:PNTSTIME");
-    scram.PNTSTIME = atoi(reply->str);
-    printf("GET SCRAM:PNTSTIME %s %d\n", reply->str, scram.PNTSTIME);
-    //freeReplyObject(reply);
-
-    reply = (redisReply *)redisCommand(c,"GET SCRAM:PNTRA");   
-    scram.PNTRA = atof(reply->str);
-    printf("GET SCRAM:PNTRA %s %lf\n", reply->str, scram.PNTRA);   
-    //freeReplyObject(reply);
-
-    reply = (redisReply *)redisCommand(c,"GET SCRAM:PNTDEC");  
-    scram.PNTDEC = atof(reply->str);
-    printf("GET SCRAM:PNTDEC %s %lf\n", reply->str, scram.PNTDEC);  
-    //freeReplyObject(reply);
-
-    reply = (redisReply *)redisCommand(c,"GET SCRAM:PNTMJD");  
-    scram.PNTMJD = atof(reply->str);
-    printf("GET SCRAM:PNTMJD %s %lf\n", reply->str, scram.PNTMJD);  
-    //freeReplyObject(reply);
+    printf("GET SCRAM:PNTSTIME %d\n", scram.PNTSTIME);
+    printf("GET SCRAM:PNTRA %lf\n", scram.PNTRA);   
+    printf("GET SCRAM:PNTDEC %lf\n", scram.PNTDEC);  
+    printf("GET SCRAM:PNTMJD %lf\n", scram.PNTMJD);  
 
 #if 0
 

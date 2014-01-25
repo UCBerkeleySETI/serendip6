@@ -6,70 +6,29 @@
 // The following is the max file length in GB
 #define ETFITS_MAXFILELEN 1L
 
-// The following is the template file to use to create a PSRFITS file.
-// Path is relative to VEGAS_DIR environment variable.
-//#define ETFITS_TEMPLATE "/s6_config/s6_ETFITS_template.txt"
+// The following is the template file to use to create a ETFITS file.
 #define ETFITS_TEMPLATE "s6_ETFITS_template.txt"
 
 typedef struct {
     char date[16];          // Date file was created (dd/mm/yy)
+    // TODO ? This would be where to put primary header items that we do not init via a template file.
 } etfits_primary_header_t;
 
 typedef struct {
-    char telescope[16];     // Telescope used
-    double bandwidth;       // Bandwidth of the entire backend
-    double freqres;         // Width of each spectral channel in the file
-    char date_obs[16];      // Date of observation (dd/mm/yy)
-    double tsys;            // System temperature
 
-    char projid[16];        // The project ID
-    char frontend[16];      // Frontend used
-    double obsfreq;         // Centre frequency for observation
-    double scan;            // Scan number (float)
-
-    char instrument[16];       // Backend or instrument used
-    char cal_mode[16];      // Cal mode (OFF, SYNC, EXT1, EXT2
-    double cal_freq;        // Cal modulation frequency (Hz)
-    double cal_dcyc;        // Cal duty cycle (0-1)
-    double cal_phs;         // Cal phase (wrt start time)
-    int npol;               // Number of antenna polarisations (normally 2)
-    int nchan;              // Number of spectral bins per sub-band
-    double chan_bw;         // Width of each spectral bin
-
-    int nsubband;           // Number of sub-bands
-    double efsampfr;        // Effective sampling frequency (after decimation)
-    double fpgaclk;         // FPGA clock rate [Hz]
-    double hwexposr;        // Duration of fixed integration on FPGA/GPU [s]
-    double filtnep;         // PFB filter noise-equivalent parameter
-    double sttmjd;          // Observation start time [double MJD]
-} etfits_header_t;
+} etfits_integration_header_t;
     
 typedef struct {
-    double time;            // MJD start of integration (from system time)
-    unsigned long int time_counter;       // FPGA time counter at start of integration
-    int integ_num;          // The integration number (indicates a specific integ. period)
-    float exposure;         // Effective integration time (seconds)
-    char object[16];        // Object being viewed
-    float azimuth;          // Commanded azimuth
-    float elevation;        // Commanded elevation
-    float bmaj;             // Beam major axis length (deg)
-    float bmin;             // Beam minor axis length (deg)
-    float bpa;              // Beam position angle (deg)
 
-    int accumid;            // ID of the accumulator from where the spectrum came
-    int sttspec;            // SPECTRUM_COUNT of the first spectrum in the integration
-    int stpspec;            // SPECTRUM_COUNT of the last spectrum in the integration
+} etfits_hits_header_t;
 
-    float centre_freq_idx;  // Index of centre frequency bin
-    double centre_freq[128];  // Frequency at centre of each sub-band
-    double ra;              // RA mid-integration
-    double dec;             // DEC mid-integration
-
-    char data_len[16];      // Length of the data array
-    char data_dims[16];     // Data matrix dimensions
-    unsigned char *data;    // Ptr to the raw data itself
-} etfits_data_columns_t;
-
+typedef struct {
+    float           detected_power;
+    float           mean_power;
+    unsigned long   fine_channel_bin;
+    unsigned short  coarse_channel_bin;
+} etfits_hits_t;
+    
 struct etfits
 {
     char basefilename[200]; // The base filename from which to build the true filename
@@ -86,9 +45,10 @@ struct etfits
     int multifile;          // Write multiple output files
     int quiet;              // Be quiet about writing each subint
     char mode;              // Read (r) or write (w).
-    etfits_primary_header_t primary_hdr;
-    etfits_header_t         hdr;
-    etfits_data_columns_t   data_columns;
+    etfits_primary_header_t     primary_hdr;
+    etfits_integration_header_t integration_hdr;
+    etfits_hits_header_t        hits_hdr;       // one hits HDU per beam/pol per integration
+    etfits_hits_t               hits;
 };
 
 // In write_sdfits.c

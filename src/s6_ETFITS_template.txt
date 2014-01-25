@@ -1,7 +1,7 @@
 ##################################################################
 # FITS Primary Header Block
 ##################################################################
-
+#
 SIMPLE  =                    T / file does conform to FITS standard
 BITPIX  =                    8 / number of bits per data pixel
 NAXIS   =                    0 / number of data axes
@@ -37,66 +37,38 @@ NSUBBAND'                '   / number of subbands
 NCHAN   = 131072             / Number of spectral bins per sub-band
 CHAN_BW '                ' * / bandwidth of each spectral bin (resolution)
 #
-### pointing correction header fields ###
+### multibeam pointing calcualtion fields ###
 #
-# zenith angle correction coeffecients
-ZCORCO00=                      / (TDOUBLE)
-ZCORCO01=                      / (TDOUBLE)
-ZCORCO02=                      / (TDOUBLE)
-ZCORCO03=                      / (TDOUBLE)
-ZCORCO04=                      / (TDOUBLE)
-ZCORCO05=                      / (TDOUBLE)
-ZCORCO06=                      / (TDOUBLE)
-ZCORCO07=                      / (TDOUBLE)
-ZCORCO08=                      / (TDOUBLE)
-ZCORCO09=                      / (TDOUBLE)
-ZCORCO10=                      / (TDOUBLE)
-ZCORCO11=                      / (TDOUBLE)
-ZCORCO12=                      / (TDOUBLE)
-# azimuth correction coeffecients
-ACORCO00=                      / (TDOUBLE)
-ACORCO01=                      / (TDOUBLE)
-ACORCO02=                      / (TDOUBLE)
-ACORCO03=                      / (TDOUBLE)
-ACORCO04=                      / (TDOUBLE)
-ACORCO05=                      / (TDOUBLE)
-ACORCO06=                      / (TDOUBLE)
-ACORCO07=                      / (TDOUBLE)
-ACORCO08=                      / (TDOUBLE)
-ACORCO09=                      / (TDOUBLE)
-ACORCO10=                      / (TDOUBLE)
-ACORCO11=                      / (TDOUBLE)
-ACORCO12=                      / (TDOUBLE)
 # per beam pointing ellipse zenith angle offsets 
-ZELLIPS0=                      / (TDOUBLE)
-ZELLIPS1=                      / (TDOUBLE)
-ZELLIPS2=                      / (TDOUBLE)
-ZELLIPS3=                      / (TDOUBLE)
-ZELLIPS4=                      / (TDOUBLE)
-ZELLIPS5=                      / (TDOUBLE)
-ZELLIPS6=                      / (TDOUBLE)
+ZELLIPS0=    0.0               / (TDOUBLE)
+ZELLIPS1= 384.005              / (TDOUBLE)
+ZELLIPS2= 384.005              / (TDOUBLE)
+ZELLIPS3= 384.005              / (TDOUBLE)
+ZELLIPS4= 384.005              / (TDOUBLE)
+ZELLIPS5= 384.005              / (TDOUBLE)
+ZELLIPS6= 384.005              / (TDOUBLE)
 # per beam pointing ellipse asimuth offsets 
-AELLIPS0=                      / (TDOUBLE)
-AELLIPS1=                      / (TDOUBLE)
-AELLIPS2=                      / (TDOUBLE)
-AELLIPS3=                      / (TDOUBLE)
-AELLIPS4=                      / (TDOUBLE)
-AELLIPS5=                      / (TDOUBLE)
-AELLIPS6=                      / (TDOUBLE)
+AELLIPS0=   0.0                / (TDOUBLE)
+AELLIPS1= 329.06               / (TDOUBLE)
+AELLIPS2= 329.06               / (TDOUBLE)
+AELLIPS3= 329.06               / (TDOUBLE)
+AELLIPS4= 329.06               / (TDOUBLE)
+AELLIPS5= 329.06               / (TDOUBLE)
+AELLIPS6= 329.06               / (TDOUBLE)
 # per beam pointing ellipse array angle offsets 
-ARRANGL0=                      / (TDOUBLE)
-ARRANGL1=                      / (TDOUBLE)
-ARRANGL2=                      / (TDOUBLE)
-ARRANGL3=                      / (TDOUBLE)
-ARRANGL4=                      / (TDOUBLE)
-ARRANGL5=                      / (TDOUBLE)
-ARRANGL6=                      / (TDOUBLE)
+ARRANGL0=    0.0               / (TDOUBLE)
+ARRANGL1=  120.0               / (TDOUBLE)
+ARRANGL2=  180.0               / (TDOUBLE)
+ARRANGL3= -120.0               / (TDOUBLE)
+ARRANGL4=  -60.0               / (TDOUBLE)
+ARRANGL5=    0.0               / (TDOUBLE)
+ARRANGL6=   60.0               / (TDOUBLE)
 END
 ##################################################################
 # ETFITS Binary Table Header Block - 1 per integration - no data
 ##################################################################
 ### Mandatory ETFITS header fields ###
-
+#
 XTENSION= BINTABLE             / FITS binary table
 BITPIX  =                    8 / Binary data
 NAXIS   =                    2 / 2-dimensional binary table
@@ -112,14 +84,16 @@ NMATRIX =                    1 / 1 dataset per row
 #
 ### PNT SCRAM fields ###
 PNTSTIME=                      / unix time of this PNT data (TINT)
-PNTRA   = 12345                / (TDOUBLE)
-PNTDEC  =                      / (TDOUBLE)
+PNTRA   =                      / latest requested pointing (TDOUBLE)
+PNTDEC  =                      / latest requested pointing (TDOUBLE)
 PNTMJD  =                      / (TDOUBLE)
+PNTAZCOR=                      / center beam azimuth correction (TDOUBLE)
+PNTZACOR=                      / center beam zenith angle correction (TDOUBLE)
 ### AGC SCRAM fields ###
 AGCSTIME=                      / unix time of this AGC data (TINT)
 AGCTIME =                      / millisec past local midnight.  A time stamp for Az/Za (TINT)
-AGCAZ   =                      / Az (TDOUBLE)
-AGCZA   =                      / ZA(TDOUBLE)
+AGCAZ   =                      / uncorrected Az as of AGCTIME (TDOUBLE)
+AGCZA   =                      / uncorrected ZA as of AGCTIME (TDOUBLE)
 AGCLST  =                      / (TDOUBLE)
 ### ALFA SHMEM SCRAM fields ###
 ALFSTIME=                      / unix time of this ALFA SHMEM data (TINT)
@@ -145,9 +119,9 @@ END
 ##################################################################
 # ETFITS Binary Table Header Block - 1 per beam/pol per integration
 ##################################################################
-
+#
 ### Mandatory ETFITS header fields ###
-
+#
 XTENSION= BINTABLE             / FITS binary table
 BITPIX  =                    8 / Binary data
 NAXIS   =                    2 / 2-dimensional binary table
