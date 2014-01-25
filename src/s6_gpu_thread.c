@@ -43,12 +43,8 @@ static void *run(hashpipe_thread_args_t * args, int doCPU)
     hputi4(st.buf, "GPUDEV", gpu_dev);
     hashpipe_status_unlock_safe(&st);
 
-    /* Loop */
     int rv;
-    //char integ_status[17];
     uint64_t start_mcount, last_mcount=0;
-    //uint64_t gpu_dumps=0;
-    //int int_count; // Number of blocks to integrate per dump
     int s6gpu_error = 0;
     int curblock_in=0;
     int curblock_out=0;
@@ -58,7 +54,6 @@ static void *run(hashpipe_thread_args_t * args, int doCPU)
     uint64_t gpu_block_count = 0;
 
     // init s6gpu
-    //xgpu_error = xgpuInit(&context, gpu_dev);     // jeffc
     device_vectors_t dv;
     s6_gpu_error = init_device_vectors(NELEMENT, dv);
     if (S6GPU_OK != s6gpu_error) {
@@ -68,9 +63,6 @@ static void *run(hashpipe_thread_args_t * args, int doCPU)
 
     while (run_threads()) {
 
-        // Note waiting status,
-        // query integrating status
-        // and, if armed, start count
         hashpipe_status_lock_safe(&st);
         hputs(st.buf, status_key, "waiting");
         hashpipe_status_unlock_safe(&st);
@@ -120,8 +112,6 @@ static void *run(hashpipe_thread_args_t * args, int doCPU)
 
         for(beam_i = 0; beam_i < NUM_BEAMS; beam_i++) {
             // spectroscopy() writes directly to the output buffer.
-            // I think we need a way of distinguishing, in the output,
-            // beams and pols within beams.
             nhits = spectroscopy(NTIME, NCHAN, POWER_THRESH, SMOOTH_SCALE, MAX_HITS, 
                                  h_raw_timeseries, db_out->block[curblock_out].data, dv);
 

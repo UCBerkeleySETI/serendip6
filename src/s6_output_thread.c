@@ -50,7 +50,7 @@ static void *run(hashpipe_thread_args_t * args)
 
     /* Main loop */
     int i, rv, debug=20;
-    int block_idx[2] = {0, 1};
+    int block_idx;
     int error_count, max_error_count = 0;
     //float *gpu_data, *cpu_data;     // jeffc
     float error, max_error = 0.0;
@@ -65,7 +65,7 @@ static void *run(hashpipe_thread_args_t * args)
        }
 
        // get new data
-       while ((rv=s6_output_databuf_wait_filled(db, block_idx[i]))
+       while ((rv=s6_output_databuf_wait_filled(db, block_idx))
                 != HASHPIPE_OK) {
             if (rv==HASHPIPE_TIMEOUT) {
                 hashpipe_status_lock_safe(&st);
@@ -82,14 +82,14 @@ static void *run(hashpipe_thread_args_t * args)
         // check mcnt
 
         // write hits to etFITS file
-        rv = write_hits_to_etfits(s6_output_databuf_t *db, struct etfits * etf_p);
+        rv = write_etfits(s6_output_databuf_t *db, block_idx, etfits * etf_p);
 
         // write coarse spectra to etFITS file - deferred
 
         // Note processing status, current input block
         hashpipe_status_lock_safe(&st);
         hputs(st.buf, status_key, "processing");
-        hputi4(st.buf, "CGOBLKIN", block_idx[0]);
+        hputi4(st.buf, "CGOBLKIN", block_idx);
         hashpipe_status_unlock_safe(&st);
 
         // Update status values
@@ -101,13 +101,11 @@ static void *run(hashpipe_thread_args_t * args)
 
         // Mark blocks as free
         for(i=0; i<2; i++) {
-            paper_output_databuf_set_free(db, block_idx[i]);
+            paper_output_databuf_set_free(db, block_idx);
         }
 
         // Setup for next block
-        for(i=0; i<2; i++) {
-            block_idx[i] = (block_idx[i] + 2) % db->header.n_block;
-        }
+        block_idx = (block_idx + 1) % db->header.n_block;    
 
         if(....) {
             etfits_close(...);
