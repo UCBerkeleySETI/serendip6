@@ -102,7 +102,7 @@ ALFBIAS2=                      / AlfaSecondBias bitmap  (TINT)
 ALFMOPOS=                      / AlfaMotorPosition      (TDOUBLE)
 ### IF1 SCRAM fields ###
 IF1STIME=                      / unix time of this IF1 data  (TINT)
-IF1SYNHZ=                      / synI_freqHz_0          (TDOUBLE)
+IF1SYNHZ=                      / synI_freqHz_0 (LO, right?)          (TDOUBLE)
 IF1SYNDB=                      / synI_ampDB_0           (TINT)
 IF1RFFRQ=                      / rfFreq                 (TDOUBLE)
 IF1IFFRQ=                      / if1FrqMhz              (TDOUBLE)

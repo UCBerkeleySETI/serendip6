@@ -168,6 +168,7 @@ int write_hits_to_etfits(struct etfits * etf_p) {      // use typedef for etfits
     firstelem = 1;
 
     // write primary header
+    // TODO
 
     // for each input
         // write hits header
@@ -283,319 +284,88 @@ int get_obs_info_from_redis(scram_t &scram, coordcof_t &coordcof, char *hostname
     }
 
     reply = (redisReply *)redisCommand(c, "HMGET SCRAM:PNT        PNTSTIME PNTRA PNTDEC PNTMJD");
-    if ( reply->type == REDIS_REPLY_ERROR )
-        printf( "Error: %s\n", reply->str );
-    else if ( reply->type != REDIS_REPLY_ARRAY )
-        printf( "Unexpected type: %d\n", reply->type );
+    if (reply->type == REDIS_REPLY_ERROR)               // TODO error checking does not seem to work
+        printf("Error: %s\n", reply->str);              //      check for correct # elements
+    else if (reply->type != REDIS_REPLY_ARRAY)          //      move error check to function
+        printf("Unexpected type: %d\n", reply->type);
     else {
-    scram.PNTSTIME  = atoi(reply->element[0]->str);
-    scram.PNTRA     = atof(reply->element[1]->str);
-    scram.PNTDEC    = atof(reply->element[2]->str);
-    scram.PNTMJD    = atof(reply->element[3]->str);
+        scram.PNTSTIME  = atoi(reply->element[0]->str);
+        scram.PNTRA     = atof(reply->element[1]->str);
+        scram.PNTDEC    = atof(reply->element[2]->str);
+        scram.PNTMJD    = atof(reply->element[3]->str);
     }
     freeReplyObject(reply);
-    printf("GET SCRAM:PNTSTIME %d\n", scram.PNTSTIME);
-    printf("GET SCRAM:PNTRA %lf\n", scram.PNTRA);   
-    printf("GET SCRAM:PNTDEC %lf\n", scram.PNTDEC);  
-    printf("GET SCRAM:PNTMJD %lf\n", scram.PNTMJD);  
+    //printf("GET SCRAM:PNTSTIME %d\n", scram.PNTSTIME);
+    //printf("GET SCRAM:PNTRA %lf\n", scram.PNTRA);   
+    //printf("GET SCRAM:PNTDEC %lf\n", scram.PNTDEC);  
+    //printf("GET SCRAM:PNTMJD %lf\n", scram.PNTMJD);  
 
-#if 0
-
-    reply = redisCommand(c,"GET SCRAM:AGCSTIME");
-    scram.AGCSTIME = atoi(reply->str);
-    printf("GET SCRAM:AGCSTIME %s %d\n", reply->str, scram.AGCSTIME);
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET SCRAM:AGCTIME"); 
-    scram.AGCTIME = atoi(reply->str);
-    printf("GET SCRAM:AGCTIME %s %d\n", reply->str, scram.AGCTIME); 
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET SCRAM:AGCAZ");   
-    scram.AGCAZ = atof(reply->str);
-    printf("GET SCRAM:AGCAZ %s %lf\n", reply->str, scram.AGCAZ);   
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET SCRAM:AGCZA");   
-    scram.AGCZA = atof(reply->str);
-    printf("GET SCRAM:AGCZA %s %lf\n", reply->str, scram.AGCZA);   
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET SCRAM:AGCLST");  
-    scram.AGCLST = atof(reply->str);
-    printf("GET SCRAM:AGCLST %s %lf\n", reply->str, scram.AGCLST);  
-    //freeReplyObject(reply);
-
-
-    reply = redisCommand(c,"GET SCRAM:ALFSTIME");
-    scram.ALFSTIME = atoi(reply->str);
-    printf("GET SCRAM:ALFSTIME %s %d\n", reply->str, scram.ALFSTIME);
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET SCRAM:ALFBIAS1");
-    scram.ALFBIAS1 = atoi(reply->str);
-    printf("GET SCRAM:ALFBIAS1 %s %d\n", reply->str, scram.ALFBIAS1);
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET SCRAM:ALFBIAS2");
-    scram.ALFBIAS2 = atoi(reply->str);
-    printf("GET SCRAM:ALFBIAS2 %s %d\n", reply->str, scram.ALFBIAS2);
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET SCRAM:ALFMOPOS");
-    scram.ALFMOPOS = atof(reply->str);
-    printf("GET SCRAM:ALFMOPOS %s %lf\n", reply->str, scram.ALFMOPOS);
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET SCRAM:IF1STIME");
-    scram.IF1STIME = atoi(reply->str);
-    printf("GET SCRAM:IF1STIME %s %d\n", reply->str, scram.IF1STIME);
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET SCRAM:IF1SYNHZ");
-    scram.IF1SYNHZ = atof(reply->str);
-    printf("GET SCRAM:IF1SYNHZ %s %lf\n", reply->str, scram.IF1SYNHZ);
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET SCRAM:IF1SYNDB");
-    scram.IF1SYNDB = atoi(reply->str);
-    printf("GET SCRAM:IF1SYNDB %s %d\n", reply->str, scram.IF1SYNDB);
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET SCRAM:IF1RFFRQ");
-    scram.IF1RFFRQ = atof(reply->str);
-    printf("GET SCRAM:IF1IFFRQ %s %lf\n", reply->str, scram.IF1RFFRQ);
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET SCRAM:IF1ALFFB");
-    scram.IF1ALFFB = atoi(reply->str);
-    printf("GET SCRAM:IF1ALFFB %s %d\n", reply->str, scram.IF1ALFFB);
-    //freeReplyObject(reply);
-
-
-    reply = redisCommand(c,"GET SCRAM:IF2STIME");
-    scram.IF2STIME = atoi(reply->str);
-    printf("GET SCRAM:IF2STIME %s %d\n", reply->str, scram.IF2STIME);
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET SCRAM:IF2ALFON");
-    scram.IF2ALFON = atoi(reply->str);
-    printf("GET SCRAM:IF2ALFON %s %d\n", reply->str, scram.IF2ALFON);
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET SCRAM:TTSTIME"); 
-    scram.TTSTIME = atoi(reply->str);
-    printf("GET SCRAM:TTSTIME  %s %d\n", reply->str, scram.TTSTIME);
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET SCRAM:TTTURENC");
-    scram.TTTURENC = atoi(reply->str);
-    printf("GET SCRAM:TTTURENC %s %d\n", reply->str, scram.TTTURENC);
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET SCRAM:TTTURDEG");
-    scram.TTTURDEG = atof(reply->str);
-    printf("GET SCRAM:TTTURDEG %s %lf\n", reply->str, scram.TTTURDEG);
-    //freeReplyObject(reply);
-
-
-    reply = redisCommand(c,"GET ZCORCOF00");
-    coordcof.ZCORCOF00 = atof(reply->str);
-    printf("GET ZCORCOF00 %s %lf\n", reply->str, coordcof.ZCORCOF00);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZCORCOF01");
-    coordcof.ZCORCOF01 = atof(reply->str);
-    printf("GET ZCORCOF01 %s %lf\n", reply->str, coordcof.ZCORCOF01);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZCORCOF02");
-    coordcof.ZCORCOF02 = atof(reply->str);
-    printf("GET ZCORCOF02 %s %lf\n", reply->str, coordcof.ZCORCOF02);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZCORCOF03");
-    coordcof.ZCORCOF03 = atof(reply->str);
-    printf("GET ZCORCOF03 %s %lf\n", reply->str, coordcof.ZCORCOF03);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZCORCOF04");
-    coordcof.ZCORCOF04 = atof(reply->str);
-    printf("GET ZCORCOF04 %s %lf\n", reply->str, coordcof.ZCORCOF04);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZCORCOF05");
-    coordcof.ZCORCOF05 = atof(reply->str);
-    printf("GET ZCORCOF05 %s %lf\n", reply->str, coordcof.ZCORCOF05);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZCORCOF06");
-    coordcof.ZCORCOF06 = atof(reply->str);
-    printf("GET ZCORCOF06 %s %lf\n", reply->str, coordcof.ZCORCOF06);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZCORCOF07");
-    coordcof.ZCORCOF07 = atof(reply->str);
-    printf("GET ZCORCOF07 %s %lf\n", reply->str, coordcof.ZCORCOF07);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZCORCOF08");
-    coordcof.ZCORCOF08 = atof(reply->str);
-    printf("GET ZCORCOF08 %s %lf\n", reply->str, coordcof.ZCORCOF08);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZCORCOF09");
-    coordcof.ZCORCOF09 = atof(reply->str);
-    printf("GET ZCORCOF09 %s %lf\n", reply->str, coordcof.ZCORCOF09);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZCORCOF10");
-    coordcof.ZCORCOF10 = atof(reply->str);
-    printf("GET ZCORCOF10 %s %lf\n", reply->str, coordcof.ZCORCOF10);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZCORCOF11");
-    coordcof.ZCORCOF11 = atof(reply->str);
-    printf("GET ZCORCOF11 %s %lf\n", reply->str, coordcof.ZCORCOF11);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZCORCOF12");
-    coordcof.ZCORCOF12 = atof(reply->str);
-    printf("GET ZCORCOF12 %s %lf\n", reply->str, coordcof.ZCORCOF12);
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET ACORCOF00");
-    coordcof.ACORCOF00 = atof(reply->str);
-    printf("GET ACORCOF00 %s %lf\n", reply->str, coordcof.ACORCOF00);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ACORCOF01");
-    coordcof.ACORCOF01 = atof(reply->str);
-    printf("GET ACORCOF01 %s %lf\n", reply->str, coordcof.ACORCOF01);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ACORCOF02");
-    coordcof.ACORCOF02 = atof(reply->str);
-    printf("GET ACORCOF02 %s %lf\n", reply->str, coordcof.ACORCOF02);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ACORCOF03");
-    coordcof.ACORCOF03 = atof(reply->str);
-    printf("GET ACORCOF03 %s %lf\n", reply->str, coordcof.ACORCOF03);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ACORCOF04");
-    coordcof.ACORCOF04 = atof(reply->str);
-    printf("GET ACORCOF04 %s %lf\n", reply->str, coordcof.ACORCOF04);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ACORCOF05");
-    coordcof.ACORCOF05 = atof(reply->str);
-    printf("GET ACORCOF05 %s %lf\n", reply->str, coordcof.ACORCOF05);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ACORCOF06");
-    coordcof.ACORCOF06 = atof(reply->str);
-    printf("GET ACORCOF06 %s %lf\n", reply->str, coordcof.ACORCOF06);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ACORCOF07");
-    coordcof.ACORCOF07 = atof(reply->str);
-    printf("GET ACORCOF07 %s %lf\n", reply->str, coordcof.ACORCOF07);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ACORCOF08");
-    coordcof.ACORCOF08 = atof(reply->str);
-    printf("GET ACORCOF08 %s %lf\n", reply->str, coordcof.ACORCOF08);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ACORCOF09");
-    coordcof.ACORCOF09 = atof(reply->str);
-    printf("GET ACORCOF09 %s %lf\n", reply->str, coordcof.ACORCOF09);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ACORCOF10");
-    coordcof.ACORCOF10 = atof(reply->str);
-    printf("GET ACORCOF10 %s %lf\n", reply->str, coordcof.ACORCOF10);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ACORCOF11");
-    coordcof.ACORCOF11 = atof(reply->str);
-    printf("GET ACORCOF11 %s %lf\n", reply->str, coordcof.ACORCOF11);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ACORCOF12");
-    coordcof.ACORCOF12 = atof(reply->str);
-    printf("GET ACORCOF12 %s %lf\n", reply->str, coordcof.ACORCOF12);
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET ZELLIPSE0");
-    coordcof.ZELLIPSE0 = atof(reply->str);
-    printf("GET ZELLIPSE0 %s %lf\n", reply->str, coordcof.ZELLIPSE0);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZELLIPSE1");
-    coordcof.ZELLIPSE1 = atof(reply->str);
-    printf("GET ZELLIPSE1 %s %lf\n", reply->str, coordcof.ZELLIPSE1);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZELLIPSE2");
-    coordcof.ZELLIPSE2 = atof(reply->str);
-    printf("GET ZELLIPSE2 %s %lf\n", reply->str, coordcof.ZELLIPSE2);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZELLIPSE3");
-    coordcof.ZELLIPSE3 = atof(reply->str);
-    printf("GET ZELLIPSE3 %s %lf\n", reply->str, coordcof.ZELLIPSE3);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZELLIPSE4");
-    coordcof.ZELLIPSE4 = atof(reply->str);
-    printf("GET ZELLIPSE4 %s %lf\n", reply->str, coordcof.ZELLIPSE4);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZELLIPSE5");
-    coordcof.ZELLIPSE5 = atof(reply->str);
-    printf("GET ZELLIPSE5 %s %lf\n", reply->str, coordcof.ZELLIPSE5);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ZELLIPSE6");
-    coordcof.ZELLIPSE6 = atof(reply->str);
-    printf("GET ZELLIPSE6 %s %lf\n", reply->str, coordcof.ZELLIPSE6);
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET AELLIPSE0");
-    coordcof.AELLIPSE0 = atof(reply->str);
-    printf("GET AELLIPSE0 %s %lf\n", reply->str, coordcof.AELLIPSE0);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET AELLIPSE1");
-    coordcof.AELLIPSE1 = atof(reply->str);
-    printf("GET AELLIPSE1 %s %lf\n", reply->str, coordcof.AELLIPSE1);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET AELLIPSE2");
-    coordcof.AELLIPSE2 = atof(reply->str);
-    printf("GET AELLIPSE2 %s %lf\n", reply->str, coordcof.AELLIPSE2);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET AELLIPSE3");
-    coordcof.AELLIPSE3 = atof(reply->str);
-    printf("GET AELLIPSE3 %s %lf\n", reply->str, coordcof.AELLIPSE3);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET AELLIPSE4");
-    coordcof.AELLIPSE4 = atof(reply->str);
-    printf("GET AELLIPSE4 %s %lf\n", reply->str, coordcof.AELLIPSE4);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET AELLIPSE5");
-    coordcof.AELLIPSE5 = atof(reply->str);
-    printf("GET AELLIPSE5 %s %lf\n", reply->str, coordcof.AELLIPSE5);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET AELLIPSE6");
-    coordcof.AELLIPSE6 = atof(reply->str);
-    printf("GET AELLIPSE6 %s %lf\n", reply->str, coordcof.AELLIPSE6);
-    //freeReplyObject(reply);
-
-    reply = redisCommand(c,"GET ARRANGLE0");
-    coordcof.ARRANGLE0 = atof(reply->str);
-    printf("GET ARRANGLE0 %s %lf\n", reply->str, coordcof.ARRANGLE0);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ARRANGLE1");
-    coordcof.ARRANGLE1 = atof(reply->str);
-    printf("GET ARRANGLE1 %s %lf\n", reply->str, coordcof.ARRANGLE1);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ARRANGLE2");
-    coordcof.ARRANGLE2 = atof(reply->str);
-    printf("GET ARRANGLE2 %s %lf\n", reply->str, coordcof.ARRANGLE2);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ARRANGLE3");
-    coordcof.ARRANGLE3 = atof(reply->str);
-    printf("GET ARRANGLE3 %s %lf\n", reply->str, coordcof.ARRANGLE3);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ARRANGLE4");
-    coordcof.ARRANGLE4 = atof(reply->str);
-    printf("GET ARRANGLE4 %s %lf\n", reply->str, coordcof.ARRANGLE4);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ARRANGLE5");
-    coordcof.ARRANGLE5 = atof(reply->str);
-    printf("GET ARRANGLE5 %s %lf\n", reply->str, coordcof.ARRANGLE5);
-    //freeReplyObject(reply);
-    reply = redisCommand(c,"GET ARRANGLE6");
-    coordcof.ARRANGLE6 = atof(reply->str);
-    printf("GET ARRANGLE6 %s %lf\n", reply->str, coordcof.ARRANGLE6);
-
+    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:AGC       AGCSTIME AGCTIME AGCAZ AGCZA AGCLST");
+    if (reply->type == REDIS_REPLY_ERROR)
+        printf( "Error: %s\n", reply->str);
+    else if (reply->type != REDIS_REPLY_ARRAY )
+        printf("Unexpected type: %d\n", reply->type);
+    else {
+        scram.AGCSTIME  = atoi(reply->element[0]->str);
+        scram.AGCTIME   = atoi(reply->element[1]->str);
+        scram.AGCAZ     = atof(reply->element[2]->str);
+        scram.AGCZA     = atof(reply->element[3]->str);
+        scram.AGCLST    = atof(reply->element[4]->str);
+    }
     freeReplyObject(reply);
 
-    /* Disconnects and frees the context */
-    redisFree(c);
+    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:ALFASHM       ALFSTIME ALFBIAS1 ALFBIAS2 ALFMOPOS");
+    if (reply->type == REDIS_REPLY_ERROR)
+        printf( "Error: %s\n", reply->str);
+    else if (reply->type != REDIS_REPLY_ARRAY )
+        printf("Unexpected type: %d\n", reply->type);
+    else {
+        scram.ALFSTIME  = atoi(reply->element[0]->str);
+        scram.ALFBIAS1  = atoi(reply->element[1]->str);
+        scram.ALFBIAS2  = atoi(reply->element[2]->str);
+        scram.ALFMOPOS  = atof(reply->element[3]->str);
+    }
+    freeReplyObject(reply);
 
-#endif
-    return 0;
+    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:IF1      IF1STIME IF1SYNHZ IF1SYNDB IF1RFFRQ IF1IFFRQ IF1ALFFB");
+    if (reply->type == REDIS_REPLY_ERROR)
+        printf( "Error: %s\n", reply->str);
+    else if (reply->type != REDIS_REPLY_ARRAY )
+        printf("Unexpected type: %d\n", reply->type);
+    else {
+        scram.IF1STIME  = atoi(reply->element[0]->str);
+        scram.IF1SYNHZ  = atof(reply->element[1]->str);
+        scram.IF1SYNDB  = atoi(reply->element[2]->str);
+        scram.IF1RFFRQ  = atof(reply->element[3]->str);
+        scram.IF1IFFRQ  = atof(reply->element[4]->str);
+        scram.IF1ALFFB  = atoi(reply->element[5]->str);
+    }
+    freeReplyObject(reply);
+
+    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:IF2      IF2STIME IF2ALFON");
+    if (reply->type == REDIS_REPLY_ERROR)
+        printf( "Error: %s\n", reply->str);
+    else if (reply->type != REDIS_REPLY_ARRAY )
+        printf("Unexpected type: %d\n", reply->type);
+    else {
+        scram.IF2STIME  = atoi(reply->element[0]->str);
+        scram.IF2ALFON  = atoi(reply->element[1]->str);
+    }
+    freeReplyObject(reply);
+
+    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:TT      TTSTIME TTTURENC TTTURDEG");
+    if (reply->type == REDIS_REPLY_ERROR)
+        printf( "Error: %s\n", reply->str);
+    else if (reply->type != REDIS_REPLY_ARRAY )
+        printf("Unexpected type: %d\n", reply->type);
+    else {
+        scram.TTSTIME  = atoi(reply->element[0]->str);
+        scram.TTTURENC = atoi(reply->element[1]->str);
+        scram.TTTURDEG = atof(reply->element[2]->str);
+    }
+    freeReplyObject(reply);
+
+    redisFree(c);       // TODO do I really want to free each time?
+
+    return 0;           // TODO return something meaningful
 }
