@@ -83,16 +83,12 @@ int etfits_create(struct etfits *etf) {
 int etfits_write_hits(struct etfits *etf) {
     int row, *status, rv;
     int nchan, nivals, nsubband;
-    //etfits_header_t *hdr;
-    //etfits_data_columns_t *dcols;
     char* temp_str;
     double temp_dbl;
 
     scram_t scram;
     coordcof_t coordcof;
 
-    //hdr = &(etf->hdr);               // dereference the ptr to the header struct
-    //dcols = &(etf->data_columns);    // dereference the ptr to the subint struct
     status = &(etf->status);         // dereference the ptr to the CFITSIO status
 
     // Create the initial file or change to a new one if needed.
@@ -105,16 +101,18 @@ int etfits_write_hits(struct etfits *etf) {
         etfits_create(etf);
     }
 
-    // query redis for scram - in s6_write_etfits.c for now
-    //redis_get_scram(scram);
+    // get scram, etc data
     rv = get_obs_info_from_redis(scram, coordcof, (char *)"redishost", 6379);
 
     // write integration header - in s6_write_etfits.c for now
+    fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"AOSCRAM", 0, status);
+    fits_report_error(stderr, *status);
     rv = write_integration_header(etf, scram);
 
     // Go to the first/next ET HDU and populate the header 
-    //fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"ET", 0, status);
-    //write_header_to_etfits();
+    fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"ETHITS", 0, status);
+    fits_report_error(stderr, *status);
+    write_hits_header(etf);
 
     // write the hits themselves
     //write_hits_to_etfits(etf);
@@ -200,17 +198,10 @@ int write_primary_header() {
 
 }
 
-int write_header_to_etfits() {
-
-}
-
-
 int write_integration_header(struct etfits *etf, scram_t &scram) {
     
     int status=0;
 
-    fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"AOSCRAM", 0, &status);
-    fits_report_error(stderr, status);
 
     // observatory (scram) data 
     fits_update_key(etf->fptr, TINT,    "PNTSTIME",  &(scram.PNTSTIME), NULL, &status); 
@@ -250,33 +241,15 @@ int write_integration_header(struct etfits *etf, scram_t &scram) {
 }
 
 
-int write_hits_header() {
+int write_hits_header(struct etfits *etf) {
 
-#if 0
-    hashpipe_status_lock_safe(&st);
-    // get all status data
-    hashpipe_status_unlock_safe(&st);
+    int * status_p = &(etf->status);
 
-    // write header
-    // instrument data
-    fits_update_key(etf->fptr, TSTRING, "TELESCOP", hdr->telescope,    NULL, status);   // "Arecibo ALFA"
-    fits_update_key(etf->fptr, TDOUBLE, "BANDWID",  &(hdr->bandwidth), NULL, status);   
-    fits_update_key(etf->fptr, TSTRING, "DATE-OBS", hdr->date_obs,     NULL, status);
-    fits_update_key(etf->fptr, TDOUBLE, "TSYS",     &(hdr->tsys),      NULL, status);   // from scram?
-    fits_update_key(etf->fptr, TINT,    "NBEAM",    &(hdr->nbeam),     NULL, status);   // not needed
-    fits_update_key(etf->fptr, TINT,    "NPOL",     &(hdr->npol),      NULL, status);   // not needed   
-    fits_update_key(etf->fptr, TINT,    "CNCHAN",   &(hdr->nchan),     NULL, status);   // number of coarse channels
-    fits_update_key(etf->fptr, TDOUBLE, "CCHANBW",  &(hdr->chan_bw),   NULL, status);   // bandwidth of each coarse channel
-    fits_update_key(etf->fptr, TDOUBLE, "CCNTRFQ",  &(hdr->chan_bw),   NULL, status);   // center frequency of coarse channeliztion
-    fits_update_key(etf->fptr, TINT,    "FNCHAN",   &(hdr->nchan),     NULL, status);   // number of fine channels 
-    fits_update_key(etf->fptr, TDOUBLE, "FCHANBW",  &(hdr->chan_bw),   NULL, status);   // bandwidth of each fine channel
-    fits_update_key(etf->fptr, TINT,    "NSUBBAND", &(hdr->nsubband),  NULL, status);   // not needed
-
-    fits_update_key(etf->fptr, TDOUBLE, "CORCO001",  &location,    NULL, status);        // AZZA correction coeffecients 
-    fits_update_key(etf->fptr, TDOUBLE, "CORCO002",  &location,    NULL, status);        // ...
-
-    fits_update_key(etf->fptr, TDOUBLE, "BEAM1EPS",  &location,    NULL, status);        // ...
-#endif
+    fits_update_key(etf->fptr, TINT,    "TIME",    &(etf->hits_hdr.time),    NULL, status_p);   
+    fits_update_key(etf->fptr, TDOUBLE, "RA",      &(etf->hits_hdr.ra),      NULL, status_p);   
+    fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr.dec),     NULL, status_p);   
+    fits_update_key(etf->fptr, TINT,    "BEAMPOL", &(etf->hits_hdr.beampol), NULL, status_p);   
+    fits_report_error(stderr, *status_p);
 }
 
 int etfits_close(struct etfits *etf) {

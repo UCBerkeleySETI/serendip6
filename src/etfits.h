@@ -19,6 +19,11 @@ typedef struct {
 } etfits_integration_header_t;
     
 typedef struct {
+    time_t time;
+    double ra;
+    double dec;
+    int    beampol;
+    
 
 } etfits_hits_header_t;
 
@@ -55,6 +60,7 @@ struct etfits
 int etfits_create(struct etfits *etf);
 int etfits_close(struct etfits *etf);
 int etftits_write_subint(struct etfits *etf);
+int write_hits_header(struct etfits *etf);
 
 //=========================================================================
 
