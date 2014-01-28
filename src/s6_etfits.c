@@ -12,7 +12,7 @@
 #define DEBUGOUT 0
 
 //----------------------------------------------------------
-int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
+int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhits) {
 //----------------------------------------------------------
     int row, rv;
     int nchan, nivals, nsubband;
@@ -31,6 +31,13 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
             fits_close_file(etf->fptr, status_p);
         }
         etfits_create(etf);
+        if(*status_p) {
+            fprintf(stderr, "Error creating/initializing new etfits file.\n");
+            fits_report_error(stderr, *status_p);
+            exit(1);
+        }    
+
+        
     }
 
     // write primary header
@@ -39,13 +46,12 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
     // get scram, etc data
     rv = get_obs_info_from_redis(scram, (char *)"redishost", 6379);
 
-    // write integration header - in s6_write_etfits.c for now
-    fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"AOSCRAM", 0, status_p);
-    fits_report_error(stderr, *status_p);
+    // integration header
     rv = write_integration_header(etf, scram);
 
     // write the hits and their headers
-    write_hits(db, block_idx, etf);
+    write_hits(db, block_idx, etf, nhits);
+    fits_report_error(stderr, *status_p);
 
     // Now update some key values if no CFITSIO errors
 #if 0
@@ -158,7 +164,20 @@ int write_integration_header(etfits_t * etf, scram_t &scram) {
     
     int status=0;
     int * status_p = &(etf->status);
+    static int first_time=1;
 
+fprintf(stderr, "writing integration header\n");
+    if(first_time) {
+        // go to the template created HDU
+        fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"AOSCRAM", 0, status_p);
+        first_time = 0;
+    } else {
+        // create new HDU
+        fits_create_tbl(etf->fptr, BINARY_TBL, 0, 0, NULL, NULL, NULL, (char *)"AOSCRAM", status_p);
+    }
+    fits_report_error(stderr, *status_p);
+
+    fits_update_key(etf->fptr, TSTRING,  "EXTNAME", (char *)"AOSCRAM", NULL, status_p); 
     // observatory (scram) data 
     fits_update_key(etf->fptr, TINT,    "PNTSTIME",  &(scram.PNTSTIME), NULL, status_p); 
     fits_update_key(etf->fptr, TDOUBLE, "PNTRA",     &(scram.PNTRA),    NULL, status_p);      
@@ -194,6 +213,8 @@ int write_integration_header(etfits_t * etf, scram_t &scram) {
 #endif
 
     fits_report_error(stderr, *status_p);
+
+    return *status_p;
 }
 
 //----------------------------------------------------------
@@ -201,8 +222,23 @@ int write_hits_header(etfits_t * etf) {
 //----------------------------------------------------------
 // TODO have to know what input (beam/pol) this is
 
+#define TFIELDS 3
     int * status_p = &(etf->status);
+    static int first_time=1;
 
+    int tbltype                = BINARY_TBL;
+    long long naxis2           = 0;
+    //const int tfields          = 3;
+    const char *ttype[TFIELDS] = {"det_pow", "mean_pow", "chan"};
+    const char *tform[TFIELDS] = {"E",      "E",       "J"};     // cfitsio datatype codes 
+    if(first_time) {
+        // go to the template created HDU
+        fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"ETHITS", 0, status_p);
+        first_time = 0;
+    } else {
+        // create new HDU
+        fits_create_tbl(etf->fptr, BINARY_TBL, 0, TFIELDS, (char **)&ttype, (char **)&tform, NULL, (char *)"ETHITS", status_p);
+    }
     fits_update_key(etf->fptr, TINT,    "TIME",    &(etf->hits_hdr.time),    NULL, status_p);   // TODO get these values   
     fits_update_key(etf->fptr, TDOUBLE, "RA",      &(etf->hits_hdr.ra),      NULL, status_p);   
     fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr.dec),     NULL, status_p);   
@@ -211,38 +247,32 @@ int write_hits_header(etfits_t * etf) {
 }
 
 //----------------------------------------------------------
-int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {      
+int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhits) {      
 //----------------------------------------------------------
-#define TFIELDS 3
+
     long nrows, firstrow, firstelem, nelements, colnum;
-    int hit_i, nhits, nhits_this_input, cur_input;  // TODO should these be longs or unsigned?
+    int hit_i, nhits_this_input, cur_input;  // TODO should these be longs or unsigned?
     static int first_time=1;
 
     int * status_p = &(etf->status);
 
-    std::vector<hits_t> hits;
-
-    int tbltype                = BINARY_TBL;
-    long long naxis2           = 0;
-    //const int tfields          = 3;
-    const char *ttype[TFIELDS] = {"det_pow", "mean_pow", "chan"};
-    const char *tform[TFIELDS] = {"E",      "E",       "J"};     // cfitsio datatype codes 
+fprintf(stderr, "writing hits\n");
+    //std::vector<hits_t> hits;
 
     std::vector<float> det_pow;
     std::vector<float> mean_pow;
     std::vector<int>   chan;
-    float* det_pow_p  = &det_pow[0];
-    float* mean_pow_p = &mean_pow[0];
-    int* chan_p       = &chan[0];
+    float* det_pow_p;
+    float* mean_pow_p;
+    int* chan_p;
     // TODO need both fine and coarse chans
-
-    nhits = sizeof(db->block[block_idx].hits);
 
     firstrow  = 1;
     firstelem = 1;
 
     hit_i = 0;              
     while(hit_i < nhits) {
+fprintf(stderr, "hit_i %d nhits %d\n", hit_i, nhits);
         // init for first / next input
         det_pow.clear();
         mean_pow.clear();
@@ -251,19 +281,25 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
         cur_input = db->block[block_idx].hits[hit_i].input;
 
         // Go to the first/next ET HDU and populate the header 
-        fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"ETHITS", 0, status_p);
-        fits_report_error(stderr, *status_p);
         write_hits_header(etf);
 
         // separate the data columns for this input
-        while(db->block[block_idx].hits[hit_i].input == cur_input) {
-            det_pow.push_back(hits[hit_i].power);
-            mean_pow.push_back(hits[hit_i].baseline);
-            chan.push_back(hits[hit_i].chan);
+        while(db->block[block_idx].hits[hit_i].input == cur_input && hit_i < nhits) {
+            //det_pow.push_back(hits[hit_i].power);
+            det_pow.push_back(db->block[block_idx].hits[hit_i].power);
+            //mean_pow.push_back(hits[hit_i].baseline);
+            mean_pow.push_back(db->block[block_idx].hits[hit_i].baseline);
+            //chan.push_back(hits[hit_i].chan);
+            chan.push_back(db->block[block_idx].hits[hit_i].chan);
             nhits_this_input++;
             hit_i++;
         }
         // hit_i should now reference next input or one past all inputs
+fprintf(stderr, "det_pow.size %ld nhits_this_input %d\n", det_pow.size(), nhits_this_input);
+
+    det_pow_p    = &det_pow[0];
+    mean_pow_p   = &mean_pow[0];
+    chan_p       = &chan[0];
 
         // write the hits for this input
         colnum    = 1;
