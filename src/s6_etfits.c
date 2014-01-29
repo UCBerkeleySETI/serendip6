@@ -222,15 +222,15 @@ int write_hits_header(etfits_t * etf) {
 //----------------------------------------------------------
 // TODO have to know what input (beam/pol) this is
 
-#define TFIELDS 3
+#define TFIELDS 4
     int * status_p = &(etf->status);
     static int first_time=1;
 
     int tbltype                = BINARY_TBL;
     long long naxis2           = 0;
     //const int tfields          = 3;
-    const char *ttype[TFIELDS] = {"det_pow", "mean_pow", "chan"};
-    const char *tform[TFIELDS] = {"E",      "E",       "J"};     // cfitsio datatype codes 
+    const char *ttype[TFIELDS] = {"det_pow", "mean_pow", "finechan", "coarchan"};
+    const char *tform[TFIELDS] = {"E",       "E",        "J",        "I"};     // cfitsio datatype codes 
     if(first_time) {
         // go to the template created HDU
         fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"ETHITS", 0, status_p);
@@ -281,15 +281,13 @@ fprintf(stderr, "hit_i %d nhits %d\n", hit_i, nhits);
         cur_input = db->block[block_idx].hits[hit_i].input;
 
         // Go to the first/next ET HDU and populate the header 
+fprintf(stderr, "writing header for input %d\n", cur_input);
         write_hits_header(etf);
 
         // separate the data columns for this input
         while(db->block[block_idx].hits[hit_i].input == cur_input && hit_i < nhits) {
-            //det_pow.push_back(hits[hit_i].power);
             det_pow.push_back(db->block[block_idx].hits[hit_i].power);
-            //mean_pow.push_back(hits[hit_i].baseline);
             mean_pow.push_back(db->block[block_idx].hits[hit_i].baseline);
-            //chan.push_back(hits[hit_i].chan);
             chan.push_back(db->block[block_idx].hits[hit_i].chan);
             nhits_this_input++;
             hit_i++;
@@ -297,18 +295,17 @@ fprintf(stderr, "hit_i %d nhits %d\n", hit_i, nhits);
         // hit_i should now reference next input or one past all inputs
 fprintf(stderr, "det_pow.size %ld nhits_this_input %d\n", det_pow.size(), nhits_this_input);
 
-    det_pow_p    = &det_pow[0];
-    mean_pow_p   = &mean_pow[0];
-    chan_p       = &chan[0];
-
         // write the hits for this input
-        colnum    = 1;
+        det_pow_p   = &det_pow[0];
+        mean_pow_p  = &mean_pow[0];
+        chan_p      = &chan[0];
+        colnum      = 1;
         fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, det_pow_p, status_p);
         fits_report_error(stderr, *status_p);
-        colnum    = 2;
+        colnum      = 2;
         fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, mean_pow_p, status_p);
         fits_report_error(stderr, *status_p);
-        colnum    = 3;
+        colnum      = 3;
         fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, chan_p, status_p);
         fits_report_error(stderr, *status_p);
     }  // end while hit_i < nhits
@@ -370,7 +367,6 @@ int get_obs_info_from_redis(scram_t &scram,
     }
     freeReplyObject(reply);
 
-#if 0
     reply = (redisReply *)redisCommand(c, "HMGET SCRAM:ALFASHM       ALFSTIME ALFBIAS1 ALFBIAS2 ALFMOPOS");
     if (reply->type == REDIS_REPLY_ERROR)
         printf( "Error: %s\n", reply->str);
@@ -421,7 +417,6 @@ int get_obs_info_from_redis(scram_t &scram,
         scram.TTTURDEG = atof(reply->element[2]->str);
     }
     freeReplyObject(reply);
-#endif
 
     // TODO get the obs_enabled bool
 
