@@ -1,0 +1,21 @@
+CC          = g++
+CCFLAGS     = -g -fpermissive -fPIC -shared \
+              -I../../s6GPU/src/ -I/usr/local/cuda/include -I../../hiredis/ \
+              -L../../s6GPU/src/ \
+              -lhashpipe -lS6GPU -lrt -lhiredis -lcfitsio 
+
+LIBTARGET   =   serendip6.so
+LIBSOURCES  =   s6_databuf.c \
+				s6_fake_net_thread.c \
+                s6_gpu_thread.c \
+                s6_output_thread.c \
+                s6_etfits.c
+
+LIB_INCLUDES  = s6_etfits.h \
+                s6_databuf.h
+
+all: $(LIBTARGET) 
+
+$(LIBTARGET): $(LIBSOURCES) $(LIB_INCLUDES) ; $(CC) -o $(LIBTARGET) $(LIBSOURCES) $(CCFLAGS)
+
+clean: ; rm $(LIBTARGET) 
