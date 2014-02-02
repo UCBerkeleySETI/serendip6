@@ -15,8 +15,10 @@
 
 #include <s6GPU.h>
 
+extern "C" {
 #include "hashpipe.h"
-#include "paper_databuf.h"
+}
+#include "s6_databuf.h"
 
 #define ELAPSED_NS(start,stop) \
   (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
@@ -24,7 +26,7 @@
 static void *run(hashpipe_thread_args_t * args, int doCPU)
 {
     // Local aliases to shorten access to args fields
-    s6_gpu_input_databuf_t *db_in = (s6_gpu_input_databuf_t *)args->ibuf;
+    s6_input_databuf_t *db_in = (s6_input_databuf_t *)args->ibuf;
     s6_output_databuf_t *db_out = (s6_output_databuf_t *)args->obuf;
     hashpipe_status_t st = args->st;
     const char * status_key = args->thread_desc->skey;
@@ -34,14 +36,15 @@ static void *run(hashpipe_thread_args_t * args, int doCPU)
 #endif
 
     // Init integration control status variables
-    int gpu_dev = 0;
-    hashpipe_status_lock_safe(&st);
-    hputs(st.buf,  "INTSTAT", "off");
-    hputi8(st.buf, "INTSYNC", 0);
-    hputi4(st.buf, "INTCOUNT", N_SUB_BLOCKS_PER_INPUT_BLOCK);
-    hgeti4(st.buf, "GPUDEV", &gpu_dev); // No change if not found
-    hputi4(st.buf, "GPUDEV", gpu_dev);
-    hashpipe_status_unlock_safe(&st);
+    // what of this do I need - how do I get the gpu dev?
+    //int gpu_dev = 0;
+    //hashpipe_status_lock_safe(&st);
+    //hputs(st.buf,  "INTSTAT", "off");
+    //hputi8(st.buf, "INTSYNC", 0);
+    //hputi4(st.buf, "INTCOUNT", N_SUB_BLOCKS_PER_INPUT_BLOCK);
+    //hgeti4(st.buf, "GPUDEV", &gpu_dev); // No change if not found
+    //hputi4(st.buf, "GPUDEV", gpu_dev);
+    //hashpipe_status_unlock_safe(&st);
 
     int rv;
     uint64_t start_mcount, last_mcount=0;
@@ -55,9 +58,9 @@ static void *run(hashpipe_thread_args_t * args, int doCPU)
 
     // init s6gpu
     device_vectors_t dv;
-    s6_gpu_error = init_device_vectors(NELEMENT, dv);
-    if (S6GPU_OK != s6gpu_error) {
-        fprintf(stderr, "ERROR: xGPU initialization failed (error code %d)\n", xgpu_error);
+    s6gpu_error = init_device_vectors(N_GPU_ELEMENTS, N_POLS_PER_BEAM, dv);
+    if (s6gpu_error) {
+        fprintf(stderr, "ERROR: xGPU initialization failed (error code %d)\n", s6gpu_error);
         return THREAD_ERROR;
     }
 
@@ -94,7 +97,7 @@ static void *run(hashpipe_thread_args_t * args, int doCPU)
 
         if(db_in->block[curblock_in].header.mcnt >= last_mcount) {
           // Wait for new output block to be free
-          while ((rv=paper_output_databuf_wait_free(db_out, curblock_out)) != HASHPIPE_OK) {
+          while ((rv=s6_output_databuf_wait_free(db_out, curblock_out)) != HASHPIPE_OK) {
               if (rv==HASHPIPE_TIMEOUT) {
                   hashpipe_status_lock_safe(&st);
                   hputs(st.buf, status_key, "blocked gpu out");
@@ -110,10 +113,18 @@ static void *run(hashpipe_thread_args_t * args, int doCPU)
 
         clock_gettime(CLOCK_MONOTONIC, &start);
 
-        for(beam_i = 0; beam_i < NUM_BEAMS; beam_i++) {
+        for(int beam_i = 0; beam_i < N_BEAMS; beam_i++) {
             // spectroscopy() writes directly to the output buffer.
-            nhits = spectroscopy(NTIME, NCHAN, POWER_THRESH, SMOOTH_SCALE, MAX_HITS, 
-                                 h_raw_timeseries, db_out->block[curblock_out].data, dv);
+            int nhits = spectroscopy(N_FINE_CHAN,
+                                     N_COARSE_CHAN,
+                                     N_POLS_PER_BEAM,
+                                     N_GPU_ELEMENTS*N_POLS_PER_BEAM,
+                                     MAXHITS,
+                                     POWER_THRESH,
+                                     SMOOTH_SCALE,
+                                     (char2 *)  &(db_in->block[curblock_in].data[beam_i*N_BYTES_PER_BEAM]), 
+                                     (hits_t *) &db_out->block[curblock_out].hits, 
+                                     dv); 
 
             clock_gettime(CLOCK_MONOTONIC, &stop);
             elapsed_gpu_ns += ELAPSED_NS(start, stop);
@@ -121,7 +132,7 @@ static void *run(hashpipe_thread_args_t * args, int doCPU)
         }
 
         // Mark output block as full and advance
-        paper_output_databuf_set_filled(db_out, curblock_out);
+        s6_output_databuf_set_filled(db_out, curblock_out);
         curblock_out = (curblock_out + 1) % db_out->header.n_block;
 
         // Mark input block as free and advance
@@ -147,26 +158,28 @@ static void *run_gpu_cpu(hashpipe_thread_args_t * args)
 }
 
 static hashpipe_thread_desc_t gpu_thread = {
-    name: "paper_gpu_thread",
+    name: "s6_gpu_thread",
     skey: "GPUSTAT",
     init: NULL,
     run:  run_gpu_only,
-    ibuf_desc: {paper_gpu_input_databuf_create},
-    obuf_desc: {paper_output_databuf_create}
+    ibuf_desc: {s6_input_databuf_create},
+    obuf_desc: {s6_output_databuf_create}
 };
 
+#if 0
 static hashpipe_thread_desc_t gpu_cpu_thread = {
-    name: "paper_gpu_cpu_thread",
+    name: "s6_gpu_cpu_thread",
     skey: "GPUSTAT",
     init: NULL,
     run:  run_gpu_cpu,
-    ibuf_desc: {paper_gpu_input_databuf_create},
-    obuf_desc: {paper_output_databuf_create}
+    ibuf_desc: {s6_input_databuf_create},
+    obuf_desc: {s6_output_databuf_create}
 };
+#endif
 
 static __attribute__((constructor)) void ctor()
 {
   register_hashpipe_thread(&gpu_thread);
-  register_hashpipe_thread(&gpu_cpu_thread);
+  //register_hashpipe_thread(&gpu_cpu_thread);
 }
 

@@ -6,15 +6,16 @@
 #include <time.h>
 #include <math.h>
 #include <pthread.h>
+#include <hiredis.h>
 
-#include <s6gpu.h>
+#include <s6GPU.h>
 
+extern "C" {
 #include "hashpipe.h"
-#include "paper_databuf.h"
+}
+#include "s6_databuf.h"
+#include "s6_etfits.h"
 
-#define TOL (1e-5)
-
-//static XGPUInfo xgpu_info;    // jeffc
 
 static int init(hashpipe_thread_args_t *args)
 {
@@ -30,23 +31,28 @@ static int init(hashpipe_thread_args_t *args)
     return 0;
 }
 
-#define zabs(x,i) hypot(x[i],x[i+1])
-
 static void *run(hashpipe_thread_args_t * args)
 {
     // Local aliases to shorten access to args fields
-    // Our input buffer happens to be a paper_ouput_databuf
+    // Our input buffer happens to be a s6_ouput_databuf
     s6_output_databuf_t *db = (s6_output_databuf_t *)args->ibuf;
     hashpipe_status_t st = args->st;
     const char * status_key = args->thread_desc->skey;
 
-    struct etfits etf;
+    // get thread args?
+
+    etfits_t etf;
 
     scram_t scram;
 
-    redisContext * redis_context;       // move to s6_write_etfits.c
+    //redisContext * redis_context;       // move to s6_write_etfits.c
 
-    redis_context = redis_init();       // move to s6_write_etfits.c
+    //redis_context = redis_init();       // move to s6_write_etfits.c
+
+    strcpy(etf.basefilename, "etfitstestfile");
+    etf.filenum=0;
+    etf.new_file=1;
+    int nhits;      // TODO how to populate this?
 
     /* Main loop */
     int i, rv, debug=20;
@@ -60,9 +66,10 @@ static void *run(hashpipe_thread_args_t * args)
         hputs(st.buf, status_key, "waiting");
         hashpipe_status_unlock_safe(&st);
 
-       if(!etf.fptr) {
-            etfits_create(...);     // will also init primary header
-       }
+       // not needed - done at first write in s6_etfits
+       //if(!etf.fptr) {
+       //     etfits_create(...);     // will also init primary header
+       //}
 
        // get new data
        while ((rv=s6_output_databuf_wait_filled(db, block_idx))
@@ -82,7 +89,8 @@ static void *run(hashpipe_thread_args_t * args)
         // check mcnt
 
         // write hits to etFITS file
-        rv = write_etfits(s6_output_databuf_t *db, block_idx, etfits * etf_p);
+        //rv = write_etfits(s6_output_databuf_t *db, block_idx, etfits * etf_p);
+        rv = write_etfits(db, block_idx, &etf, nhits);
 
         // write coarse spectra to etFITS file - deferred
 
@@ -101,15 +109,17 @@ static void *run(hashpipe_thread_args_t * args)
 
         // Mark blocks as free
         for(i=0; i<2; i++) {
-            paper_output_databuf_set_free(db, block_idx);
+            s6_output_databuf_set_free(db, block_idx);
         }
 
         // Setup for next block
         block_idx = (block_idx + 1) % db->header.n_block;    
 
+#if 0
         if(....) {
             etfits_close(...);
         }
+#endif
 
         /* Will exit if thread has been cancelled */
         pthread_testcancel();
@@ -119,30 +129,12 @@ static void *run(hashpipe_thread_args_t * args)
     return NULL;
 }
 
-#if 0
-int write_hits_to_etfits(s6_output_databuf_t *db, struct etfits * etf_p) {      // use typedef for etfits
-
-    s6_hits * hits;
-
-    hits = (s6_hits *)db;   // add any header offset
-
-    for(i=0; i<nhits; i++) {
-        etfits_write_hits();
-    }
-
-}
-
-int write_header_to_etfits() {
-
-}
-#endif
-
 static hashpipe_thread_desc_t gpu_cpu_output_thread = {
-    name: "paper_gpu_cpu_output_thread",
+    name: "s6_gpu_cpu_output_thread",
     skey: "CGOSTAT",
     init: init,
     run:  run,
-    ibuf_desc: {paper_output_databuf_create},
+    ibuf_desc: {s6_output_databuf_create},
     obuf_desc: {NULL}
 };
 

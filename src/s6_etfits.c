@@ -308,6 +308,7 @@ fprintf(stderr, "det_pow.size %ld nhits_this_input %d\n", det_pow.size(), nhits_
         colnum      = 3;
         fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, chan_p, status_p);
         fits_report_error(stderr, *status_p);
+        // TODO need coarse chan column
     }  // end while hit_i < nhits
 
     return *status_p;
