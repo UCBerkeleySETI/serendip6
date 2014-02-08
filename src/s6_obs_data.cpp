@@ -31,6 +31,8 @@ int get_obs_info_from_redis(scram_t *scram,
         exit(1);
     }
 
+    // TODO factor out all the redis error checking
+
     reply = (redisReply *)redisCommand(c, "HMGET SCRAM:PNT        PNTSTIME PNTRA PNTDEC PNTMJD");
     if (reply->type == REDIS_REPLY_ERROR)               // TODO error checking does not seem to work
         printf("Error: %s\n", reply->str);              //      check for correct # elements
@@ -112,6 +114,33 @@ int get_obs_info_from_redis(scram_t *scram,
         scram->TTTURDEG = atof(reply->element[2]->str);
     }
     freeReplyObject(reply);
+
+#if 0
+// waiting on fix to s6_observatory
+    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:DERIVED      DERTIME RA0 DEC0 RA1 DEC1 RA2 DEC2 RA3 DEC3 RA4 DEC4 RA5 DEC5 RA6 DEC6");
+    if (reply->type == REDIS_REPLY_ERROR)
+        printf( "Error: %s\n", reply->str);
+    else if (reply->type != REDIS_REPLY_ARRAY )
+        printf("Unexpected type: %d\n", reply->type);
+    else {
+        scram->DERTIME        = atoi(reply->element[0]->str);
+        scram->ra_by_beam[0]  = atof(reply->element[1]->str);
+        scram->dec_by_beam[0] = atof(reply->element[2]->str);
+        scram->ra_by_beam[1]  = atof(reply->element[3]->str);
+        scram->dec_by_beam[1] = atof(reply->element[4]->str);
+        scram->ra_by_beam[2]  = atof(reply->element[5]->str);
+        scram->dec_by_beam[2] = atof(reply->element[6]->str);
+        scram->ra_by_beam[3]  = atof(reply->element[7]->str);
+        scram->dec_by_beam[3] = atof(reply->element[8]->str);
+        scram->ra_by_beam[4]  = atof(reply->element[9]->str);
+        scram->dec_by_beam[4] = atof(reply->element[10]->str);
+        scram->ra_by_beam[5]  = atof(reply->element[11]->str);
+        scram->dec_by_beam[5] = atof(reply->element[12]->str);
+        scram->ra_by_beam[6]  = atof(reply->element[13]->str);
+        scram->dec_by_beam[6] = atof(reply->element[14]->str);
+    }
+    freeReplyObject(reply);
+#endif
 
     // TODO get the obs_enabled bool
 

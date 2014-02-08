@@ -54,41 +54,11 @@ typedef struct {
     etfits_hits_t               hits;
 } etfits_t;
 
-#if 0
-typedef struct {
-    int     PNTSTIME;
-    double  PNTRA;   
-    double  PNTDEC;  
-    double  PNTMJD;  
-    int     AGCSTIME;
-    int     AGCTIME; 
-    double  AGCAZ;   
-    double  AGCZA;   
-    double  AGCLST;  
-    int     ALFSTIME;
-    int     ALFBIAS1;
-    int     ALFBIAS2;
-    double  ALFMOPOS;
-    int     IF1STIME;
-    double  IF1SYNHZ;
-    int     IF1SYNDB;
-    double  IF1RFFRQ;
-    double  IF1IFFRQ;
-    int     IF1ALFFB;
-    int     IF2STIME;
-    int     IF2ALFON;
-    int     TTSTIME; 
-    int     TTTURENC;
-    double  TTTURDEG;
-} scram_t;
-#endif
-
 int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhits, scram_t *scram_p);
 int etfits_create(etfits_t *etf);
 int etfits_close(etfits_t *etf);
 int write_integration_header(etfits_t *etf, scram_t *scram);
 int write_hits_header(etfits_t *etf);
 int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhits);
-//int get_obs_info_from_redis(scram_t *scram, char *hostname, int port);
 
 #endif  // _ETFITS_H

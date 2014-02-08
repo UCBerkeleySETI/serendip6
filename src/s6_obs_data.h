@@ -26,6 +26,9 @@ typedef struct {
     int     TTSTIME; 
     int     TTTURENC;
     double  TTTURDEG;
+    int     DERTIME;
+    double  ra_by_beam[7];      // TODO should be N_BEAMS
+    double  dec_by_beam[7];
 } scram_t;
 
 int get_obs_info_from_redis(scram_t *scram, char *hostname, int port);

@@ -53,7 +53,7 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhit
 #if 1
     // Now update some key values if no CFITSIO errors
     if (!(*status_p)) {
-        etf->rownum   += nhits;
+        etf->rownum   += nhits;     // TODO do I need these?
         etf->tot_rows += nhits;
         etf->N += 1;
         //etf->T += dcols->exposure;
@@ -228,8 +228,8 @@ int write_hits_header(etfits_t * etf) {
     long long naxis2           = 0;
     //const int tfields          = 3;
     // TODO check chan types!
-    const char *ttype[TFIELDS] = {"det_pow", "mean_pow",  "coarchan", "finechan"};
-    const char *tform[TFIELDS] = {"E",       "E",        "I",        "J"};     // cfitsio datatype codes 
+    const char *ttype[TFIELDS] = {"DETPOW  ", "MEANPOW ",  "COARCHAN", "FINECHAN"};
+    const char *tform[TFIELDS] = {"1E",       "1E",        "1I",        "1J"};     // cfitsio datatype codes 
     if(first_time) {
         // go to the template created HDU
         fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"ETHITS", 0, status_p);
@@ -250,7 +250,7 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhits)
 //----------------------------------------------------------
 
     long nrows, firstrow, firstelem, nelements, colnum;
-    int hit_i, nhits_this_input, cur_input;  // TODO should these be longs or unsigned?
+    int hit_i, nhits_this_input, cur_beam, cur_input;  // TODO should these be longs or unsigned?
     static int first_time=1;
 
     int * status_p = &(etf->status);
@@ -279,10 +279,13 @@ fprintf(stderr, "hit_i %d nhits %d\n", hit_i, nhits);
         coarse_chan.clear();
         fine_chan.clear();
         nhits_this_input = 0;
-        cur_input = db->block[block_idx].hits[hit_i].input;
 
-        // Go to the first/next ET HDU and populate the header 
-fprintf(stderr, "writing header for input %d\n", cur_input);
+        // calculate hits header fields and populate the header 
+        cur_beam    = db->block[block_idx].hits[hit_i].beam;
+        cur_input   = db->block[block_idx].hits[hit_i].input;
+fprintf(stderr, "writing header for beam %d input %d beampol %d\n", cur_beam, cur_input, etf->hits_hdr.beampol);
+        etf->hits_hdr.beampol = cur_beam * N_POLS_PER_BEAM + cur_input;
+        // TODO populate missed packets
         write_hits_header(etf);
 
         // separate the data columns for this input
@@ -314,7 +317,6 @@ fprintf(stderr, "det_pow.size %ld nhits_this_input %d\n", det_pow.size(), nhits_
         colnum      = 4;
         fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, fine_chan_p, status_p);
         fits_report_error(stderr, *status_p);
-        // TODO need coarse chan column
     }  // end while hit_i < nhits
 
     return *status_p;

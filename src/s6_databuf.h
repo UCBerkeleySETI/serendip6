@@ -75,7 +75,7 @@ typedef uint8_t s6_output_header_cache_alignment[
 typedef struct s6_output_block {
   s6_output_block_header_t header;
   s6_output_header_cache_alignment padding; // Maintain cache alignment
-  hits_t hits[MAXHITS*2];
+  hits_t hits[MAXHITS*N_BEAMS*N_POLS_PER_BEAM];
 } s6_output_block_t;
 
 typedef struct s6_output_databuf {

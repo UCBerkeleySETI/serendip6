@@ -43,9 +43,8 @@ static void *run(hashpipe_thread_args_t * args)
         hashpipe_status_unlock_safe(&st);
         //hashpipe_status_unlock_safe(p_st);
  
+        // Wait for data - TODO - do I need to
 #if 0
-        // xgpuRandomComplex is super-slow so no need to sleep
-        // Wait for data
         //struct timespec sleep_dur, rem_sleep_dur;
         //sleep_dur.tv_sec = 0;
         //sleep_dur.tv_nsec = 0;

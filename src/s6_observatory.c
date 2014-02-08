@@ -209,27 +209,90 @@ int main(int argc, char ** argv) {
 
       else { // test mode
 
-        sprintf(strbuf,"SCRAM:PNT PNTSTIME %ld PNTRA 1.1 PNTDEC 2.2 PNTMJD 3.3 PNTAZCOR 4.4 PNTZACOR 5.5",time(NULL));
-        if (!nodb) { reply = redisCommand(c,"HMSET %s",strbuf); freeReplyObject(reply); }
+        fprintf(stderr, ".");  // indicate that we are running
+
+        sprintf(strbuf,"SCRAM:PNT PNTSTIME \"%ld\" PNTRA \"11.1\" PNTDEC \"2.2\" PNTMJD \"3.3\" PNTAZCOR \"4.4\" PNTZACOR \"5.5\"",time(NULL));
         if (dostdout) fprintf(stderr,"%s\n",strbuf);
+        if (!nodb) { 
+            reply = redisCommand(c,"HMSET %s",strbuf); 
+            if (reply->type == REDIS_REPLY_ERROR) {
+                fprintf(stderr, "Error: %s\n", reply->str);
+            } else if (reply->type != REDIS_REPLY_ARRAY ) {
+                fprintf(stderr, "Unexpected type: %d\n", reply->type);
+            }
+            freeReplyObject(reply);
+        }
+
         sprintf(strbuf,"SCRAM:AGC AGCSTIME %ld AGCTIME 1 AGCAZ 2.2 AGCZA 3.3 AGCLST 4.4",time(NULL));
-        if (!nodb) { reply = redisCommand(c,"HMSET %s",strbuf); freeReplyObject(reply); }
         if (dostdout) fprintf(stderr,"%s\n",strbuf);
+        if (!nodb) { 
+            reply = redisCommand(c,"HMSET %s",strbuf); 
+            if (reply->type == REDIS_REPLY_ERROR) {
+                fprintf(stderr, "Error: %s\n", reply->str);
+            } else if (reply->type != REDIS_REPLY_ARRAY ) {
+                fprintf(stderr, "Unexpected type: %d\n", reply->type);
+            }
+            freeReplyObject(reply);
+        }
         sprintf(strbuf,"SCRAM:IF1 IF1STIME %ld IF1SYNHZ 1.1 IF1SYNDB 2 IF1RFFRQ 3.3 IF1IFFRQ 4.4 IF1ALFFB 5",time(NULL));
-        if (!nodb) { reply = redisCommand(c,"HMSET %s",strbuf); freeReplyObject(reply); }
         if (dostdout) fprintf(stderr,"%s\n",strbuf);
+        if (!nodb) { 
+            reply = redisCommand(c,"HMSET %s",strbuf); 
+            if (reply->type == REDIS_REPLY_ERROR) {
+                fprintf(stderr, "Error: %s\n", reply->str);
+            } else if (reply->type != REDIS_REPLY_ARRAY ) {
+                fprintf(stderr, "Unexpected type: %d\n", reply->type);
+            }
+            freeReplyObject(reply);
+        }
+
         sprintf(strbuf,"SCRAM:IF2 IF2STIME %ld IF2ALFON 1",time(NULL));
-        if (!nodb) { reply = redisCommand(c,"HMSET %s",strbuf); freeReplyObject(reply); }
         if (dostdout) fprintf(stderr,"%s\n",strbuf);
+        if (!nodb) { 
+            reply = redisCommand(c,"HMSET %s",strbuf); 
+            if (reply->type == REDIS_REPLY_ERROR) {
+                fprintf(stderr, "Error: %s\n", reply->str);
+            } else if (reply->type != REDIS_REPLY_ARRAY ) {
+                fprintf(stderr, "Unexpected type: %d\n", reply->type);
+            }
+            freeReplyObject(reply);
+        }
+
         sprintf(strbuf,"SCRAM:TT TTSTIME %ld TTTURENC 1 TTTURDEG 2.2",time(NULL));
-        if (!nodb) { reply = redisCommand(c,"HMSET %s",strbuf); freeReplyObject(reply); }
         if (dostdout) fprintf(stderr,"%s\n",strbuf);
+        if (!nodb) { 
+            reply = redisCommand(c,"HMSET %s",strbuf); 
+            if (reply->type == REDIS_REPLY_ERROR) {
+                fprintf(stderr, "Error: %s\n", reply->str);
+            } else if (reply->type != REDIS_REPLY_ARRAY ) {
+                fprintf(stderr, "Unexpected type: %d\n", reply->type);
+            }
+            freeReplyObject(reply);
+        }
+
         sprintf(strbuf,"SCRAM:ALFASHM ALFSTIME %ld ALFBIAS1 1 ALFBIAS2 2 ALFMOPOS 3.3",time(NULL));
-        if (!nodb) { reply = redisCommand(c,"HMSET %s",strbuf); freeReplyObject(reply); }
         if (dostdout) fprintf(stderr,"%s\n",strbuf);
+        if (!nodb) { 
+            reply = redisCommand(c,"HMSET %s",strbuf); 
+            if (reply->type == REDIS_REPLY_ERROR) {
+                fprintf(stderr, "Error: %s\n", reply->str);
+            } else if (reply->type != REDIS_REPLY_ARRAY ) {
+                fprintf(stderr, "Unexpected type: %d\n", reply->type);
+            }
+            freeReplyObject(reply);
+        }
+
         sprintf(strbuf,"SCRAM:DERIVED DERTIME %ld RA0 0.0 DEC0 0.0 RA1 1.0 DEC1 1.0 RA2 2.0 DEC2 2.0 RA3 3.0 DEC3 3.0 RA4 4.0 DEC4 4.0 RA5 5.0 DEC5 5.0 RA6 6.0 DEC6 6.0",time(NULL));
-        if (!nodb) { reply = redisCommand(c,"HMSET %s",strbuf); freeReplyObject(reply); }
         if (dostdout) fprintf(stderr,"%s\n",strbuf);
+        if (!nodb) { 
+            reply = redisCommand(c,"HMSET %s",strbuf); 
+            if (reply->type == REDIS_REPLY_ERROR) {
+                fprintf(stderr, "Error: %s\n", reply->str);
+            } else if (reply->type != REDIS_REPLY_ARRAY ) {
+                fprintf(stderr, "Unexpected type: %d\n", reply->type);
+            }
+            freeReplyObject(reply);
+        }
         
         sleep(1); // just so we make it look more like scram and don't hammer redis db
 
