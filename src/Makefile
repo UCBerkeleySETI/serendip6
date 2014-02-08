@@ -15,7 +15,8 @@ LIBSOURCES  =   s6_databuf.cpp \
 				s6_gpu_thread.cpp \
 				s6_output_thread.cpp \
                 s6_obs_data.cpp \
-                s6_etfits.cpp
+                s6_etfits.cpp \
+                s6_fake_data.cpp
 LIB_INCLUDES  = s6_etfits.h \
                 s6_databuf.h
 

@@ -89,8 +89,10 @@ static void *run(hashpipe_thread_args_t * args)
         //memset(data, 0, N_BYTES_PER_BLOCK);
 
         // gen fake data    
-        //gen_fake_data(&(db->block[block_idx].data[0]));
-        
+        // TODO vary data by beam
+        for(int beam_i = 0; beam_i < N_BEAMS; beam_i++) {
+            gen_fake_data(&(db->block[block_idx].data[beam_i*N_BYTES_PER_BEAM]));
+        }
 
         // Mark block as full
         s6_input_databuf_set_filled(db, block_idx);
