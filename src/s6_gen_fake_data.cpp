@@ -26,10 +26,6 @@
 
 #include "s6_databuf.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Functors
 // --------
 char2 generate_gaussian_complex_8b() {
@@ -105,7 +101,3 @@ void gen_fake_data(uint64_t *data) {
             }
         }
 }
-
-#ifdef __cplusplus
-}   // extern "C"
-#endif

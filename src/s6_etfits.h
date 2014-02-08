@@ -1,6 +1,7 @@
-/* sdfits.h */
+/* s6_etfits.h */
 #ifndef _ETFITS_H
 #define _ETFITS_H
+
 #include "fitsio.h"
 
 // The following is the max file length in GB
@@ -83,9 +84,11 @@ typedef struct {
 int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhits);
 int etfits_create(etfits_t *etf);
 int etfits_close(etfits_t *etf);
-int write_integration_header(etfits_t *etf, scram_t &scram);
+//int write_integration_header(etfits_t *etf, scram_t &scram);
+int write_integration_header(etfits_t *etf, scram_t *scram);
 int write_hits_header(etfits_t *etf);
 int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhits);
-int get_obs_info_from_redis(scram_t &scram, char *hostname, int port);
+//int get_obs_info_from_redis(scram_t &scram, char *hostname, int port);
+int get_obs_info_from_redis(scram_t *scram, char *hostname, int port);
 
-#endif
+#endif  // _ETFITS_H

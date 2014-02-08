@@ -2,61 +2,54 @@
 #define _PAPER_DATABUF_H
 
 #include <stdint.h>
-extern "C" {
+#include <cufft.h>
 #include "hashpipe_databuf.h"
-}
-#include "config.h"
+//#include "config.h"
 #include "s6GPU.h"
-//#include "s6hits.h"
 
-#define PAGE_SIZE (4096)
-#define CACHE_ALIGNMENT (128)
-
-typedef struct s6_input_header {
-  int64_t good_data; // functions as a boolean, 64 bit to maintain word alignment
-  uint64_t mcnt;     // mcount of first packet
-} s6_input_header_t;
-
-typedef uint8_t s6_input_header_cache_alignment[
-  CACHE_ALIGNMENT - (sizeof(s6_input_header_t)%CACHE_ALIGNMENT)
-];
-
-/*
- * GPU INPUT BUFFER STRUCTURES
- */
+#define PAGE_SIZE               (4096)
+#define CACHE_ALIGNMENT         (128)
 // SMOOTH_SCALE and POWER_THRESH should be input parms
-#define SMOOTH_SCALE 1024
-#define POWER_THRESH 20.0
-// N_FINE_CHAN = "NTIME"
-#define N_FINE_CHAN             (128*1024)               
+// N_FINE_CHAN   = "NTIME"
 // N_COARSE_CHAN = "NCHAN"
-//#define N_COARSE_CHAN          350      
-#define N_COARSE_CHAN          342      
-#define N_BEAMS                  7
-#define N_POLS_PER_BEAM          2
-#define N_SAMPLES_PER_BLOCK     (N_FINE_CHAN*N_COARSE_CHAN*N_BEAMS*N_POLS_PER_BEAM)
-#define N_SAMPLES_PER_BEAM     (N_FINE_CHAN*N_COARSE_CHAN*N_POLS_PER_BEAM)
-#define N_BYTES_PER_SAMPLE       2
-#define N_BYTES_PER_BLOCK       (N_SAMPLES_PER_BLOCK*N_BYTES_PER_SAMPLE)
-#define N_BYTES_PER_BEAM       (N_SAMPLES_PER_BEAM*N_BYTES_PER_SAMPLE)
-#define N_GPU_ELEMENTS          (N_FINE_CHAN*N_COARSE_CHAN)
+#define SMOOTH_SCALE            1024
+#define POWER_THRESH            20.0
+#define MAXHITS                 4096
+#define N_FINE_CHAN             (128*1024)               
+#define N_COARSE_CHAN           342      
+#define N_BEAMS                 8
+#define N_POLS_PER_BEAM         2
+#define N_BYTES_PER_SAMPLE      2
+#define N_SAMPLES_PER_BLOCK     (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM * N_BEAMS)
+#define N_SAMPLES_PER_BEAM      (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM)
+#define N_BYTES_PER_BLOCK       (N_SAMPLES_PER_BLOCK * N_BYTES_PER_SAMPLE)
+#define N_BYTES_PER_BEAM        (N_SAMPLES_PER_BEAM * N_BYTES_PER_SAMPLE)
+#define N_GPU_ELEMENTS          (N_FINE_CHAN * N_COARSE_CHAN)
+
+#define N_INPUT_BLOCKS          3
+#define N_DEBUG_INPUT_BLOCKS    0
+#define N_OUTPUT_BLOCKS         3
+
+// Used to pad after hashpipe_databuf_t to maintain cache alignment
+typedef uint8_t hashpipe_databuf_cache_alignment[
+  CACHE_ALIGNMENT - (sizeof(hashpipe_databuf_t)%CACHE_ALIGNMENT)
+];
 
 /*
  * INPUT BUFFER STRUCTURES
  */
-#define N_INPUT_BLOCKS 4
-#define N_DEBUG_INPUT_BLOCKS 4
-typedef struct paper_input_header {
-  //int64_t good_data; // functions as a boolean, 64 bit to maintain word alignment
+typedef struct s6_input_block_header {
   uint64_t mcnt;     // mcount of first packet
-} paper_input_header_t;
+  // coarse chan# - 64 bit
+  // missed this block - 64 bit - array of 8
+} s6_input_block_header_t;
 
-typedef uint8_t paper_input_header_cache_alignment[
-  CACHE_ALIGNMENT - (sizeof(paper_input_header_t)%CACHE_ALIGNMENT)
+typedef uint8_t s6_input_header_cache_alignment[
+  CACHE_ALIGNMENT - (sizeof(s6_input_block_header_t)%CACHE_ALIGNMENT)
 ];
 
 typedef struct s6_input_block {
-  s6_input_header_t header;
+  s6_input_block_header_t header;
   s6_input_header_cache_alignment padding; // Maintain cache alignment
   uint64_t data[(N_BYTES_PER_BLOCK/sizeof(uint64_t))];
 } s6_input_block_t;
@@ -69,35 +62,27 @@ typedef struct s6_input_databuf {
 /*
  * OUTPUT BUFFER STRUCTURES
  */
-
-#define N_OUTPUT_BLOCKS 4
-
-typedef struct s6_output_header {
+typedef struct s6_output_block_header {
   uint64_t mcnt;
+  // missed? etc?
   //uint64_t flags[(N_CHAN_PER_X+63)/64];
-} s6_output_header_t;
+} s6_output_block_header_t;
 
 typedef uint8_t s6_output_header_cache_alignment[
-  CACHE_ALIGNMENT - (sizeof(s6_output_header_t)%CACHE_ALIGNMENT)
+  CACHE_ALIGNMENT - (sizeof(s6_output_block_header_t)%CACHE_ALIGNMENT)
 ];
 
 typedef struct s6_output_block {
-  s6_output_header_t header;
+  s6_output_block_header_t header;
   s6_output_header_cache_alignment padding; // Maintain cache alignment
-#define MAXHITS 4096
   hits_t hits[MAXHITS*2];
 } s6_output_block_t;
 
-//typedef uint8_t hashpipe_databuf_cache_alignment[
-//  //CACHE_ALIGNMENT - (sizeof(s6_output_header_t)%CACHE_ALIGNMENT)      // TODO this is fake!
-//];
-
 typedef struct s6_output_databuf {
   hashpipe_databuf_t header;
-  //hashpipe_databuf_cache_alignment padding; // Maintain cache alignment   TODO where is hashpipe_databuf_cache_alignment?
+  hashpipe_databuf_cache_alignment padding; // Maintain cache alignment   
   s6_output_block_t block[N_OUTPUT_BLOCKS];
 } s6_output_databuf_t;
-
 
 /*
  * INPUT BUFFER FUNCTIONS
