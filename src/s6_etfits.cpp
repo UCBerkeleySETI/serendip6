@@ -8,12 +8,13 @@
 #include <hiredis.h>
 #include "s6_databuf.h"
 //#include "s6GPU.h"
+#include "s6_obs_data.h"
 #include "s6_etfits.h"
 
 #define DEBUGOUT 0
 
 //----------------------------------------------------------
-int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhits) {
+int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhits, scram_t *scram_p) {
 //----------------------------------------------------------
     int row, rv;
     int nchan, nivals, nsubband;
@@ -37,30 +38,25 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhit
             fits_report_error(stderr, *status_p);
             exit(1);
         }    
-
-        
     }
 
     // write primary header
     // TODO
 
-    // get scram, etc data
-    rv = get_obs_info_from_redis(&scram, (char *)"redishost", 6379);
-
     // integration header
-    rv = write_integration_header(etf, &scram);
+    rv = write_integration_header(etf, scram_p);
 
     // write the hits and their headers
     write_hits(db, block_idx, etf, nhits);
     fits_report_error(stderr, *status_p);
 
+#if 1
     // Now update some key values if no CFITSIO errors
-#if 0
-    if (!(*status)) {
-        etf->rownum++;
-        etf->tot_rows++;
+    if (!(*status_p)) {
+        etf->rownum   += nhits;
+        etf->tot_rows += nhits;
         etf->N += 1;
-        etf->T += dcols->exposure;
+        //etf->T += dcols->exposure;
     }
 #endif
 
@@ -77,6 +73,7 @@ int etfits_create(etfits_t * etf) {
 
     int * status_p = &(etf->status);
 
+    // TODO enclose all init code in a do-as-needed block
     // Initialize the key variables if needed
     if (etf->new_file == 1) {  // first time writing to the file
         etf->status = 0;
@@ -230,8 +227,9 @@ int write_hits_header(etfits_t * etf) {
     int tbltype                = BINARY_TBL;
     long long naxis2           = 0;
     //const int tfields          = 3;
-    const char *ttype[TFIELDS] = {"det_pow", "mean_pow", "finechan", "coarchan"};
-    const char *tform[TFIELDS] = {"E",       "E",        "J",        "I"};     // cfitsio datatype codes 
+    // TODO check chan types!
+    const char *ttype[TFIELDS] = {"det_pow", "mean_pow",  "coarchan", "finechan"};
+    const char *tform[TFIELDS] = {"E",       "E",        "I",        "J"};     // cfitsio datatype codes 
     if(first_time) {
         // go to the template created HDU
         fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"ETHITS", 0, status_p);
@@ -262,11 +260,12 @@ fprintf(stderr, "writing hits\n");
 
     std::vector<float> det_pow;
     std::vector<float> mean_pow;
-    std::vector<int>   chan;
+    std::vector<int>   coarse_chan;
+    std::vector<int>   fine_chan;
     float* det_pow_p;
     float* mean_pow_p;
-    int* chan_p;
-    // TODO need both fine and coarse chans
+    int* coarse_chan_p;
+    int* fine_chan_p;
 
     firstrow  = 1;
     firstelem = 1;
@@ -277,7 +276,8 @@ fprintf(stderr, "hit_i %d nhits %d\n", hit_i, nhits);
         // init for first / next input
         det_pow.clear();
         mean_pow.clear();
-        chan.clear();
+        coarse_chan.clear();
+        fine_chan.clear();
         nhits_this_input = 0;
         cur_input = db->block[block_idx].hits[hit_i].input;
 
@@ -289,7 +289,8 @@ fprintf(stderr, "writing header for input %d\n", cur_input);
         while(db->block[block_idx].hits[hit_i].input == cur_input && hit_i < nhits) {
             det_pow.push_back(db->block[block_idx].hits[hit_i].power);
             mean_pow.push_back(db->block[block_idx].hits[hit_i].baseline);
-            chan.push_back(db->block[block_idx].hits[hit_i].chan);
+            coarse_chan.push_back(db->block[block_idx].hits[hit_i].coarse_chan);
+            fine_chan.push_back(db->block[block_idx].hits[hit_i].fine_chan);
             nhits_this_input++;
             hit_i++;
         }
@@ -297,9 +298,10 @@ fprintf(stderr, "writing header for input %d\n", cur_input);
 fprintf(stderr, "det_pow.size %ld nhits_this_input %d\n", det_pow.size(), nhits_this_input);
 
         // write the hits for this input
-        det_pow_p   = &det_pow[0];
-        mean_pow_p  = &mean_pow[0];
-        chan_p      = &chan[0];
+        det_pow_p     = &det_pow[0];
+        mean_pow_p    = &mean_pow[0];
+        coarse_chan_p = &coarse_chan[0];
+        fine_chan_p   = &fine_chan[0];
         colnum      = 1;
         fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, det_pow_p, status_p);
         fits_report_error(stderr, *status_p);
@@ -307,122 +309,13 @@ fprintf(stderr, "det_pow.size %ld nhits_this_input %d\n", det_pow.size(), nhits_
         fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, mean_pow_p, status_p);
         fits_report_error(stderr, *status_p);
         colnum      = 3;
-        fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, chan_p, status_p);
+        fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, coarse_chan_p, status_p);
+        fits_report_error(stderr, *status_p);
+        colnum      = 4;
+        fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, fine_chan_p, status_p);
         fits_report_error(stderr, *status_p);
         // TODO need coarse chan column
     }  // end while hit_i < nhits
 
     return *status_p;
-}
-
-//----------------------------------------------------------
-int get_obs_info_from_redis(scram_t *scram,     
-                            char *hostname, 
-                            int port) {
-//----------------------------------------------------------
-
-    unsigned int j;
-    redisContext *c;
-    redisReply *reply;
-
-    struct timeval timeout = { 1, 500000 }; // 1.5 seconds
-
-    c = redisConnectWithTimeout(hostname, port, timeout);
-    if (c == NULL || c->err) {
-        if (c) {
-            printf("Connection error: %s\n", c->errstr);
-            redisFree(c);
-        } else {
-            printf("Connection error: can't allocate redis context\n");
-        }
-        exit(1);
-    }
-
-    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:PNT        PNTSTIME PNTRA PNTDEC PNTMJD");
-    if (reply->type == REDIS_REPLY_ERROR)               // TODO error checking does not seem to work
-        printf("Error: %s\n", reply->str);              //      check for correct # elements
-    else if (reply->type != REDIS_REPLY_ARRAY)          //      move error check to function
-        printf("Unexpected type: %d\n", reply->type);
-    else {
-        scram->PNTSTIME  = atoi(reply->element[0]->str);
-        scram->PNTRA     = atof(reply->element[1]->str);
-        scram->PNTDEC    = atof(reply->element[2]->str);
-        scram->PNTMJD    = atof(reply->element[3]->str);
-    }
-    freeReplyObject(reply);
-    //printf("GET SCRAM:PNTSTIME %d\n", scram.PNTSTIME);
-    //printf("GET SCRAM:PNTRA %lf\n", scram.PNTRA);   
-    //printf("GET SCRAM:PNTDEC %lf\n", scram.PNTDEC);  
-    //printf("GET SCRAM:PNTMJD %lf\n", scram.PNTMJD);  
-
-    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:AGC       AGCSTIME AGCTIME AGCAZ AGCZA AGCLST");
-    if (reply->type == REDIS_REPLY_ERROR)
-        printf( "Error: %s\n", reply->str);
-    else if (reply->type != REDIS_REPLY_ARRAY )
-        printf("Unexpected type: %d\n", reply->type);
-    else {
-        scram->AGCSTIME  = atoi(reply->element[0]->str);
-        scram->AGCTIME   = atoi(reply->element[1]->str);
-        scram->AGCAZ     = atof(reply->element[2]->str);
-        scram->AGCZA     = atof(reply->element[3]->str);
-        scram->AGCLST    = atof(reply->element[4]->str);
-    }
-    freeReplyObject(reply);
-
-    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:ALFASHM       ALFSTIME ALFBIAS1 ALFBIAS2 ALFMOPOS");
-    if (reply->type == REDIS_REPLY_ERROR)
-        printf( "Error: %s\n", reply->str);
-    else if (reply->type != REDIS_REPLY_ARRAY )
-        printf("Unexpected type: %d\n", reply->type);
-    else {
-        scram->ALFSTIME  = atoi(reply->element[0]->str);
-        scram->ALFBIAS1  = atoi(reply->element[1]->str);
-        scram->ALFBIAS2  = atoi(reply->element[2]->str);
-        scram->ALFMOPOS  = atof(reply->element[3]->str);
-    }
-    freeReplyObject(reply);
-
-    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:IF1      IF1STIME IF1SYNHZ IF1SYNDB IF1RFFRQ IF1IFFRQ IF1ALFFB");
-    if (reply->type == REDIS_REPLY_ERROR)
-        printf( "Error: %s\n", reply->str);
-    else if (reply->type != REDIS_REPLY_ARRAY )
-        printf("Unexpected type: %d\n", reply->type);
-    else {
-        scram->IF1STIME  = atoi(reply->element[0]->str);
-        scram->IF1SYNHZ  = atof(reply->element[1]->str);
-        scram->IF1SYNDB  = atoi(reply->element[2]->str);
-        scram->IF1RFFRQ  = atof(reply->element[3]->str);
-        scram->IF1IFFRQ  = atof(reply->element[4]->str);
-        scram->IF1ALFFB  = atoi(reply->element[5]->str);
-    }
-    freeReplyObject(reply);
-
-    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:IF2      IF2STIME IF2ALFON");
-    if (reply->type == REDIS_REPLY_ERROR)
-        printf( "Error: %s\n", reply->str);
-    else if (reply->type != REDIS_REPLY_ARRAY )
-        printf("Unexpected type: %d\n", reply->type);
-    else {
-        scram->IF2STIME  = atoi(reply->element[0]->str);
-        scram->IF2ALFON  = atoi(reply->element[1]->str);
-    }
-    freeReplyObject(reply);
-
-    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:TT      TTSTIME TTTURENC TTTURDEG");
-    if (reply->type == REDIS_REPLY_ERROR)
-        printf( "Error: %s\n", reply->str);
-    else if (reply->type != REDIS_REPLY_ARRAY )
-        printf("Unexpected type: %d\n", reply->type);
-    else {
-        scram->TTSTIME  = atoi(reply->element[0]->str);
-        scram->TTTURENC = atoi(reply->element[1]->str);
-        scram->TTTURDEG = atof(reply->element[2]->str);
-    }
-    freeReplyObject(reply);
-
-    // TODO get the obs_enabled bool
-
-    redisFree(c);       // TODO do I really want to free each time?
-
-    return 0;           // TODO return something meaningful
 }

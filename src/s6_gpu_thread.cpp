@@ -75,9 +75,11 @@ static void *run(hashpipe_thread_args_t * args)
     }
 #endif
 
+    // init s6GPU
     device_vectors_t *dv_p;
     cufftHandle fft_plan;
     cufftHandle *fft_plan_p = &fft_plan;
+    // TODO handle errors
 
     int     n_subband = N_COARSE_CHAN;
     int     n_chan    = N_FINE_CHAN;

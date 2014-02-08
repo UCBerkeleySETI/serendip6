@@ -152,9 +152,9 @@ TTYPE#  = 'DETPOW  '           / detected power in units of mean power
 TFORM#  = '1E      '           / 4-byte real 
 TTYPE#  = 'MEANPOW '           / mean power
 TFORM#  = '1E      '           / 4-byte real 
-TTYPE#  = 'FINECHAN'           / fine channel bin number
-TFORM#  = '1J      '           / 32-bit integer
 TTYPE#  = 'COARCHAN'           / coarse channel bin number
 TFORM#  = '1I      '           / 16-bit integer
+TTYPE#  = 'FINECHAN'           / fine channel bin number
+TFORM#  = '1J      '           / 32-bit integer
 #
 END

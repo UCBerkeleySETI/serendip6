@@ -15,6 +15,7 @@
 
 #include "hashpipe.h"
 #include "s6_databuf.h"
+#include "s6_obs_data.h"
 #include "s6_etfits.h"
 
 
@@ -40,17 +41,11 @@ static void *run(hashpipe_thread_args_t * args)
     hashpipe_status_t st = args->st;
     const char * status_key = args->thread_desc->skey;
 
-    // get thread args?
+    etfits_t  etf;
+    scram_t   scram;
+    scram_t * scram_p = &scram;
 
-    etfits_t etf;
-
-    scram_t scram;
-
-    //redisContext * redis_context;       // move to s6_write_etfits.c
-
-    //redis_context = redis_init();       // move to s6_write_etfits.c
-
-    strcpy(etf.basefilename, "etfitstestfile");
+    strcpy(etf.basefilename, "etfitstestfile");     // TODO where to get file name?
     etf.filenum=0;
     etf.new_file=1;
     int nhits;      // TODO how to populate this?
@@ -59,18 +54,12 @@ static void *run(hashpipe_thread_args_t * args)
     int i, rv, debug=20;
     int block_idx;
     int error_count, max_error_count = 0;
-    //float *gpu_data, *cpu_data;     // jeffc
     float error, max_error = 0.0;
     while (run_threads()) {
 
         hashpipe_status_lock_safe(&st);
         hputs(st.buf, status_key, "waiting");
         hashpipe_status_unlock_safe(&st);
-
-       // not needed - done at first write in s6_etfits
-       //if(!etf.fptr) {
-       //     etfits_create(...);     // will also init primary header
-       //}
 
        // get new data
        while ((rv=s6_output_databuf_wait_filled(db, block_idx))
@@ -87,13 +76,13 @@ static void *run(hashpipe_thread_args_t * args)
             }
         }
 
-        // check mcnt
+        // TODO check mcnt
+
+        // get scram, etc data
+        rv = get_obs_info_from_redis(scram_p, (char *)"redishost", 6379);
 
         // write hits to etFITS file
-        //rv = write_etfits(s6_output_databuf_t *db, block_idx, etfits * etf_p);
-        rv = write_etfits(db, block_idx, &etf, nhits);
-
-        // write coarse spectra to etFITS file - deferred
+        rv = write_etfits(db, block_idx, &etf, nhits, scram_p);
 
         // Note processing status, current input block
         hashpipe_status_lock_safe(&st);
