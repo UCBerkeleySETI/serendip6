@@ -97,6 +97,9 @@ static void *run(hashpipe_thread_args_t * args)
         hputi4(st.buf, "CGOMXECT", max_error_count);
         hashpipe_status_unlock_safe(&st);
 
+        // re-init output block
+        // TODO
+
         // Mark blocks as free
         for(i=0; i<2; i++) {
             s6_output_databuf_set_free(db, block_idx);

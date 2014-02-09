@@ -13,7 +13,6 @@ int get_obs_info_from_redis(scram_t *scram,
                             int port) {
 //----------------------------------------------------------
 
-    unsigned int j;
     redisContext *c;
     redisReply *reply;
 
@@ -45,10 +44,10 @@ int get_obs_info_from_redis(scram_t *scram,
         scram->PNTMJD    = atof(reply->element[3]->str);
     }
     freeReplyObject(reply);
-    //printf("GET SCRAM:PNTSTIME %d\n", scram.PNTSTIME);
-    //printf("GET SCRAM:PNTRA %lf\n", scram.PNTRA);   
-    //printf("GET SCRAM:PNTDEC %lf\n", scram.PNTDEC);  
-    //printf("GET SCRAM:PNTMJD %lf\n", scram.PNTMJD);  
+    printf("GET SCRAM:PNTSTIME %d\n", scram->PNTSTIME);
+    printf("GET SCRAM:PNTRA %lf\n", scram->PNTRA);   
+    printf("GET SCRAM:PNTDEC %lf\n", scram->PNTDEC);  
+    printf("GET SCRAM:PNTMJD %lf\n", scram->PNTMJD);  
 
     reply = (redisReply *)redisCommand(c, "HMGET SCRAM:AGC       AGCSTIME AGCTIME AGCAZ AGCZA AGCLST");
     if (reply->type == REDIS_REPLY_ERROR)

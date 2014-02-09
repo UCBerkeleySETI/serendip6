@@ -20,6 +20,7 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
     int nchan, nivals, nsubband;
     char* temp_str;
     double temp_dbl;
+    uint64_t nhits;
 
     int * status_p = &(etf->status);
     *status_p = 0;
@@ -64,17 +65,13 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
 
     if(! *status_p) write_integration_header(etf, scram_p);
 
-    if(! *status_p) write_hits(db, block_idx, etf);
+    if(! *status_p) nhits = write_hits(db, block_idx, etf);
 
-#if 0
     // Now update some key values if no CFITSIO errors
     if (! *status_p) {
-        etf->rownum   += nhits;     // TODO do I need these?
         etf->tot_rows += nhits;
         etf->N += 1;
-        //etf->T += dcols->exposure;
     }
-#endif
 
     if(*status_p) {
         fprintf(stderr, "FITS error, exiting.\n");
@@ -149,9 +146,9 @@ fprintf(stderr, "in close, status is %d\n", *status_p);
         fits_close_file(etf->fptr, status_p);
         printf("Closing file '%s'\n", etf->filename);
     }
-    printf("Done.  %s %d data rows (%f sec) in %d files (status = %d).\n",
+    printf("Done.  %s %ld data rows in %d files (status = %d).\n",
             etf->mode=='r' ? "Read" : "Wrote", 
-            etf->tot_rows, etf->T, etf->filenum, *status_p);
+            etf->tot_rows, etf->filenum, *status_p);
 
     return *status_p;
 }
@@ -179,6 +176,8 @@ fprintf(stderr, "writing primary header\n");
     //if(! *status_p) fits_update_key(etf->fptr, TINT,    "BANDWID",  &(etf->primary_hdr.bandwidth),       NULL, status_p); 
     //if(! *status_p) fits_update_key(etf->fptr, TINT,    "CHAN_BW",  &(etf->primary_hdr.chan_bandwidth),  NULL, status_p); 
     //if(! *status_p) its_update_key(etf->fptr, TINT,    "FREQRES",  &(etf->primary_hdr.freq_res),        NULL, status_p);    // redundant w/ CHAN_BW? 
+
+    //if(! *status_p) fits_flush_file(etf->fptr, status_p);
 
     if (*status_p) {
         fprintf(stderr, "Error updating primary header.\n");
@@ -242,6 +241,8 @@ fprintf(stderr, "writing integration header\n");
 #if 0
     fits_update_key(etf->fptr, TINT,    "MISSEDPK", &(scram.MISSEDPK),    NULL, status_p);    // missed packets per input per second 
 #endif
+
+    //if(! *status_p) fits_flush_file(etf->fptr, status_p);
 
     if (*status_p) {
         fprintf(stderr, "Error writing integration header.\n");
@@ -333,7 +334,6 @@ fprintf(stderr, "hit_i %ld nhits %ld\n", hit_i, nhits);
         cur_beampol = cur_beam * N_POLS_PER_BEAM + cur_input;
 fprintf(stderr, "writing header for beam %d input %d beampol %d\n", cur_beam, cur_input, etf->hits_hdr[cur_beam].beampol);
         etf->hits_hdr[cur_beampol].beampol = cur_beampol;
-        // TODO populate missed packets
 
         // separate the data columns for this input
         while(db->block[block_idx].hits[hit_i].input == cur_input && hit_i < nhits) {
@@ -370,5 +370,5 @@ fprintf(stderr, "det_pow.size %ld nhits_this_input %ld\n", det_pow.size(), nhits
         fits_report_error(stderr, *status_p);
     }
 
-    return *status_p;
+    return nhits;
 }

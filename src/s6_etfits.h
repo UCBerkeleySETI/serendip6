@@ -50,7 +50,7 @@ typedef struct etfits {
     int filenum;            // The current number of the file in the scan (1-offset)
     int new_file;           // Indicates that a new file must be created.    
     int rownum;             // The current data row number to be written (1-offset)
-    int tot_rows;           // The total number of data rows written so far
+    uint64_t tot_rows;      // The total number of data rows written this integration
     int rows_per_file;      // The maximum number of data rows per file
     int status;             // The CFITSIO status value
     fitsfile *fptr;         // The CFITSIO file structure
