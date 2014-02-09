@@ -20,9 +20,6 @@
 
 static void *run(hashpipe_thread_args_t * args)
 {
-    //std::vector<char2>   h_raw_timeseries_gen(N_GPU_ELEMENTS);
-    //char2 h_raw_timeseries[N_GPU_ELEMENTS*N_POLS_PER_BEAM];
-
     s6_input_databuf_t *db  = (s6_input_databuf_t *)args->obuf;
     hashpipe_status_t *p_st = &(args->st);
 
@@ -33,7 +30,6 @@ static void *run(hashpipe_thread_args_t * args)
     int i, rv;
     uint64_t mcnt = 0;
     uint64_t *data;
-    int m,f,t,c;
     int block_idx = 0;
     while (run_threads()) {
 
@@ -43,7 +39,7 @@ static void *run(hashpipe_thread_args_t * args)
         hashpipe_status_unlock_safe(&st);
         //hashpipe_status_unlock_safe(p_st);
  
-        // Wait for data - TODO - do I need to
+        // Wait for data - TODO - do I need to this?
 #if 0
         //struct timespec sleep_dur, rem_sleep_dur;
         //sleep_dur.tv_sec = 0;
@@ -74,21 +70,17 @@ static void *run(hashpipe_thread_args_t * args)
         hputi4(st.buf, "NETBKOUT", block_idx);
         hashpipe_status_unlock_safe(&st);
  
-#if 0
-        // Fill in sub-block headers
-        for(i=0; i<N_SUB_BLOCKS_PER_INPUT_BLOCK; i++) {
-          //db->block[block_idx].header.good_data = 1;
-          db->block[block_idx].header.mcnt = mcnt;
-          mcnt+=Nm;
-        }
-#endif
+        // populate block header
+        db->block[block_idx].header.mcnt = mcnt;
+        db->block[block_idx].header.coarse_chan_id = 321;
+        memset(db->block[block_idx].header.missed_pkts, 0, sizeof(uint64_t) * N_BEAMS);
 
         // For testing, zero out block and set input FAKE_TEST_INPUT, FAKE_TEST_CHAN to
         // all -16 (-1 * 16)
         //data = db->block[block_idx].data;
         //memset(data, 0, N_BYTES_PER_BLOCK);
 
-        // gen fake data    
+        // gen fake data for all beams   
         // TODO vary data by beam
         for(int beam_i = 0; beam_i < N_BEAMS; beam_i++) {
             gen_fake_data(&(db->block[block_idx].data[beam_i*N_BYTES_PER_BEAM]));
@@ -99,6 +91,7 @@ static void *run(hashpipe_thread_args_t * args)
 
         // Setup for next block
         block_idx = (block_idx + 1) % db->header.n_block;
+        mcnt++;
 
         /* Will exit if thread has been cancelled */
         pthread_testcancel();
