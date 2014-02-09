@@ -40,6 +40,14 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhit
         }    
     }
 
+    // populate hits header data
+    for(int i=0; i < N_BEAMS*N_POLS_PER_BEAM; i++) {
+        etf->hits_hdr[i].time    = scram_p->AGCTIME;     // TODO is this right?   
+        etf->hits_hdr[i].ra      = scram_p->ra_by_beam[int(floor(i/N_POLS_PER_BEAM))];       
+        etf->hits_hdr[i].dec     = scram_p->dec_by_beam[int(floor(i/N_POLS_PER_BEAM))];  
+        etf->hits_hdr[i].beampol = i;       
+    }
+    
     // write primary header
     // TODO
 
@@ -216,7 +224,7 @@ fprintf(stderr, "writing integration header\n");
 }
 
 //----------------------------------------------------------
-int write_hits_header(etfits_t * etf) {
+int write_hits_header(etfits_t * etf, int beampol) {
 //----------------------------------------------------------
 // TODO have to know what input (beam/pol) this is
 
@@ -238,10 +246,10 @@ int write_hits_header(etfits_t * etf) {
         // create new HDU
         fits_create_tbl(etf->fptr, BINARY_TBL, 0, TFIELDS, (char **)&ttype, (char **)&tform, NULL, (char *)"ETHITS", status_p);
     }
-    fits_update_key(etf->fptr, TINT,    "TIME",    &(etf->hits_hdr.time),    NULL, status_p);   // TODO get these values   
-    fits_update_key(etf->fptr, TDOUBLE, "RA",      &(etf->hits_hdr.ra),      NULL, status_p);   
-    fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr.dec),     NULL, status_p);   
-    fits_update_key(etf->fptr, TINT,    "BEAMPOL", &(etf->hits_hdr.beampol), NULL, status_p);   
+    fits_update_key(etf->fptr, TINT,    "TIME",    &(etf->hits_hdr[beampol].time),    NULL, status_p);    
+    fits_update_key(etf->fptr, TDOUBLE, "RA",      &(etf->hits_hdr[beampol].ra),      NULL, status_p);   
+    fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr[beampol].dec),     NULL, status_p);   
+    fits_update_key(etf->fptr, TINT,    "BEAMPOL", &(etf->hits_hdr[beampol].beampol), NULL, status_p);   
     fits_report_error(stderr, *status_p);
 }
 
@@ -250,7 +258,8 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhits)
 //----------------------------------------------------------
 
     long nrows, firstrow, firstelem, nelements, colnum;
-    int hit_i, nhits_this_input, cur_beam, cur_input;  // TODO should these be longs or unsigned?
+    int hit_i, nhits_this_input;  // TODO should these be longs or unsigned?
+    int cur_beam, cur_input, cur_beampol;  // TODO should these be longs or unsigned?
     static int first_time=1;
 
     int * status_p = &(etf->status);
@@ -283,10 +292,11 @@ fprintf(stderr, "hit_i %d nhits %d\n", hit_i, nhits);
         // calculate hits header fields and populate the header 
         cur_beam    = db->block[block_idx].hits[hit_i].beam;
         cur_input   = db->block[block_idx].hits[hit_i].input;
-fprintf(stderr, "writing header for beam %d input %d beampol %d\n", cur_beam, cur_input, etf->hits_hdr.beampol);
-        etf->hits_hdr.beampol = cur_beam * N_POLS_PER_BEAM + cur_input;
+        cur_beampol = cur_beam * N_POLS_PER_BEAM + cur_input;
+fprintf(stderr, "writing header for beam %d input %d beampol %d\n", cur_beam, cur_input, etf->hits_hdr[cur_beam].beampol);
+        etf->hits_hdr[cur_beampol].beampol = cur_beampol;
         // TODO populate missed packets
-        write_hits_header(etf);
+        write_hits_header(etf, cur_beampol);
 
         // separate the data columns for this input
         while(db->block[block_idx].hits[hit_i].input == cur_input && hit_i < nhits) {

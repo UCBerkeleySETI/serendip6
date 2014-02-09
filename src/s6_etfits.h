@@ -4,6 +4,8 @@
 
 #include "fitsio.h"
 
+#include "s6_databuf.h"
+
 // The following is the max file length in GB
 #define ETFITS_MAXFILELEN 1L
 
@@ -51,7 +53,7 @@ typedef struct etfits {
     char mode;              // Read (r) or write (w).
     etfits_primary_header_t     primary_hdr;
     etfits_integration_header_t integration_hdr;
-    etfits_hits_header_t        hits_hdr;       // one hits HDU per beam/pol per integration
+    etfits_hits_header_t        hits_hdr[N_BEAMS*N_POLS_PER_BEAM];       // one hits HDU per beam/pol per integration
     etfits_hits_t               hits;
 } etfits_t;
 

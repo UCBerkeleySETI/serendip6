@@ -1,6 +1,8 @@
 #ifndef _S6_OBS_DATA_H
 #define _S6_OBS_DATA_H
 
+#include "s6_databuf.h"
+
 typedef struct scram {
     int     PNTSTIME;
     double  PNTRA;   
@@ -27,8 +29,8 @@ typedef struct scram {
     int     TTTURENC;
     double  TTTURDEG;
     int     DERTIME;
-    double  ra_by_beam[7];      // TODO should be N_BEAMS
-    double  dec_by_beam[7];
+    double  ra_by_beam[N_BEAMS];   
+    double  dec_by_beam[N_BEAMS];
 } scram_t;
 
 int get_obs_info_from_redis(scram_t *scram, char *hostname, int port);
