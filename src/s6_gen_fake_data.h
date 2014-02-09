@@ -1,4 +1,4 @@
-#ifndef _GENFAKEDATA_H
-#define _GENFAKEDATA_H
+#ifndef _GEN_FAKE_DATA_H
+#define _GEN_FAKE_DATA_H
 void gen_fake_data(uint64_t *data);
-#endif  // _GENFAKEDATA_H
+#endif  // _GEN_FAKE_DATA_H

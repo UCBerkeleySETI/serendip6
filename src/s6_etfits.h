@@ -10,16 +10,16 @@
 // The following is the template file to use to create a ETFITS file.
 #define ETFITS_TEMPLATE "s6_ETFITS_template.txt"
 
-typedef struct {
+typedef struct etfits_primary_header {
     char date[16];          // Date file was created (dd/mm/yy)
     // TODO ? This would be where to put primary header items that we do not init via a template file.
 } etfits_primary_header_t;
 
-typedef struct {
+typedef struct etfits_integration_header {
     // TODO - do we reaslly need this struct?  All data come from scram
 } etfits_integration_header_t;
     
-typedef struct {
+typedef struct etfits_hits_header {
     time_t time;
     double ra;
     double dec;
@@ -27,14 +27,14 @@ typedef struct {
     uint64_t missed_pkts;
 } etfits_hits_header_t;
 
-typedef struct {
+typedef struct etfits_hits {
     float           detected_power;
     float           mean_power;
     unsigned long   fine_channel_bin;
     unsigned short  coarse_channel_bin;
 } etfits_hits_t;
     
-typedef struct {
+typedef struct etfits {
     char basefilename[200]; // The base filename from which to build the true filename
     char filename[200];     // Filename of the current PSRFITs file
     long long N;            // Current number of spectra written

@@ -1,7 +1,7 @@
 #ifndef _S6_OBS_DATA_H
 #define _S6_OBS_DATA_H
 
-typedef struct {
+typedef struct scram {
     int     PNTSTIME;
     double  PNTRA;   
     double  PNTDEC;  
