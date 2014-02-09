@@ -6,6 +6,7 @@
 #include <math.h>
 #include <vector>
 #include <hiredis.h>
+#include "hashpipe.h"
 #include "s6_databuf.h"
 #include "s6_obs_data.h"
 #include "s6_etfits.h"
@@ -33,7 +34,8 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
         }
         etfits_create(etf);
         if(*status_p) {
-            fprintf(stderr, "Error creating/initializing new etfits file.\n");
+            hashpipe_error(__FUNCTION__, "Error creating/initializing new etfits file");
+            //fprintf(stderr, "Error creating/initializing new etfits file.\n");
             fits_report_error(stderr, *status_p);
             exit(1);
         }    
@@ -71,7 +73,8 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
     }
 
     if(*status_p) {
-        fprintf(stderr, "FITS error, exiting.\n");
+        hashpipe_error(__FUNCTION__, "FITS error, exiting");
+        //fprintf(stderr, "FITS error, exiting.\n");
         exit(1);
     }
 
@@ -116,8 +119,9 @@ int etfits_create(etfits_t * etf) {
     char template_file[1024];
     if (s6_dir==NULL) {
         s6_dir = (char *)".";
-        fprintf(stderr, 
-                "Warning: S6_DIR environment variable not set, using current directory for ETFITS template.\n");
+        hashpipe_warn(__FUNCTION__, "S6_DIR environment variable not set, using current directory for ETFITS template");
+        //fprintf(stderr, 
+        //        "Warning: S6_DIR environment variable not set, using current directory for ETFITS template.\n");
     }
     printf("Opening file '%s'\n", etf->filename);
     sprintf(template_file, "%s/%s", s6_dir, ETFITS_TEMPLATE);
@@ -125,7 +129,8 @@ int etfits_create(etfits_t * etf) {
 
     // Check to see if file was successfully created
     if (*status_p) {
-        fprintf(stderr, "Error creating sdfits file from template.\n");
+        hashpipe_error(__FUNCTION__, "Error creating sdfits file from template");
+        //fprintf(stderr, "Error creating sdfits file from template.\n");
         fits_report_error(stderr, *status_p);
     }
 
@@ -177,7 +182,8 @@ fprintf(stderr, "writing primary header\n");
     //if(! *status_p) fits_flush_file(etf->fptr, status_p);
 
     if (*status_p) {
-        fprintf(stderr, "Error updating primary header.\n");
+        hashpipe_error(__FUNCTION__, "Error updating primary header");
+        //fprintf(stderr, "Error updating primary header.\n");
         fits_report_error(stderr, *status_p);
     }
 
@@ -242,7 +248,8 @@ fprintf(stderr, "writing integration header\n");
     //if(! *status_p) fits_flush_file(etf->fptr, status_p);
 
     if (*status_p) {
-        fprintf(stderr, "Error writing integration header.\n");
+        hashpipe_error(__FUNCTION__, "Error writing integration header");
+        //fprintf(stderr, "Error writing integration header.\n");
         fits_report_error(stderr, *status_p);
     }
 
@@ -281,7 +288,8 @@ int write_hits_header(etfits_t * etf, int beampol, uint64_t nhits) {
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "NHITS",   &nhits,                            NULL, status_p);   
 
     if (*status_p) {
-        fprintf(stderr, "Error writing hits header.\n");
+        hashpipe_error(__FUNCTION__, "Error writing hits header");
+        //fprintf(stderr, "Error writing hits header.\n");
         fits_report_error(stderr, *status_p);
     }
 }
@@ -363,7 +371,8 @@ fprintf(stderr, "det_pow.size %ld nhits_this_input %ld\n", det_pow.size(), nhits
 
 
     if (*status_p) {
-        fprintf(stderr, "Error writing hits.\n");
+        hashpipe_error(__FUNCTION__, "Error writing hits");
+        //fprintf(stderr, "Error writing hits.\n");
         fits_report_error(stderr, *status_p);
     }
 

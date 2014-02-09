@@ -151,6 +151,7 @@ static void *run(hashpipe_thread_args_t * args)
 
         // do spectroscopy and hit detection on this block.
         // spectroscopy() writes directly to the output buffer.
+        // TODO error checking
         for(int beam_i = 0; beam_i < N_BEAMS; beam_i++) {
             // TODO putting beam into hits_t is kind of ugly.
             db_out->block[curblock_out].header.nhits += 

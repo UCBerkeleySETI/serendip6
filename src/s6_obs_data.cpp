@@ -5,12 +5,13 @@
 
 #include <hiredis.h>
 
+#include "hashpipe.h"
 #include "s6_obs_data.h"
 
 //----------------------------------------------------------
 int get_obs_info_from_redis(scram_t *scram,     
-                            char *hostname, 
-                            int port) {
+                            char    *hostname, 
+                            int     port) {
 //----------------------------------------------------------
 
     redisContext *c;
@@ -22,21 +23,21 @@ int get_obs_info_from_redis(scram_t *scram,
     c = redisConnectWithTimeout(hostname, port, timeout);
     if (c == NULL || c->err) {
         if (c) {
-            printf("Connection error: %s\n", c->errstr);
+            hashpipe_error(__FUNCTION__, c->errstr);
             redisFree(c);
         } else {
-            printf("Connection error: can't allocate redis context\n");
+            hashpipe_error(__FUNCTION__, "Connection error: can't allocate redis context");
         }
         exit(1);
     }
 
-    // TODO factor out all the redis error checking
+    // TODO factor out all the redis error checking (use hashpipe_error())
 
     reply = (redisReply *)redisCommand(c, "HMGET SCRAM:PNT        PNTSTIME PNTRA PNTDEC PNTMJD");
     if (reply->type == REDIS_REPLY_ERROR)               // TODO error checking does not seem to work
-        printf("Error: %s\n", reply->str);              //      check for correct # elements
+        fprintf(stderr, "Error: %s\n", reply->str);              //      check for correct # elements
     else if (reply->type != REDIS_REPLY_ARRAY)          //      move error check to function
-        printf("Unexpected type: %d\n", reply->type);
+        fprintf(stderr, "Unexpected type: %d\n", reply->type);
     else {
         scram->PNTSTIME  = atoi(reply->element[0]->str);
         scram->PNTRA     = atof(reply->element[1]->str);
@@ -44,16 +45,16 @@ int get_obs_info_from_redis(scram_t *scram,
         scram->PNTMJD    = atof(reply->element[3]->str);
     }
     freeReplyObject(reply);
-    printf("GET SCRAM:PNTSTIME %d\n", scram->PNTSTIME);
-    printf("GET SCRAM:PNTRA %lf\n", scram->PNTRA);   
-    printf("GET SCRAM:PNTDEC %lf\n", scram->PNTDEC);  
-    printf("GET SCRAM:PNTMJD %lf\n", scram->PNTMJD);  
+    fprintf(stderr, "GET SCRAM:PNTSTIME %d\n", scram->PNTSTIME);
+    fprintf(stderr, "GET SCRAM:PNTRA %lf\n", scram->PNTRA);   
+    fprintf(stderr, "GET SCRAM:PNTDEC %lf\n", scram->PNTDEC);  
+    fprintf(stderr, "GET SCRAM:PNTMJD %lf\n", scram->PNTMJD);  
 
     reply = (redisReply *)redisCommand(c, "HMGET SCRAM:AGC       AGCSTIME AGCTIME AGCAZ AGCZA AGCLST");
     if (reply->type == REDIS_REPLY_ERROR)
-        printf( "Error: %s\n", reply->str);
+        fprintf(stderr, "Error: %s\n", reply->str);
     else if (reply->type != REDIS_REPLY_ARRAY )
-        printf("Unexpected type: %d\n", reply->type);
+        fprintf(stderr, "Unexpected type: %d\n", reply->type);
     else {
         scram->AGCSTIME  = atoi(reply->element[0]->str);
         scram->AGCTIME   = atoi(reply->element[1]->str);
@@ -65,9 +66,9 @@ int get_obs_info_from_redis(scram_t *scram,
 
     reply = (redisReply *)redisCommand(c, "HMGET SCRAM:ALFASHM       ALFSTIME ALFBIAS1 ALFBIAS2 ALFMOPOS");
     if (reply->type == REDIS_REPLY_ERROR)
-        printf( "Error: %s\n", reply->str);
+        fprintf(stderr, "Error: %s\n", reply->str);
     else if (reply->type != REDIS_REPLY_ARRAY )
-        printf("Unexpected type: %d\n", reply->type);
+        fprintf(stderr, "Unexpected type: %d\n", reply->type);
     else {
         scram->ALFSTIME  = atoi(reply->element[0]->str);
         scram->ALFBIAS1  = atoi(reply->element[1]->str);
@@ -78,9 +79,9 @@ int get_obs_info_from_redis(scram_t *scram,
 
     reply = (redisReply *)redisCommand(c, "HMGET SCRAM:IF1      IF1STIME IF1SYNHZ IF1SYNDB IF1RFFRQ IF1IFFRQ IF1ALFFB");
     if (reply->type == REDIS_REPLY_ERROR)
-        printf( "Error: %s\n", reply->str);
+        fprintf(stderr, "Error: %s\n", reply->str);
     else if (reply->type != REDIS_REPLY_ARRAY )
-        printf("Unexpected type: %d\n", reply->type);
+        fprintf(stderr, "Unexpected type: %d\n", reply->type);
     else {
         scram->IF1STIME  = atoi(reply->element[0]->str);
         scram->IF1SYNHZ  = atof(reply->element[1]->str);
@@ -93,9 +94,9 @@ int get_obs_info_from_redis(scram_t *scram,
 
     reply = (redisReply *)redisCommand(c, "HMGET SCRAM:IF2      IF2STIME IF2ALFON");
     if (reply->type == REDIS_REPLY_ERROR)
-        printf( "Error: %s\n", reply->str);
+        fprintf(stderr, "Error: %s\n", reply->str);
     else if (reply->type != REDIS_REPLY_ARRAY )
-        printf("Unexpected type: %d\n", reply->type);
+        fprintf(stderr, "Unexpected type: %d\n", reply->type);
     else {
         scram->IF2STIME  = atoi(reply->element[0]->str);
         scram->IF2ALFON  = atoi(reply->element[1]->str);
@@ -104,9 +105,9 @@ int get_obs_info_from_redis(scram_t *scram,
 
     reply = (redisReply *)redisCommand(c, "HMGET SCRAM:TT      TTSTIME TTTURENC TTTURDEG");
     if (reply->type == REDIS_REPLY_ERROR)
-        printf( "Error: %s\n", reply->str);
+        fprintf(stderr, "Error: %s\n", reply->str);
     else if (reply->type != REDIS_REPLY_ARRAY )
-        printf("Unexpected type: %d\n", reply->type);
+        fprintf(stderr, "Unexpected type: %d\n", reply->type);
     else {
         scram->TTSTIME  = atoi(reply->element[0]->str);
         scram->TTTURENC = atoi(reply->element[1]->str);
@@ -118,9 +119,9 @@ int get_obs_info_from_redis(scram_t *scram,
 // waiting on fix to s6_observatory
     reply = (redisReply *)redisCommand(c, "HMGET SCRAM:DERIVED      DERTIME RA0 DEC0 RA1 DEC1 RA2 DEC2 RA3 DEC3 RA4 DEC4 RA5 DEC5 RA6 DEC6");
     if (reply->type == REDIS_REPLY_ERROR)
-        printf( "Error: %s\n", reply->str);
+        fprintf(stderr, "Error: %s\n", reply->str);
     else if (reply->type != REDIS_REPLY_ARRAY )
-        printf("Unexpected type: %d\n", reply->type);
+        fprintf(stderr, "Unexpected type: %d\n", reply->type);
     else {
         scram->DERTIME        = atoi(reply->element[0]->str);
         scram->ra_by_beam[0]  = atof(reply->element[1]->str);
