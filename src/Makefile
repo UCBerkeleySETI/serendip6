@@ -1,11 +1,11 @@
 CC          = gcc
 CCFLAGS     = -g -fPIC -shared -lstdc++ -fpermissive \
-              -I../../s6GPU/src/ -I/usr/local/cuda/include -I../../hiredis/ -I/usr/include/tcl8.5 -I/home/jeffc/lib/include -I/home/jeffc/lib/include/aoscram \
-              -L../../s6GPU/src/ -L/home/jeffc/lib/lib \
+              -I../../s6GPU/src/ -I/usr/local/cuda/include -I../../hiredis/ -I/usr/include/tcl8.5 -I/home/jeffc/local/include -I/home/jeffc/local/include/aoscram \
+              -L../../s6GPU/src/ -L/home/jeffc/local/lib \
               -lhashpipe -lS6GPU -lrt -lhiredis -lcfitsio -lazzatoradec -laoscram -lm
 CCFLAGS2     = -g -lstdc++ \
-              -I../../hiredis/ -I/usr/include/tcl8.5 -I/home/jeffc/lib/include -I/home/jeffc/lib/include/aoscram \
-              -L/home/jeffc/lib/lib \
+              -I../../hiredis/ -I/usr/include/tcl8.5 -I/home/jeffc/local/include -I/home/jeffc/local/include/aoscram \
+              -L/home/jeffc/local/lib \
               -lhiredis -lazzatoradec -laoscram -lm
 
 LIBTARGET   =   serendip6.so
