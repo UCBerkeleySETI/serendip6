@@ -24,6 +24,7 @@ typedef struct {
     double ra;
     double dec;
     int    beampol;
+    uint64_t missed_pkts;
 } etfits_hits_header_t;
 
 typedef struct {

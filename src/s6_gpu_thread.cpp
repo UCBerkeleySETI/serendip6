@@ -143,9 +143,15 @@ static void *run(hashpipe_thread_args_t * args)
 
         clock_gettime(CLOCK_MONOTONIC, &start);
 
-        int beam_i;
-        for(beam_i = 0; beam_i < N_BEAMS; beam_i++) {
-            // spectroscopy() writes directly to the output buffer.
+        // pass mcnt and missed_pkts on to the output thread
+        db_in->block[curblock_out].header.mcnt = db_in->block[curblock_in].header.mcnt;
+        memcpy(&db_out->block[curblock_out].header.missed_pkts, 
+               &db_in->block[curblock_in].header.missed_pkts, 
+               sizeof(uint64_t) * N_BEAMS);
+
+        // do spectroscopy and hit detection on this block.
+        // spectroscopy() writes directly to the output buffer.
+        for(int beam_i = 0; beam_i < N_BEAMS; beam_i++) {
             // TODO putting beam into hits_t is kind of ugly.
             int nhits = spectroscopy(N_COARSE_CHAN,
                                      N_FINE_CHAN,
