@@ -7,11 +7,8 @@
 #include <vector>
 #include <hiredis.h>
 #include "s6_databuf.h"
-//#include "s6GPU.h"
 #include "s6_obs_data.h"
 #include "s6_etfits.h"
-
-#define DEBUGOUT 0
 
 //----------------------------------------------------------
 int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t *scram_p) {
