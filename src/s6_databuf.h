@@ -66,6 +66,7 @@ typedef struct s6_output_block_header {
   uint64_t mcnt;
   uint64_t coarse_chan_id;          // coarse channel number of lowest channel in this block
   uint64_t missed_pkts[N_BEAMS];    // missed per beam - this block or this run? TODO
+  uint64_t nhits;
 } s6_output_block_header_t;
 
 typedef uint8_t s6_output_header_cache_alignment[

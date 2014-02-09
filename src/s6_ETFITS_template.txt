@@ -139,6 +139,7 @@ TIME    =                      / unix time of this integration - is this fine en
 RA      =                      / derived from corrected scram azza (TDOUBLE)
 DEC     =                      / derived from corrected scram azza (TDOUBLE)
 BEAMPOL =                      / 0-13                              (TINT)
+NHITS   =                      / (TINT)
 MISSEDPK=                      / missed packets this beam/pol this integration (TINT)
 #
 END

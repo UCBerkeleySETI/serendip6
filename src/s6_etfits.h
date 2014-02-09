@@ -32,6 +32,7 @@ typedef struct etfits_hits_header {
     double dec;
     int    beampol;
     uint64_t missed_pkts;
+    uint64_t nhits;
 } etfits_hits_header_t;
 
 typedef struct etfits_hits {
@@ -62,12 +63,12 @@ typedef struct etfits {
     etfits_hits_t               hits;
 } etfits_t;
 
-int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhits, scram_t *scram_p);
+int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t *scram_p);
 int etfits_create(etfits_t *etf);
 int etfits_close(etfits_t *etf);
 int write_primary_header(etfits_t *etf);
 int write_integration_header(etfits_t *etf, scram_t *scram);
-int write_hits_header(etfits_t *etf);
-int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhits);
+int write_hits_header(etfits_t *etf, uint64_t nhits);
+int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf);
 
 #endif  // _ETFITS_H

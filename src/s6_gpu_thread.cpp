@@ -153,22 +153,26 @@ static void *run(hashpipe_thread_args_t * args)
         // spectroscopy() writes directly to the output buffer.
         for(int beam_i = 0; beam_i < N_BEAMS; beam_i++) {
             // TODO putting beam into hits_t is kind of ugly.
-            int nhits = spectroscopy(N_COARSE_CHAN,
-                                     N_FINE_CHAN,
-                                     N_POLS_PER_BEAM,
-                                     beam_i,
-                                     POWER_THRESH,
-                                     SMOOTH_SCALE,
-                                     &(db_in->block[curblock_in].data[beam_i*N_BYTES_PER_BEAM]),
-                                     N_BYTES_PER_BEAM,
-                                     (hits_t *) &db_out->block[curblock_out].hits,
-                                     dv_p,
-                                     fft_plan_p);
+            db_out->block[curblock_out].header.nhits += 
+                spectroscopy(N_COARSE_CHAN,
+                             N_FINE_CHAN,
+                             N_POLS_PER_BEAM,
+                             beam_i,
+                             POWER_THRESH,
+                             SMOOTH_SCALE,
+                             &(db_in->block[curblock_in].data[beam_i*N_BYTES_PER_BEAM]),
+                             N_BYTES_PER_BEAM,
+                             (hits_t *) &db_out->block[curblock_out].hits,
+                             dv_p,
+                             fft_plan_p);
 
             clock_gettime(CLOCK_MONOTONIC, &stop);
             elapsed_gpu_ns += ELAPSED_NS(start, stop);
             gpu_block_count++;
         }
+
+        // re-init input block
+        // TODO
 
         // Mark output block as full and advance
         s6_output_databuf_set_filled(db_out, curblock_out);

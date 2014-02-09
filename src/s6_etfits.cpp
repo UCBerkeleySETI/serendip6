@@ -14,7 +14,7 @@
 #define DEBUGOUT 0
 
 //----------------------------------------------------------
-int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhits, scram_t *scram_p) {
+int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t *scram_p) {
 //----------------------------------------------------------
     int row, rv;
     int nchan, nivals, nsubband;
@@ -64,9 +64,9 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhit
 
     if(! *status_p) write_integration_header(etf, scram_p);
 
-    if(! *status_p) write_hits(db, block_idx, etf, nhits);
+    if(! *status_p) write_hits(db, block_idx, etf);
 
-#if 1
+#if 0
     // Now update some key values if no CFITSIO errors
     if (! *status_p) {
         etf->rownum   += nhits;     // TODO do I need these?
@@ -165,7 +165,6 @@ int write_primary_header(etfits_t * etf) {
     int itmp;
     char ctmp[40];
 
-
 fprintf(stderr, "writing primary header\n");
 
     if(! *status_p) fits_get_system_time(ctmp, &itmp, status_p);      // date the file was written
@@ -253,7 +252,7 @@ fprintf(stderr, "writing integration header\n");
 }
 
 //----------------------------------------------------------
-int write_hits_header(etfits_t * etf, int beampol) {
+int write_hits_header(etfits_t * etf, int beampol, uint64_t nhits) {
 //----------------------------------------------------------
 // TODO have to know what input (beam/pol) this is
 
@@ -281,6 +280,7 @@ int write_hits_header(etfits_t * etf, int beampol) {
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "RA",      &(etf->hits_hdr[beampol].ra),      NULL, status_p);   
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr[beampol].dec),     NULL, status_p);   
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "BEAMPOL", &(etf->hits_hdr[beampol].beampol), NULL, status_p);   
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "NHITS",   &nhits,                            NULL, status_p);   
 
     if (*status_p) {
         fprintf(stderr, "Error writing hits header.\n");
@@ -289,13 +289,15 @@ int write_hits_header(etfits_t * etf, int beampol) {
 }
 
 //----------------------------------------------------------
-int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhits) {      
+int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {      
 //----------------------------------------------------------
 
-    long nrows, firstrow, firstelem, nelements, colnum;
-    int hit_i, nhits_this_input;  // TODO should these be longs or unsigned?
-    int cur_beam, cur_input, cur_beampol;  // TODO should these be longs or unsigned?
+    long firstrow, firstelem, colnum;
+    uint64_t nrows, hit_i, nhits_this_input;  
+    int cur_beam, cur_input, cur_beampol;  
     static int first_time=1;
+
+    uint64_t nhits = db->block[block_idx].header.nhits;
 
     int * status_p = &(etf->status);
     *status_p = 0;
@@ -317,7 +319,7 @@ fprintf(stderr, "writing hits\n");
 
     hit_i = 0;              
     while(hit_i < nhits) {
-fprintf(stderr, "hit_i %d nhits %d\n", hit_i, nhits);
+fprintf(stderr, "hit_i %ld nhits %ld\n", hit_i, nhits);
         // init for first / next input
         det_pow.clear();
         mean_pow.clear();
@@ -332,7 +334,6 @@ fprintf(stderr, "hit_i %d nhits %d\n", hit_i, nhits);
 fprintf(stderr, "writing header for beam %d input %d beampol %d\n", cur_beam, cur_input, etf->hits_hdr[cur_beam].beampol);
         etf->hits_hdr[cur_beampol].beampol = cur_beampol;
         // TODO populate missed packets
-        write_hits_header(etf, cur_beampol);
 
         // separate the data columns for this input
         while(db->block[block_idx].hits[hit_i].input == cur_input && hit_i < nhits) {
@@ -344,7 +345,9 @@ fprintf(stderr, "writing header for beam %d input %d beampol %d\n", cur_beam, cu
             hit_i++;
         }
         // hit_i should now reference next input or one past all inputs
-fprintf(stderr, "det_pow.size %ld nhits_this_input %d\n", det_pow.size(), nhits_this_input);
+fprintf(stderr, "det_pow.size %ld nhits_this_input %ld\n", det_pow.size(), nhits_this_input);
+
+        write_hits_header(etf, cur_beampol, nhits_this_input);
 
         // write the hits for this input
         det_pow_p     = &det_pow[0];
@@ -360,6 +363,7 @@ fprintf(stderr, "det_pow.size %ld nhits_this_input %d\n", det_pow.size(), nhits_
         colnum      = 4;
         if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, fine_chan_p, status_p);
     }  // end while hit_i < nhits
+
 
     if (*status_p) {
         fprintf(stderr, "Error writing hits.\n");

@@ -48,7 +48,7 @@ static void *run(hashpipe_thread_args_t * args)
     strcpy(etf.basefilename, "etfitstestfile");     // TODO where to get file name?
     etf.filenum=0;
     etf.new_file=1;
-    int nhits;      // TODO how to populate this?
+    //uint64_t nhits;      // TODO how to populate this?
 
     /* Main loop */
     int i, rv, debug=20;
@@ -82,7 +82,7 @@ static void *run(hashpipe_thread_args_t * args)
         rv = get_obs_info_from_redis(scram_p, (char *)"redishost", 6379);
 
         // write hits and metadata to etFITS file
-        rv = write_etfits(db, block_idx, &etf, nhits, scram_p);
+        rv = write_etfits(db, block_idx, &etf, scram_p);
 
         // Note processing status, current input block
         hashpipe_status_lock_safe(&st);
