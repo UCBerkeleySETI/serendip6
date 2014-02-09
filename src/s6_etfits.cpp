@@ -22,6 +22,7 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhit
     double temp_dbl;
 
     int * status_p = &(etf->status);
+    *status_p = 0;
 
     scram_t scram;
 
@@ -61,15 +62,13 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhit
         etf->hits_hdr[i].beampol = i;       
     }
 
-    rv = write_integration_header(etf, scram_p);
+    if(! *status_p) write_integration_header(etf, scram_p);
 
-    write_hits(db, block_idx, etf, nhits);
-
-    fits_report_error(stderr, *status_p);
+    if(! *status_p) write_hits(db, block_idx, etf, nhits);
 
 #if 1
     // Now update some key values if no CFITSIO errors
-    if (!(*status_p)) {
+    if (! *status_p) {
         etf->rownum   += nhits;     // TODO do I need these?
         etf->tot_rows += nhits;
         etf->N += 1;
@@ -77,7 +76,10 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhit
     }
 #endif
 
-fprintf(stderr, "status = %d  fptr = %p\n", *status_p, etf->fptr);
+    if(*status_p) {
+        fprintf(stderr, "FITS error, exiting.\n");
+        exit(1);
+    }
 
     return *status_p;
 }
@@ -85,8 +87,8 @@ fprintf(stderr, "status = %d  fptr = %p\n", *status_p, etf->fptr);
 //----------------------------------------------------------
 int etfits_create(etfits_t * etf) {
 //----------------------------------------------------------
-    int *status;
     int * status_p = &(etf->status);
+    *status_p = 0;
 
     // TODO enclose all init code in a do-as-needed block
     // Initialize the key variables if needed
@@ -125,13 +127,12 @@ int etfits_create(etfits_t * etf) {
     }
     printf("Opening file '%s'\n", etf->filename);
     sprintf(template_file, "%s/%s", s6_dir, ETFITS_TEMPLATE);
-    fits_create_template(&(etf->fptr), etf->filename, template_file, status_p);
+    if(! *status_p) fits_create_template(&(etf->fptr), etf->filename, template_file, status_p);
 
     // Check to see if file was successfully created
     if (*status_p) {
         fprintf(stderr, "Error creating sdfits file from template.\n");
         fits_report_error(stderr, *status_p);
-        exit(1);
     }
 
     return *status_p;
@@ -141,6 +142,7 @@ int etfits_create(etfits_t * etf) {
 int etfits_close(etfits_t *etf) {
 //----------------------------------------------------------
     int * status_p = &(etf->status);
+    *status_p = 0;
 
 fprintf(stderr, "in close, status is %d\n", *status_p);
     if (! *status_p) {
@@ -150,6 +152,7 @@ fprintf(stderr, "in close, status is %d\n", *status_p);
     printf("Done.  %s %d data rows (%f sec) in %d files (status = %d).\n",
             etf->mode=='r' ? "Read" : "Wrote", 
             etf->tot_rows, etf->T, etf->filenum, *status_p);
+
     return *status_p;
 }
 
@@ -157,27 +160,31 @@ fprintf(stderr, "in close, status is %d\n", *status_p);
 int write_primary_header(etfits_t * etf) {
 //----------------------------------------------------------
     int * status_p = &(etf->status);
+    *status_p = 0;
+
     int itmp;
     char ctmp[40];
 
-    *status_p = 0;
 
 fprintf(stderr, "writing primary header\n");
 
-    if(! status_p) fits_get_system_time(ctmp, &itmp, status_p);      // date the file was written
+    if(! *status_p) fits_get_system_time(ctmp, &itmp, status_p);      // date the file was written
 
-    if(! status_p) fits_movabs_hdu(etf->fptr, 1, NULL, status_p);    // go to primary HDU
+    if(! *status_p) fits_movabs_hdu(etf->fptr, 1, NULL, status_p);    // go to primary HDU
 
-    if(! status_p) fits_update_key(etf->fptr, TSTRING, "DATE",     ctmp,                            NULL, status_p);
-    if(! status_p) fits_update_key(etf->fptr, TINT,    "NSUBBAND", &(etf->primary_hdr.n_subband),   NULL, status_p); 
-    if(! status_p) fits_update_key(etf->fptr, TINT,    "NCHAN",    &(etf->primary_hdr.n_chan),      NULL, status_p); 
-    if(! status_p) fits_update_key(etf->fptr, TINT,    "NINPUTS",  &(etf->primary_hdr.n_inputs),    NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING, "DATE",     ctmp,                            NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "NSUBBAND", &(etf->primary_hdr.n_subband),   NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "NCHAN",    &(etf->primary_hdr.n_chan),      NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "NINPUTS",  &(etf->primary_hdr.n_inputs),    NULL, status_p); 
     // TODO not yet implemented
-    //if(! status_p) fits_update_key(etf->fptr, TINT,    "BANDWID",  &(etf->primary_hdr.bandwidth),       NULL, status_p); 
-    //if(! status_p) fits_update_key(etf->fptr, TINT,    "CHAN_BW",  &(etf->primary_hdr.chan_bandwidth),  NULL, status_p); 
-    //if(! status_p) its_update_key(etf->fptr, TINT,    "FREQRES",  &(etf->primary_hdr.freq_res),        NULL, status_p);    // redundant w/ CHAN_BW? 
+    //if(! *status_p) fits_update_key(etf->fptr, TINT,    "BANDWID",  &(etf->primary_hdr.bandwidth),       NULL, status_p); 
+    //if(! *status_p) fits_update_key(etf->fptr, TINT,    "CHAN_BW",  &(etf->primary_hdr.chan_bandwidth),  NULL, status_p); 
+    //if(! *status_p) its_update_key(etf->fptr, TINT,    "FREQRES",  &(etf->primary_hdr.freq_res),        NULL, status_p);    // redundant w/ CHAN_BW? 
 
-    if (*status_p) fits_report_error(stderr, *status_p);
+    if (*status_p) {
+        fprintf(stderr, "Error updating primary header.\n");
+        fits_report_error(stderr, *status_p);
+    }
 
     return *status_p;
 }
@@ -186,57 +193,61 @@ fprintf(stderr, "writing primary header\n");
 int write_integration_header(etfits_t * etf, scram_t *scram) {
 //----------------------------------------------------------
     
-    int status=0;
     int * status_p = &(etf->status);
-    static int first_time=1;
+    *status_p = 0;
 
+    static int first_time=1;
+    
+    *status_p = 0;
 fprintf(stderr, "writing integration header\n");
     if(first_time) {
         // go to the template created HDU
-        fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"AOSCRAM", 0, status_p);
+        if(! status_p) fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"AOSCRAM", 0, status_p);
         first_time = 0;
     } else {
         // create new HDU
-        fits_create_tbl(etf->fptr, BINARY_TBL, 0, 0, NULL, NULL, NULL, (char *)"AOSCRAM", status_p);
+        if(! *status_p) fits_create_tbl(etf->fptr, BINARY_TBL, 0, 0, NULL, NULL, NULL, (char *)"AOSCRAM", status_p);
     }
-    fits_report_error(stderr, *status_p);
 
-    fits_update_key(etf->fptr, TSTRING,  "EXTNAME", (char *)"AOSCRAM", NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "EXTNAME", (char *)"AOSCRAM", NULL, status_p); 
     // observatory (scram) data 
-    fits_update_key(etf->fptr, TINT,    "PNTSTIME",  &(scram->PNTSTIME), NULL, status_p); 
-    fits_update_key(etf->fptr, TDOUBLE, "PNTRA",     &(scram->PNTRA),    NULL, status_p);      
-    fits_update_key(etf->fptr, TDOUBLE, "PNTDEC",    &(scram->PNTDEC),   NULL, status_p);      
-    fits_update_key(etf->fptr, TDOUBLE, "PNTMJD",    &(scram->PNTMJD),   NULL, status_p);      
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "PNTSTIME",  &(scram->PNTSTIME), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "PNTRA",     &(scram->PNTRA),    NULL, status_p);      
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "PNTDEC",    &(scram->PNTDEC),   NULL, status_p);      
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "PNTMJD",    &(scram->PNTMJD),   NULL, status_p);      
 
-    fits_update_key(etf->fptr, TINT,    "AGCSTIME", &(scram->AGCSTIME),  NULL, status_p); 
-    fits_update_key(etf->fptr, TDOUBLE, "AGCAZ",    &(scram->AGCAZ),     NULL, status_p); 
-    fits_update_key(etf->fptr, TDOUBLE, "AGCZA",    &(scram->AGCZA),     NULL, status_p); 
-    fits_update_key(etf->fptr, TINT,    "AGCTIME",  &(scram->AGCTIME),   NULL, status_p); 
-    fits_update_key(etf->fptr, TDOUBLE, "AGCLST",   &(scram->AGCLST),    NULL, status_p);     // TODO
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "AGCSTIME", &(scram->AGCSTIME),  NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "AGCAZ",    &(scram->AGCAZ),     NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "AGCZA",    &(scram->AGCZA),     NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "AGCTIME",  &(scram->AGCTIME),   NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "AGCLST",   &(scram->AGCLST),    NULL, status_p);     // TODO
 
-    fits_update_key(etf->fptr, TINT,    "ALFSTIME", &(scram->ALFSTIME),  NULL, status_p); 
-    fits_update_key(etf->fptr, TINT,    "ALFBIAS1", &(scram->ALFBIAS1),  NULL, status_p); 
-    fits_update_key(etf->fptr, TINT,    "ALFBIAS2", &(scram->ALFBIAS2),  NULL, status_p); 
-    fits_update_key(etf->fptr, TDOUBLE, "ALFMOPOS", &(scram->ALFMOPOS),  NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "ALFSTIME", &(scram->ALFSTIME),  NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "ALFBIAS1", &(scram->ALFBIAS1),  NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "ALFBIAS2", &(scram->ALFBIAS2),  NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ALFMOPOS", &(scram->ALFMOPOS),  NULL, status_p);
 
-    fits_update_key(etf->fptr, TINT,    "IF1STIME", &(scram->IF1STIME),  NULL, status_p); 
-    fits_update_key(etf->fptr, TDOUBLE, "IF1SYNHZ", &(scram->IF1SYNHZ),  NULL, status_p); 
-    fits_update_key(etf->fptr, TINT,    "IF1SYNDB", &(scram->IF1SYNDB),  NULL, status_p); 
-    fits_update_key(etf->fptr, TDOUBLE, "IF1RFFRQ", &(scram->IF1RFFRQ),  NULL, status_p); 
-    fits_update_key(etf->fptr, TDOUBLE, "IF1IFFRQ", &(scram->IF1IFFRQ),  NULL, status_p);
-    fits_update_key(etf->fptr, TINT,    "IF1ALFFB", &(scram->IF1ALFFB),  NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "IF1STIME", &(scram->IF1STIME),  NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "IF1SYNHZ", &(scram->IF1SYNHZ),  NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "IF1SYNDB", &(scram->IF1SYNDB),  NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "IF1RFFRQ", &(scram->IF1RFFRQ),  NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "IF1IFFRQ", &(scram->IF1IFFRQ),  NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "IF1ALFFB", &(scram->IF1ALFFB),  NULL, status_p);
 
-    fits_update_key(etf->fptr, TINT,    "IF2STIME", &(scram->IF2STIME),  NULL, status_p); 
-    fits_update_key(etf->fptr, TINT,    "IF2ALFON", &(scram->IF2ALFON),  NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "IF2STIME", &(scram->IF2STIME),  NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "IF2ALFON", &(scram->IF2ALFON),  NULL, status_p);
 
-    fits_update_key(etf->fptr, TINT,    "TTSTIME",  &(scram->TTSTIME),   NULL, status_p); 
-    fits_update_key(etf->fptr, TINT,    "TTTURENC", &(scram->TTTURENC),  NULL, status_p); 
-    fits_update_key(etf->fptr, TDOUBLE, "TTTURDEG", &(scram->TTTURDEG),  NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "TTSTIME",  &(scram->TTSTIME),   NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "TTTURENC", &(scram->TTTURENC),  NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "TTTURDEG", &(scram->TTTURDEG),  NULL, status_p);
 #if 0
     fits_update_key(etf->fptr, TINT,    "MISSEDPK", &(scram.MISSEDPK),    NULL, status_p);    // missed packets per input per second 
 #endif
 
-    fits_report_error(stderr, *status_p);
+    if (*status_p) {
+        fprintf(stderr, "Error writing integration header.\n");
+        fits_report_error(stderr, *status_p);
+    }
 
     return *status_p;
 }
@@ -248,6 +259,8 @@ int write_hits_header(etfits_t * etf, int beampol) {
 
 #define TFIELDS 4
     int * status_p = &(etf->status);
+    *status_p = 0;
+
     static int first_time=1;
 
     int tbltype                = BINARY_TBL;
@@ -258,17 +271,21 @@ int write_hits_header(etfits_t * etf, int beampol) {
     const char *tform[TFIELDS] = {"1E",       "1E",        "1I",        "1J"};     // cfitsio datatype codes 
     if(first_time) {
         // go to the template created HDU
-        fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"ETHITS", 0, status_p);
+        if(! *status_p) fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"ETHITS", 0, status_p);
         first_time = 0;
     } else {
         // create new HDU
-        fits_create_tbl(etf->fptr, BINARY_TBL, 0, TFIELDS, (char **)&ttype, (char **)&tform, NULL, (char *)"ETHITS", status_p);
+        if(! *status_p) fits_create_tbl(etf->fptr, BINARY_TBL, 0, TFIELDS, (char **)&ttype, (char **)&tform, NULL, (char *)"ETHITS", status_p);
     }
-    fits_update_key(etf->fptr, TINT,    "TIME",    &(etf->hits_hdr[beampol].time),    NULL, status_p);    
-    fits_update_key(etf->fptr, TDOUBLE, "RA",      &(etf->hits_hdr[beampol].ra),      NULL, status_p);   
-    fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr[beampol].dec),     NULL, status_p);   
-    fits_update_key(etf->fptr, TINT,    "BEAMPOL", &(etf->hits_hdr[beampol].beampol), NULL, status_p);   
-    fits_report_error(stderr, *status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "TIME",    &(etf->hits_hdr[beampol].time),    NULL, status_p);    
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "RA",      &(etf->hits_hdr[beampol].ra),      NULL, status_p);   
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr[beampol].dec),     NULL, status_p);   
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "BEAMPOL", &(etf->hits_hdr[beampol].beampol), NULL, status_p);   
+
+    if (*status_p) {
+        fprintf(stderr, "Error writing hits header.\n");
+        fits_report_error(stderr, *status_p);
+    }
 }
 
 //----------------------------------------------------------
@@ -281,6 +298,7 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhits)
     static int first_time=1;
 
     int * status_p = &(etf->status);
+    *status_p = 0;
 
 fprintf(stderr, "writing hits\n");
     //std::vector<hits_t> hits;
@@ -334,18 +352,19 @@ fprintf(stderr, "det_pow.size %ld nhits_this_input %d\n", det_pow.size(), nhits_
         coarse_chan_p = &coarse_chan[0];
         fine_chan_p   = &fine_chan[0];
         colnum      = 1;
-        fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, det_pow_p, status_p);
-        fits_report_error(stderr, *status_p);
+        if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, det_pow_p, status_p);
         colnum      = 2;
-        fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, mean_pow_p, status_p);
-        fits_report_error(stderr, *status_p);
+        if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, mean_pow_p, status_p);
         colnum      = 3;
-        fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, coarse_chan_p, status_p);
-        fits_report_error(stderr, *status_p);
+        if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, coarse_chan_p, status_p);
         colnum      = 4;
-        fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, fine_chan_p, status_p);
-        fits_report_error(stderr, *status_p);
+        if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, fine_chan_p, status_p);
     }  // end while hit_i < nhits
+
+    if (*status_p) {
+        fprintf(stderr, "Error writing hits.\n");
+        fits_report_error(stderr, *status_p);
+    }
 
     return *status_p;
 }
