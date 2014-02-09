@@ -38,24 +38,33 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhit
             fits_report_error(stderr, *status_p);
             exit(1);
         }    
+        // TODO this could be done once per run rather than once per file
+        // TODO some (all?) of these will come from iput parms (status shmem)
+        // TODO update code versions
+        etf->primary_hdr.n_subband = N_COARSE_CHAN;
+        etf->primary_hdr.n_chan    = N_FINE_CHAN;
+        etf->primary_hdr.n_inputs  = N_BEAMS * N_POLS_PER_BEAM;
+        // TODO not yet implemented
+        //etf->primary_hdr.bandwidth = ;
+        //etf->primary_hdr.chan_bandwidth = ;
+        //etf->primary_hdr.freq_res = ;
+        write_primary_header(etf);
     }
 
     // populate hits header data
+    // TODO maybe I should do away with this and write directly to the header
+    //      from sram in write_hits_header()
     for(int i=0; i < N_BEAMS*N_POLS_PER_BEAM; i++) {
         etf->hits_hdr[i].time    = scram_p->AGCTIME;     // TODO is this right?   
         etf->hits_hdr[i].ra      = scram_p->ra_by_beam[int(floor(i/N_POLS_PER_BEAM))];       
         etf->hits_hdr[i].dec     = scram_p->dec_by_beam[int(floor(i/N_POLS_PER_BEAM))];  
         etf->hits_hdr[i].beampol = i;       
     }
-    
-    // write primary header
-    // TODO
 
-    // integration header
     rv = write_integration_header(etf, scram_p);
 
-    // write the hits and their headers
     write_hits(db, block_idx, etf, nhits);
+
     fits_report_error(stderr, *status_p);
 
 #if 1
@@ -76,9 +85,7 @@ fprintf(stderr, "status = %d  fptr = %p\n", *status_p, etf->fptr);
 //----------------------------------------------------------
 int etfits_create(etfits_t * etf) {
 //----------------------------------------------------------
-    int itmp, *status;
-    char ctmp[40];
-
+    int *status;
     int * status_p = &(etf->status);
 
     // TODO enclose all init code in a do-as-needed block
@@ -127,17 +134,6 @@ int etfits_create(etfits_t * etf) {
         exit(1);
     }
 
-    // Go to the primary HDU
-    fits_movabs_hdu(etf->fptr, 1, NULL, status_p);
-
-    // Update the keywords that need it
-    fits_get_system_time(ctmp, &itmp, status_p);      // date the file was written
-    fits_update_key(etf->fptr, TSTRING, "DATE", ctmp, NULL, status_p);
-
-    // TODO update code versions
-
-    // TODO ? This would be where to init primary header items that we do not init via a template file.
-
     return *status_p;
 }
 
@@ -161,7 +157,29 @@ fprintf(stderr, "in close, status is %d\n", *status_p);
 int write_primary_header(etfits_t * etf) {
 //----------------------------------------------------------
     int * status_p = &(etf->status);
-    // TODO
+    int itmp;
+    char ctmp[40];
+
+    *status_p = 0;
+
+fprintf(stderr, "writing primary header\n");
+
+    if(! status_p) fits_get_system_time(ctmp, &itmp, status_p);      // date the file was written
+
+    if(! status_p) fits_movabs_hdu(etf->fptr, 1, NULL, status_p);    // go to primary HDU
+
+    if(! status_p) fits_update_key(etf->fptr, TSTRING, "DATE",     ctmp,                            NULL, status_p);
+    if(! status_p) fits_update_key(etf->fptr, TINT,    "NSUBBAND", &(etf->primary_hdr.n_subband),   NULL, status_p); 
+    if(! status_p) fits_update_key(etf->fptr, TINT,    "NCHAN",    &(etf->primary_hdr.n_chan),      NULL, status_p); 
+    if(! status_p) fits_update_key(etf->fptr, TINT,    "NINPUTS",  &(etf->primary_hdr.n_inputs),    NULL, status_p); 
+    // TODO not yet implemented
+    //if(! status_p) fits_update_key(etf->fptr, TINT,    "BANDWID",  &(etf->primary_hdr.bandwidth),       NULL, status_p); 
+    //if(! status_p) fits_update_key(etf->fptr, TINT,    "CHAN_BW",  &(etf->primary_hdr.chan_bandwidth),  NULL, status_p); 
+    //if(! status_p) its_update_key(etf->fptr, TINT,    "FREQRES",  &(etf->primary_hdr.freq_res),        NULL, status_p);    // redundant w/ CHAN_BW? 
+
+    if (*status_p) fits_report_error(stderr, *status_p);
+
+    return *status_p;
 }
 
 //----------------------------------------------------------

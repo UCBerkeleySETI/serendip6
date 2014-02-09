@@ -81,7 +81,7 @@ static void *run(hashpipe_thread_args_t * args)
         // get scram, etc data
         rv = get_obs_info_from_redis(scram_p, (char *)"redishost", 6379);
 
-        // write hits to etFITS file
+        // write hits and metadata to etFITS file
         rv = write_etfits(db, block_idx, &etf, nhits, scram_p);
 
         // Note processing status, current input block

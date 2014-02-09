@@ -13,8 +13,13 @@
 #define ETFITS_TEMPLATE "s6_ETFITS_template.txt"
 
 typedef struct etfits_primary_header {
-    char date[16];          // Date file was created (dd/mm/yy)
-    // TODO ? This would be where to put primary header items that we do not init via a template file.
+    char date[16];          // Date file was created (dd/mm/yy)  TODO does this need to be populated?
+    int n_subband;
+    int n_chan;
+    int n_inputs;
+    double bandwidth;
+    double chan_bandwidth;
+    double freq_res;     // redundant w/ chan_band_width?
 } etfits_primary_header_t;
 
 typedef struct etfits_integration_header {
@@ -60,6 +65,7 @@ typedef struct etfits {
 int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhits, scram_t *scram_p);
 int etfits_create(etfits_t *etf);
 int etfits_close(etfits_t *etf);
+int write_primary_header(etfits_t *etf);
 int write_integration_header(etfits_t *etf, scram_t *scram);
 int write_hits_header(etfits_t *etf);
 int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, int nhits);
