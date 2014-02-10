@@ -17,12 +17,6 @@
 #include <cufft.h>
 
 #include <s6GPU.h>
-//#include <s6hits.h>
-
-//#ifdef __cplusplus
-//extern "C" {
-//#endif
-
 #include "hashpipe.h"
 #include "s6_databuf.h"
 
@@ -64,16 +58,6 @@ static void *run(hashpipe_thread_args_t * args)
     struct timespec start, stop;
     uint64_t elapsed_gpu_ns  = 0;
     uint64_t gpu_block_count = 0;
-
-#if 0
-    // init s6gpu
-    device_vectors_t dv;
-    s6gpu_error = init_device_vectors(N_GPU_ELEMENTS, N_POLS_PER_BEAM, dv);
-    if (s6gpu_error) {
-        fprintf(stderr, "ERROR: xGPU initialization failed (error code %d)\n", s6gpu_error);
-        return THREAD_ERROR;
-    }
-#endif
 
     // init s6GPU
     device_vectors_t *dv_p;
@@ -204,7 +188,3 @@ static __attribute__((constructor)) void ctor()
 {
   register_hashpipe_thread(&gpu_thread);
 }
-
-//#ifdef __cplusplus
-//}
-//#endif

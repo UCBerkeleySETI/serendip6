@@ -140,7 +140,7 @@ hashpipe_databuf_t *s6_output_databuf_create(int instance_id, int databuf_id)
     size_t block_size  = sizeof(s6_output_block_t);
     int    n_block = N_OUTPUT_BLOCKS;
 
-fprintf(stderr, "header_size = %ld  block_size = %ld  n_block = %d  hardim = %ld  softlim = %ld\n", header_size, block_size, n_block);
+fprintf(stderr, "header_size = %ld  block_size = %ld  n_block = %d\n", header_size, block_size, n_block);
 
 
     return hashpipe_databuf_create(
