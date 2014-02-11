@@ -12,11 +12,14 @@
 // TODO
 // SMOOTH_SCALE, POWER_THRESH, and MAXHITS should be input parms
 // N_FINE_CHAN and N_COARSE_CHAN - should they be input parms?
-#define SMOOTH_SCALE            1024
-#define POWER_THRESH            20.0
-#define MAXHITS                 4096
 #define N_FINE_CHAN             (128*1024)               
 #define N_COARSE_CHAN           342      
+#define SMOOTH_SCALE            1024
+#define POWER_THRESH            20.0
+#define MIN_POWER_THRESH        10.0
+#define MAXHITS                 ((int)(1.0 / MIN_POWER_THRESH * N_FINE_CHAN))    
+//#define MAXHITS                 4096
+
 #define N_BEAMS                 8
 #define N_POLS_PER_BEAM         2
 #define N_BYTES_PER_SAMPLE      2
