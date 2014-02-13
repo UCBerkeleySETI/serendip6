@@ -63,6 +63,7 @@ typedef struct etfits {
     etfits_hits_t               hits;
 } etfits_t;
 
+int init_etfits(etfits_t *etf);
 int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t *scram_p);
 int etfits_create(etfits_t *etf);
 int etfits_close(etfits_t *etf);

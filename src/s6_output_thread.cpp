@@ -45,9 +45,8 @@ static void *run(hashpipe_thread_args_t * args)
     scram_t   scram;
     scram_t * scram_p = &scram;
 
-    strcpy(etf.basefilename, "etfitstestfile");     // TODO where to get file name?
-    etf.filenum=0;
-    etf.new_file=1;
+    init_etfits(&etf);
+
     //uint64_t nhits;      // TODO how to populate this?
 
     /* Main loop */

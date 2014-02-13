@@ -12,6 +12,18 @@
 #include "s6_etfits.h"
 
 //----------------------------------------------------------
+int init_etfits(etfits_t *etf) {
+//----------------------------------------------------------
+
+    strcpy(etf->basefilename, "etfitstestfile");     // TODO where to get file name?
+    etf->filenum       = 0;
+    etf->new_file      = 1;
+    etf->multifile     = 1;
+    etf->rows_per_file = 100000;    // TODO place holder - files should break on integration boundary
+    etf->rownum        = 0;    
+}
+
+//----------------------------------------------------------
 int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t *scram_p) {
 //----------------------------------------------------------
     int row, rv;
@@ -26,8 +38,8 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
     scram_t scram;
 
     // Create the initial file or change to a new one if needed.
-    if (etf->new_file || (etf->multifile==1 && etf->rownum > etf->rows_per_file))
-    {
+    if (etf->new_file || (etf->multifile==1 && etf->rownum > etf->rows_per_file)) {
+fprintf(stderr, "(1) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
         if (!etf->new_file) {
             printf("Closing file '%s'\n", etf->filename);
             fits_close_file(etf->fptr, status_p);
@@ -90,6 +102,7 @@ int etfits_create(etfits_t * etf) {
     // TODO enclose all init code in a do-as-needed block
     // Initialize the key variables if needed
     if (etf->new_file == 1) {  // first time writing to the file
+fprintf(stderr, "(2) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
         etf->status = 0;
         etf->tot_rows = 0;
         etf->N = 0L;
@@ -108,13 +121,15 @@ int etfits_create(etfits_t * etf) {
             system(cmd);
         }
         etf->new_file = 0;
+fprintf(stderr, "(3) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
     }   // end first time writing to the file
     etf->filenum++;
-    etf->rownum = 1;
+    //etf->rownum = 1;
 
     sprintf(etf->filename, "%s_%04d.fits", etf->basefilename, etf->filenum);
 
     // Create basic FITS file from our template
+fprintf(stderr, "(4) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
     char *s6_dir = getenv("S6_DIR");
     char template_file[1024];
     if (s6_dir==NULL) {
@@ -199,7 +214,6 @@ int write_integration_header(etfits_t * etf, scram_t *scram) {
 
     static int first_time=1;
     
-    *status_p = 0;
 fprintf(stderr, "writing integration header\n");
     if(first_time) {
         // go to the template created HDU
@@ -337,7 +351,7 @@ fprintf(stderr, "hit_i %ld nhits %ld\n", hit_i, nhits);
         cur_beam    = db->block[block_idx].hits[hit_i].beam;
         cur_input   = db->block[block_idx].hits[hit_i].input;
         cur_beampol = cur_beam * N_POLS_PER_BEAM + cur_input;
-fprintf(stderr, "writing header for beam %d input %d beampol %d\n", cur_beam, cur_input, etf->hits_hdr[cur_beam].beampol);
+fprintf(stderr, "at hit_i %ld : writing header for beam %d input %d beampol %d\n", hit_i, cur_beam, cur_input, etf->hits_hdr[cur_beampol].beampol);
         etf->hits_hdr[cur_beampol].beampol = cur_beampol;
 
         // separate the data columns for this input
@@ -369,6 +383,8 @@ fprintf(stderr, "det_pow.size %ld nhits_this_input %ld\n", det_pow.size(), nhits
         if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, fine_chan_p, status_p);
     }  // end while hit_i < nhits
 
+    etf->rownum += nhits;
+fprintf(stderr, "(5) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
 
     if (*status_p) {
         hashpipe_error(__FUNCTION__, "Error writing hits");

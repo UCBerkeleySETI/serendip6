@@ -79,6 +79,7 @@ hashpipe_databuf_t *s6_input_databuf_create(int instance_id, int databuf_id)
                        + sizeof(hashpipe_databuf_cache_alignment);
     size_t block_size  = sizeof(s6_input_block_t);
     int    n_block = N_INPUT_BLOCKS + N_DEBUG_INPUT_BLOCKS;
+//fprintf(stderr, "header_size %ld block_size %ld n_block %d total %ld\n", header_size, block_size, n_block,  header_size+block_size*n_block);
 
     return hashpipe_databuf_create(
         instance_id, databuf_id, header_size, block_size, n_block);
