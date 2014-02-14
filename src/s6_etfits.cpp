@@ -19,8 +19,8 @@ int init_etfits(etfits_t *etf) {
     etf->filenum       = 0;
     etf->new_file      = 1;
     etf->multifile     = 1;
-    etf->rows_per_file = 100000;    // TODO place holder - files should break on integration boundary
-    etf->rownum        = 0;    
+    etf->integrations_per_file = 2;    // TODO place holder - should come from status shmem
+    etf->integration_cnt     = 0;    
 }
 
 //----------------------------------------------------------
@@ -30,7 +30,7 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
     int nchan, nivals, nsubband;
     char* temp_str;
     double temp_dbl;
-    uint64_t nhits;
+    size_t nhits;
 
     int * status_p = &(etf->status);
     *status_p = 0;
@@ -38,8 +38,9 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
     scram_t scram;
 
     // Create the initial file or change to a new one if needed.
-    if (etf->new_file || (etf->multifile==1 && etf->rownum > etf->rows_per_file)) {
-fprintf(stderr, "(1) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
+    //if (etf->new_file || (etf->multifile==1 && etf->rownum > etf->rows_per_file)) {
+    if (etf->new_file || (etf->multifile==1 && etf->integration_cnt > etf->integrations_per_file)) {
+//fprintf(stderr, "(1) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
         if (!etf->new_file) {
             printf("Closing file '%s'\n", etf->filename);
             fits_close_file(etf->fptr, status_p);
@@ -102,7 +103,7 @@ int etfits_create(etfits_t * etf) {
     // TODO enclose all init code in a do-as-needed block
     // Initialize the key variables if needed
     if (etf->new_file == 1) {  // first time writing to the file
-fprintf(stderr, "(2) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
+//fprintf(stderr, "(2) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
         etf->status = 0;
         etf->tot_rows = 0;
         etf->N = 0L;
@@ -121,7 +122,7 @@ fprintf(stderr, "(2) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", 
             system(cmd);
         }
         etf->new_file = 0;
-fprintf(stderr, "(3) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
+//fprintf(stderr, "(3) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
     }   // end first time writing to the file
     etf->filenum++;
     //etf->rownum = 1;
@@ -129,7 +130,7 @@ fprintf(stderr, "(3) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", 
     sprintf(etf->filename, "%s_%04d.fits", etf->basefilename, etf->filenum);
 
     // Create basic FITS file from our template
-fprintf(stderr, "(4) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
+//fprintf(stderr, "(4) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
     char *s6_dir = getenv("S6_DIR");
     char template_file[1024];
     if (s6_dir==NULL) {
@@ -267,11 +268,13 @@ fprintf(stderr, "writing integration header\n");
         fits_report_error(stderr, *status_p);
     }
 
+    etf->integration_cnt++;
+
     return *status_p;
 }
 
 //----------------------------------------------------------
-int write_hits_header(etfits_t * etf, int beampol, uint64_t nhits) {
+int write_hits_header(etfits_t * etf, int beampol, size_t nhits) {
 //----------------------------------------------------------
 
 #define TFIELDS 4
@@ -312,11 +315,11 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
 //----------------------------------------------------------
 
     long firstrow, firstelem, colnum;
-    uint64_t nrows, hit_i, nhits_this_input;  
+    size_t nrows, hit_i, nhits_this_input;  
     int cur_beam, cur_input, cur_beampol;  
     static int first_time=1;
 
-    uint64_t nhits = db->block[block_idx].header.nhits;
+    size_t nhits = db->block[block_idx].header.nhits;
 
     int * status_p = &(etf->status);
     *status_p = 0;
@@ -354,11 +357,13 @@ fprintf(stderr, "at hit_i %ld : writing header for beam %d input %d beampol %d\n
         etf->hits_hdr[cur_beampol].beampol = cur_beampol;
 
         // separate the data columns for this input
+        // TODO - if this is too slow, we can make hits 4 separate arrays rather
+        // than an array of structs
         while(db->block[block_idx].hits[hit_i].input == cur_input && hit_i < nhits) {
-            det_pow.push_back(db->block[block_idx].hits[hit_i].power);
-            mean_pow.push_back(db->block[block_idx].hits[hit_i].baseline);
-            coarse_chan.push_back(db->block[block_idx].hits[hit_i].coarse_chan);
-            fine_chan.push_back(db->block[block_idx].hits[hit_i].fine_chan);
+            det_pow.push_back       (db->block[block_idx].hits[hit_i].power);
+            mean_pow.push_back      (db->block[block_idx].hits[hit_i].baseline);
+            coarse_chan.push_back   (db->block[block_idx].hits[hit_i].coarse_chan);
+            fine_chan.push_back     (db->block[block_idx].hits[hit_i].fine_chan);
             nhits_this_input++;
             hit_i++;
         }
@@ -382,8 +387,8 @@ fprintf(stderr, "det_pow.size %ld nhits_this_input %ld\n", det_pow.size(), nhits
         if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, fine_chan_p, status_p);
     }  // end while hit_i < nhits
 
-    etf->rownum += nhits;
-fprintf(stderr, "(5) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
+    //etf->rownum += nhits;
+//fprintf(stderr, "(5) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
 
     if (*status_p) {
         hashpipe_error(__FUNCTION__, "Error writing hits");
