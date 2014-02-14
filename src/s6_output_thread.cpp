@@ -44,10 +44,13 @@ static void *run(hashpipe_thread_args_t * args)
     etfits_t  etf;
     scram_t   scram;
     scram_t * scram_p = &scram;
+    
+    int prior_alfa_enabled=-1;      // initial value - should change very fast
+
+    //                         0           1
+    char *alfa_state[2] = {"disabled", "enabled"};
 
     init_etfits(&etf);
-
-    //uint64_t nhits;      // TODO how to populate this?
 
     /* Main loop */
     int i, rv, debug=20;
@@ -80,8 +83,21 @@ static void *run(hashpipe_thread_args_t * args)
         // get scram, etc data
         rv = get_obs_info_from_redis(scram_p, (char *)"redishost", 6379);
 
-        // write hits and metadata to etFITS file
-        rv = write_etfits(db, block_idx, &etf, scram_p);
+        hashpipe_status_lock_safe(&st);
+        hputs(st.buf, "ALFASTAT", alfa_state[scram.alfa_enabled]);
+        // TODO lots more scram to go here
+        hashpipe_status_unlock_safe(&st);
+    
+        if(scram.alfa_enabled != prior_alfa_enabled) {
+            fprintf(stderr, "alfa_enabled had changed from %d to %d\n", prior_alfa_enabled, scram.alfa_enabled);
+            prior_alfa_enabled = scram.alfa_enabled;
+        }
+
+        // write hits and metadata to etFITS file only if alfa is enabled
+        // alfa_enabled might be a second or so out of sync with data
+        if(scram.alfa_enabled) {
+            rv = write_etfits(db, block_idx, &etf, scram_p);
+        }
 
         // Note processing status, current input block
         hashpipe_status_lock_safe(&st);

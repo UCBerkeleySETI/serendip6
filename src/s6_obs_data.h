@@ -31,6 +31,7 @@ typedef struct scram {
     int     DERTIME;
     double  ra_by_beam[N_BEAMS];   
     double  dec_by_beam[N_BEAMS];
+    int     alfa_enabled;
 } scram_t;
 
 int get_obs_info_from_redis(scram_t *scram, char *hostname, int port);

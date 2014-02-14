@@ -18,7 +18,6 @@
 #define POWER_THRESH            20.0
 #define MIN_POWER_THRESH        10.0
 #define MAXHITS                 ((int)(1.0 / MIN_POWER_THRESH * N_FINE_CHAN))    
-//#define MAXHITS                 4096
 #define MAXGPUHITS              4096
 
 #define N_BEAMS                 8

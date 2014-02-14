@@ -146,5 +146,7 @@ int get_obs_info_from_redis(scram_t *scram,
 
     redisFree(c);       // TODO do I really want to free each time?
 
+    scram->alfa_enabled = 1;    // TODO TODO for testing only!!!
+
     return 0;           // TODO return something meaningful
 }
