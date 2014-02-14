@@ -24,9 +24,10 @@ static int init(hashpipe_thread_args_t *args)
     hashpipe_status_t st = args->st;
 
     hashpipe_status_lock_safe(&st);
-    hputr4(st.buf, "CGOMXERR", 0.0);
-    hputi4(st.buf, "CGOERCNT", 0);
-    hputi4(st.buf, "CGOMXECT", 0);
+    //hputr4(st.buf, "CGOMXERR", 0.0);
+    //hputi4(st.buf, "CGOERCNT", 0);
+    //hputi4(st.buf, "CGOMXECT", 0);
+    hputi4(st.buf, "MAXHITS ", MAXHITS);
     hashpipe_status_unlock_safe(&st);
 
     // Success!
@@ -46,8 +47,6 @@ static void *run(hashpipe_thread_args_t * args)
     scram_t * scram_p = &scram;
 
     init_etfits(&etf);
-
-    //uint64_t nhits;      // TODO how to populate this?
 
     /* Main loop */
     int i, rv, debug=20;

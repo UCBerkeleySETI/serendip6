@@ -23,9 +23,6 @@
 #define ELAPSED_NS(start,stop) \
   (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
 
-//cufftHandle fft_plan;
-
-//static void *run(hashpipe_thread_args_t * args, int doCPU)
 static void *run(hashpipe_thread_args_t * args)
 {
     // Local aliases to shorten access to args fields

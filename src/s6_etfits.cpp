@@ -273,7 +273,6 @@ fprintf(stderr, "writing integration header\n");
 //----------------------------------------------------------
 int write_hits_header(etfits_t * etf, int beampol, uint64_t nhits) {
 //----------------------------------------------------------
-// TODO have to know what input (beam/pol) this is
 
 #define TFIELDS 4
     int * status_p = &(etf->status);
