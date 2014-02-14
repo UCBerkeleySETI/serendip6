@@ -43,7 +43,7 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
 //fprintf(stderr, "(1) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
         if (!etf->new_file) {
             printf("Closing file '%s'\n", etf->filename);
-            fits_close_file(etf->fptr, status_p);
+            etfits_close(etf);
         }
         etfits_create(etf);
         if(*status_p) {
@@ -288,7 +288,8 @@ int write_hits_header(etfits_t * etf, int beampol, size_t nhits) {
     //const int tfields          = 3;
     // TODO check chan types!
     const char *ttype[TFIELDS] = {"DETPOW  ", "MEANPOW ",  "COARCHAN", "FINECHAN"};
-    const char *tform[TFIELDS] = {"1E",       "1E",        "1I",        "1J"};     // cfitsio datatype codes 
+    const char *tform[TFIELDS] = {"1E",       "1E",        "1U",        "1V"};     // cfitsio format codes 
+                             //     32-bit floats       16-bit unint   32-bit uint
     if(first_time) {
         // go to the template created HDU
         if(! *status_p) fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"ETHITS", 0, status_p);
