@@ -32,7 +32,7 @@ typedef struct etfits_hits_header {
     double dec;
     int    beampol;
     uint64_t missed_pkts;
-    uint64_t nhits;
+    size_t nhits;
 } etfits_hits_header_t;
 
 typedef struct etfits_hits {
@@ -49,9 +49,11 @@ typedef struct etfits {
     double T;               // Current duration of the observation written
     int filenum;            // The current number of the file in the scan (1-offset)
     int new_file;           // Indicates that a new file must be created.    
-    int rownum;             // The current data row number to be written (1-offset)
-    uint64_t tot_rows;      // The total number of data rows written this integration
-    int rows_per_file;      // The maximum number of data rows per file
+    //int rownum;             // The current data row number to be written (1-offset)
+    int integration_cnt;    // The current integration count
+    size_t tot_rows;      // The total number of data rows written this integration
+    //int rows_per_file;      // The maximum number of data rows per file
+    int integrations_per_file;      // The maximum number of data rows per file
     int status;             // The CFITSIO status value
     fitsfile *fptr;         // The CFITSIO file structure
     int multifile;          // Write multiple output files
@@ -69,7 +71,7 @@ int etfits_create(etfits_t *etf);
 int etfits_close(etfits_t *etf);
 int write_primary_header(etfits_t *etf);
 int write_integration_header(etfits_t *etf, scram_t *scram);
-int write_hits_header(etfits_t *etf, uint64_t nhits);
+int write_hits_header(etfits_t *etf, size_t nhits);
 int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf);
 
 #endif  // _ETFITS_H
