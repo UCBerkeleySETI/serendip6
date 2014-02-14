@@ -43,7 +43,7 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
 //fprintf(stderr, "(1) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
         if (!etf->new_file) {
             printf("Closing file '%s'\n", etf->filename);
-            fits_close_file(etf->fptr, status_p);
+            etfits_close(etf);
         }
         etfits_create(etf);
         if(*status_p) {

@@ -123,16 +123,12 @@ static void *run(hashpipe_thread_args_t * args)
         // Setup for next block
         block_idx = (block_idx + 1) % db->header.n_block;    
 
-        // TODO ?
-        //if(....) {
-        //    etfits_close(...);
-        //}
-
         /* Will exit if thread has been cancelled */
         pthread_testcancel();
     }
 
     // Thread success!
+    etfits_close(&etf);     // final close
     return NULL;
 }
 
