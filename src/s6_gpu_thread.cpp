@@ -158,14 +158,12 @@ static void *run(hashpipe_thread_args_t * args)
             gpu_block_count++;
         }
 
-        // re-init input block
-        // TODO
-
         // Mark output block as full and advance
         s6_output_databuf_set_filled(db_out, curblock_out);
         curblock_out = (curblock_out + 1) % db_out->header.n_block;
 
         // Mark input block as free and advance
+        //memset((void *)&(db_in->block[curblock_in]), 0, sizeof(s6_input_block_t));     // TODO re-init first
         hashpipe_databuf_set_free((hashpipe_databuf_t *)db_in, curblock_in);
         curblock_in = (curblock_in + 1) % db_in->header.n_block;
 

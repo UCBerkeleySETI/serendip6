@@ -115,10 +115,9 @@ static void *run(hashpipe_thread_args_t * args)
         // re-init output block
         // TODO
 
-        // Mark blocks as free
-        for(i=0; i<2; i++) {
-            s6_output_databuf_set_free(db, block_idx);
-        }
+        // Mark block as free
+        //memset((void *)&(db->block[block_idx]), 0, sizeof(s6_output_block_t));    // TODO re-init first
+        s6_output_databuf_set_free(db, block_idx);
 
         // Setup for next block
         block_idx = (block_idx + 1) % db->header.n_block;    
