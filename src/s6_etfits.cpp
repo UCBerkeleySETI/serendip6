@@ -217,7 +217,7 @@ int write_integration_header(etfits_t * etf, scram_t *scram) {
 fprintf(stderr, "writing integration header\n");
     if(first_time) {
         // go to the template created HDU
-        if(! status_p) fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"AOSCRAM", 0, status_p);
+        if(! *status_p) fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"AOSCRAM", 0, status_p);
         first_time = 0;
     } else {
         // create new HDU
