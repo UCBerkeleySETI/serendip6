@@ -144,6 +144,7 @@ static void *run(hashpipe_thread_args_t * args)
                              N_POLS_PER_BEAM,
                              beam_i,
                              MAXHITS,
+                             MAXGPUHITS,
                              POWER_THRESH,
                              SMOOTH_SCALE,
                              &(db_in->block[curblock_in].data[beam_i*N_BYTES_PER_BEAM]),
