@@ -31,20 +31,26 @@ static void *run(hashpipe_thread_args_t * args)
     uint64_t mcnt = 0;
     uint64_t *data;
     int block_idx = 0;
+    int error_count = 0, max_error_count = 0;
+    float error, max_error = 0.0;
+
     while (run_threads()) {
 
         hashpipe_status_lock_safe(&st);
         //hashpipe_status_lock_safe(p_st);
+        hputi4(st.buf, "NETBKOUT", block_idx);
         hputs(st.buf, status_key, "waiting");
         hashpipe_status_unlock_safe(&st);
         //hashpipe_status_unlock_safe(p_st);
  
-        // Wait for data - TODO - do I need to this?
-#if 0
-        //struct timespec sleep_dur, rem_sleep_dur;
-        //sleep_dur.tv_sec = 0;
-        //sleep_dur.tv_nsec = 0;
-        //nanosleep(&sleep_dur, &rem_sleep_dur);
+#if 1
+        // Wait for data
+        struct timespec sleep_dur, rem_sleep_dur;
+        sleep_dur.tv_sec = 1;
+        sleep_dur.tv_nsec = 0;
+        fprintf(stderr, "sleeping\n");
+        nanosleep(&sleep_dur, &rem_sleep_dur);
+        fprintf(stderr, "slept\n");
 #endif
 
 	
@@ -55,7 +61,7 @@ static void *run(hashpipe_thread_args_t * args)
                 != HASHPIPE_OK) {
             if (rv==HASHPIPE_TIMEOUT) {
                 hashpipe_status_lock_safe(&st);
-                hputs(st.buf, status_key, "blocked");
+                hputs(st.buf, status_key, "blocked_1out");
                 hashpipe_status_unlock_safe(&st);
                 continue;
             } else {
@@ -67,7 +73,6 @@ static void *run(hashpipe_thread_args_t * args)
 
         hashpipe_status_lock_safe(&st);
         hputs(st.buf, status_key, "receiving");
-        hputi4(st.buf, "NETBKOUT", block_idx);
         hashpipe_status_unlock_safe(&st);
  
         // populate block header
@@ -79,12 +84,28 @@ static void *run(hashpipe_thread_args_t * args)
         // all -16 (-1 * 16)
         //data = db->block[block_idx].data;
         //memset(data, 0, N_BYTES_PER_BLOCK);
-
+#if 1
         // gen fake data for all beams   
         // TODO vary data by beam
-        for(int beam_i = 0; beam_i < N_BEAMS; beam_i++) {
-            gen_fake_data(&(db->block[block_idx].data[beam_i*N_BYTES_PER_BEAM]));
+        static bool first_time = true;
+        if(first_time) {
+            first_time = false;
+            gen_fake_data(&(db->block[block_idx].data[0]));
+            //for(int beam_i = 0; beam_i < N_BEAMS; beam_i++) {
+            for(int beam_i = 1; beam_i < N_BEAMS; beam_i++) {
+                memcpy((void *)&db->block[block_idx].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)], 
+                       (const void *)&db->block[block_idx].data[0], 
+                       N_BYTES_PER_BEAM);
+                //gen_fake_data(&(db->block[block_idx].data[beam_i*N_BYTES_PER_BEAM]));
+            }
         }
+#endif
+
+        hashpipe_status_lock_safe(&st);
+        hputr4(st.buf, "NETMXERR", max_error);
+        hputi4(st.buf, "NETERCNT", error_count);
+        hputi4(st.buf, "NETMXECT", max_error_count);
+        hashpipe_status_unlock_safe(&st);
 
         // Mark block as full
         s6_input_databuf_set_filled(db, block_idx);

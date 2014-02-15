@@ -31,26 +31,23 @@ static void *run(hashpipe_thread_args_t * args)
     hashpipe_status_t st = args->st;
     const char * status_key = args->thread_desc->skey;
 
+    int gpu_dev = GPU_DEV;
+
 #ifdef DEBUG_SEMS
     fprintf(stderr, "s/tid %lu/                      GPU/\n", pthread_self());
 #endif
 
-    // Init integration control status variables
-    // what of this do I need - how do I get the gpu dev?
-    //int gpu_dev = 0;
-    //hashpipe_status_lock_safe(&st);
-    //hputs(st.buf,  "INTSTAT", "off");
-    //hputi8(st.buf, "INTSYNC", 0);
-    //hputi4(st.buf, "INTCOUNT", N_SUB_BLOCKS_PER_INPUT_BLOCK);
-    //hgeti4(st.buf, "GPUDEV", &gpu_dev); // No change if not found
-    //hputi4(st.buf, "GPUDEV", gpu_dev);
-    //hashpipe_status_unlock_safe(&st);
+    hashpipe_status_lock_safe(&st);
+    hputi4(st.buf, "GPUDEV", gpu_dev);
+    hashpipe_status_unlock_safe(&st);
 
     int rv;
     uint64_t start_mcount, last_mcount=0;
     int s6gpu_error = 0;
     int curblock_in=0;
     int curblock_out=0;
+    int error_count = 0, max_error_count = 0;
+    float error, max_error = 0.0;
 
     struct timespec start, stop;
     uint64_t elapsed_gpu_ns  = 0;
@@ -60,6 +57,9 @@ static void *run(hashpipe_thread_args_t * args)
     device_vectors_t *dv_p;
     cufftHandle fft_plan;
     cufftHandle *fft_plan_p = &fft_plan;
+
+    init_device(gpu_dev);
+
     // TODO handle errors
 
     int     n_subband = N_COARSE_CHAN;
@@ -78,7 +78,9 @@ static void *run(hashpipe_thread_args_t * args)
     while (run_threads()) {
 
         hashpipe_status_lock_safe(&st);
+        hputi4(st.buf, "GPUBLKIN", curblock_in);
         hputs(st.buf, status_key, "waiting");
+        hputi4(st.buf, "GPUBKOUT", curblock_out);
         hashpipe_status_unlock_safe(&st);
 
         // Wait for new input block to be filled
@@ -97,13 +99,7 @@ static void *run(hashpipe_thread_args_t * args)
 
         // Got a new data block, update status and determine how to handle it
         hashpipe_status_lock_safe(&st);
-        hputi4(st.buf, "GPUBLKIN", curblock_in);
         hputu8(st.buf, "GPUMCNT", db_in->block[curblock_in].header.mcnt);
-        hashpipe_status_unlock_safe(&st);
-
-        // Note processing status
-        hashpipe_status_lock_safe(&st);
-        hputs(st.buf, status_key, "processing gpu");
         hashpipe_status_unlock_safe(&st);
 
         if(db_in->block[curblock_in].header.mcnt >= last_mcount) {
@@ -121,6 +117,11 @@ static void *run(hashpipe_thread_args_t * args)
               }
           }
         }
+
+        // Note processing status
+        hashpipe_status_lock_safe(&st);
+        hputs(st.buf, status_key, "processing gpu");
+        hashpipe_status_unlock_safe(&st);
 
         clock_gettime(CLOCK_MONOTONIC, &start);
 
@@ -144,7 +145,7 @@ static void *run(hashpipe_thread_args_t * args)
                              MAXGPUHITS,
                              POWER_THRESH,
                              SMOOTH_SCALE,
-                             &(db_in->block[curblock_in].data[beam_i*N_BYTES_PER_BEAM]),
+                             &(db_in->block[curblock_in].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)]),
                              N_BYTES_PER_BEAM,
                              (hits_t *) &db_out->block[curblock_out].hits,
                              dv_p,
@@ -154,6 +155,12 @@ static void *run(hashpipe_thread_args_t * args)
             elapsed_gpu_ns += ELAPSED_NS(start, stop);
             gpu_block_count++;
         }
+
+        hashpipe_status_lock_safe(&st);
+        hputr4(st.buf, "GPUMXERR", max_error);
+        hputi4(st.buf, "GPUERCNT", error_count);
+        hputi4(st.buf, "GPUMXECT", max_error_count);
+        hashpipe_status_unlock_safe(&st);
 
         // Mark output block as full and advance
         s6_output_databuf_set_filled(db_out, curblock_out);

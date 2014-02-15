@@ -27,7 +27,7 @@
 #define N_GPU_ELEMENTS          (N_FINE_CHAN * N_COARSE_CHAN)
 #define N_SAMPLES_PER_BEAM      (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM)
 #define N_SAMPLES_PER_BLOCK     (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM * N_BEAMS)
-#define N_BYTES_PER_BLOCK       (N_BYTES_PER_SAMPLE * N_SAMPLES_PER_BLOCK)
+#define N_DATA_BYTES_PER_BLOCK  (N_BYTES_PER_SAMPLE * N_SAMPLES_PER_BLOCK)
 #define N_BYTES_PER_BEAM        (N_BYTES_PER_SAMPLE * N_SAMPLES_PER_BEAM)
 
 #define N_INPUT_BLOCKS          3
@@ -55,7 +55,7 @@ typedef uint8_t s6_input_header_cache_alignment[
 typedef struct s6_input_block {
   s6_input_block_header_t header;
   s6_input_header_cache_alignment padding; // Maintain cache alignment
-  uint64_t data[(N_BYTES_PER_BLOCK/sizeof(uint64_t))];
+  uint64_t data[(N_DATA_BYTES_PER_BLOCK/sizeof(uint64_t))];
 } s6_input_block_t;
 
 typedef struct s6_input_databuf {

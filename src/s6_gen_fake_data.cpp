@@ -39,5 +39,6 @@ void gen_fake_data(uint64_t *data) {
             c2data[dst_locator] = h_raw_timeseries_gen[src_locator];
         }
     }
-    memcpy((void *)data, (const void *)c2data, N_BYTES_PER_BLOCK);
+    //memcpy((void *)data, (const void *)c2data, N_BYTES_PER_BLOCK);
+    memcpy((void *)data, (const void *)c2data, N_BYTES_PER_BEAM);
 }

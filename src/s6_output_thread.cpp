@@ -55,12 +55,14 @@ static void *run(hashpipe_thread_args_t * args)
 
     /* Main loop */
     int i, rv, debug=20;
-    int block_idx;
+    int block_idx=0;
     int error_count, max_error_count = 0;
     float error, max_error = 0.0;
+
     while (run_threads()) {
 
         hashpipe_status_lock_safe(&st);
+        hputi4(st.buf, "OUTBLKIN", block_idx);
         hputs(st.buf, status_key, "waiting");
         hashpipe_status_unlock_safe(&st);
 
@@ -69,7 +71,7 @@ static void *run(hashpipe_thread_args_t * args)
                 != HASHPIPE_OK) {
             if (rv==HASHPIPE_TIMEOUT) {
                 hashpipe_status_lock_safe(&st);
-                hputs(st.buf, status_key, "blocked");
+                hputs(st.buf, status_key, "blocked_in");
                 hashpipe_status_unlock_safe(&st);
                 continue;
             } else {
@@ -79,10 +81,15 @@ static void *run(hashpipe_thread_args_t * args)
             }
         }
 
+        hashpipe_status_lock_safe(&st);
+        hputs(st.buf, status_key, "processing");
+        hashpipe_status_unlock_safe(&st);
+
         // TODO check mcnt
 
         // get scram, etc data
-        rv = get_obs_info_from_redis(scram_p, (char *)"redishost", 6379);
+        //rv = get_obs_info_from_redis(scram_p, (char *)"redishost", 6379);
+        scram.alfa_enabled = 1;  // TODO remove once get_obs_info_from_redis() is working
 
         hashpipe_status_lock_safe(&st);
         hputs(st.buf, "ALFASTAT", alfa_state[scram.alfa_enabled]);
@@ -100,17 +107,10 @@ static void *run(hashpipe_thread_args_t * args)
             rv = write_etfits(db, block_idx, &etf, scram_p);
         }
 
-        // Note processing status, current input block
         hashpipe_status_lock_safe(&st);
-        hputs(st.buf, status_key, "processing");
-        hputi4(st.buf, "CGOBLKIN", block_idx);
-        hashpipe_status_unlock_safe(&st);
-
-        // Update status values
-        hashpipe_status_lock_safe(&st);
-        hputr4(st.buf, "CGOMXERR", max_error);
-        hputi4(st.buf, "CGOERCNT", error_count);
-        hputi4(st.buf, "CGOMXECT", max_error_count);
+        hputr4(st.buf, "OUTMXERR", max_error);
+        hputi4(st.buf, "OUTERCNT", error_count);
+        hputi4(st.buf, "OUTMXECT", max_error_count);
         hashpipe_status_unlock_safe(&st);
 
         // re-init output block
@@ -134,7 +134,7 @@ static void *run(hashpipe_thread_args_t * args)
 
 static hashpipe_thread_desc_t output_thread = {
     name: "s6_output_thread",
-    skey: "CGOSTAT",
+    skey: "OUTSTAT",
     init: init,
     run:  run,
     ibuf_desc: {s6_output_databuf_create},
