@@ -19,6 +19,7 @@
 #define MIN_POWER_THRESH        10.0
 #define MAXHITS                 ((int)(1.0 / MIN_POWER_THRESH * N_FINE_CHAN))    
 #define MAXGPUHITS              4096
+#define GPU_DEV                 1
 
 #define N_BEAMS                 8
 #define N_POLS_PER_BEAM         2
