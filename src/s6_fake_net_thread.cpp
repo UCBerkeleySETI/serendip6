@@ -47,7 +47,7 @@ static void *run(hashpipe_thread_args_t * args)
         struct timespec sleep_dur, rem_sleep_dur;
         sleep_dur.tv_sec = 1;
         sleep_dur.tv_nsec = 0;
-        fprintf(stderr, "sleeping for %7.5f seconds\n", 
+        fprintf(stderr, "fake net thread sleeping for %7.5f seconds\n", 
                 sleep_dur.tv_sec + (double)sleep_dur.tv_nsec/1000000000.0);
         nanosleep(&sleep_dur, &rem_sleep_dur);
 	
@@ -58,7 +58,7 @@ static void *run(hashpipe_thread_args_t * args)
                 != HASHPIPE_OK) {
             if (rv==HASHPIPE_TIMEOUT) {
                 hashpipe_status_lock_safe(&st);
-                hputs(st.buf, status_key, "blocked_1out");
+                hputs(st.buf, status_key, "blocked");
                 hashpipe_status_unlock_safe(&st);
                 continue;
             } else {

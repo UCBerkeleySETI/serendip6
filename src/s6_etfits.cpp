@@ -16,11 +16,17 @@ int init_etfits(etfits_t *etf) {
 //----------------------------------------------------------
 
     strcpy(etf->basefilename, "etfitstestfile");     // TODO where to get file name?
-    etf->filenum       = 0;
-    etf->new_file      = 1;
-    etf->multifile     = 1;
-    etf->integrations_per_file = 2;    // TODO place holder - should come from status shmem
-    etf->integration_cnt     = 0;    
+    etf->file_cnt              = 0;
+    etf->new_file              = 1;
+    etf->multifile             = 1;
+    etf->integrations_per_file = 3;    // TODO place holder - should come from status shmem
+    etf->integration_cnt       = 0;    
+
+    etf->s6_dir = getenv("S6_DIR");
+    if (etf->s6_dir==NULL) {
+        etf->s6_dir = (char *)".";
+        hashpipe_warn(__FUNCTION__, "S6_DIR environment variable not set, using current directory for ETFITS template");
+    }
 }
 
 //----------------------------------------------------------
@@ -39,10 +45,11 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
 
     // Create the initial file or change to a new one if needed.
     //if (etf->new_file || (etf->multifile==1 && etf->rownum > etf->rows_per_file)) {
-    if (etf->new_file || (etf->multifile==1 && etf->integration_cnt > etf->integrations_per_file)) {
+    if (etf->new_file || (etf->multifile==1 && etf->integration_cnt >= etf->integrations_per_file)) {
 //fprintf(stderr, "(1) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
         if (!etf->new_file) {
             etfits_close(etf);
+            etf->integration_cnt = 0;
         }
         etfits_create(etf);
         if(*status_p) {
@@ -62,6 +69,7 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
         //etf->primary_hdr.chan_bandwidth = ;
         //etf->primary_hdr.freq_res = ;
         write_primary_header(etf);
+        etf->file_cnt++;
     }
 
     // populate hits header data
@@ -77,6 +85,8 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
     if(! *status_p) write_integration_header(etf, scram_p);
 
     if(! *status_p) nhits = write_hits(db, block_idx, etf);
+
+    etf->integration_cnt++;
 
     // Now update some key values if no CFITSIO errors
     if (! *status_p) {
@@ -98,8 +108,6 @@ int etfits_create(etfits_t * etf) {
 //----------------------------------------------------------
     int * status_p = &(etf->status);
     *status_p = 0;
-
-    static bool first_time = true;
 
     // TODO enclose all init code in a do-as-needed block
     // Initialize the key variables if needed
@@ -125,27 +133,14 @@ int etfits_create(etfits_t * etf) {
         etf->new_file = 0;
 //fprintf(stderr, "(3) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
     }   // end first time writing to the file
-    etf->filenum++;
-    //etf->rownum = 1;
 
-    sprintf(etf->filename, "%s_%04d.fits", etf->basefilename, etf->filenum);
+    sprintf(etf->filename, "%s_%04d.fits", etf->basefilename, etf->file_cnt+1);     // file_cnt starts at 0, file number at 1
 
     // Create basic FITS file from our template
 //fprintf(stderr, "(4) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
-    static char *s6_dir;
     char template_file[1024];
-    if(first_time) {
-        first_time = false;
-        s6_dir = getenv("S6_DIR");
-        if (s6_dir==NULL) {
-            s6_dir = (char *)".";
-            hashpipe_warn(__FUNCTION__, "S6_DIR environment variable not set, using current directory for ETFITS template");
-            //fprintf(stderr, 
-            //        "Warning: S6_DIR environment variable not set, using current directory for ETFITS template.\n");
-        }
-    }
     printf("Opening file '%s'\n", etf->filename);
-    sprintf(template_file, "%s/%s", s6_dir, ETFITS_TEMPLATE);
+    sprintf(template_file, "%s/%s", etf->s6_dir, ETFITS_TEMPLATE);
     if(! *status_p) fits_create_template(&(etf->fptr), etf->filename, template_file, status_p);
 
     // Check to see if file was successfully created
@@ -171,7 +166,7 @@ int etfits_close(etfits_t *etf) {
     }
     printf("Done.  %s %ld data rows in %d files (status = %d).\n",
             etf->mode=='r' ? "Read" : "Wrote", 
-            etf->tot_rows, etf->filenum, *status_p);
+            etf->tot_rows, etf->file_cnt, *status_p);
 
     return *status_p;
 }
@@ -218,13 +213,10 @@ int write_integration_header(etfits_t * etf, scram_t *scram) {
     int * status_p = &(etf->status);
     *status_p = 0;
 
-    static int first_time=1;
-    
 //fprintf(stderr, "writing integration header\n");
-    if(first_time) {
+    if(etf->integration_cnt == 0) {
         // go to the template created HDU
         if(! *status_p) fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"AOSCRAM", 0, status_p);
-        first_time = 0;
     } else {
         // create new HDU
         if(! *status_p) fits_create_tbl(etf->fptr, BINARY_TBL, 0, 0, NULL, NULL, NULL, (char *)"AOSCRAM", status_p);
@@ -273,8 +265,6 @@ int write_integration_header(etfits_t * etf, scram_t *scram) {
         fits_report_error(stderr, *status_p);
     }
 
-    etf->integration_cnt++;
-
     return *status_p;
 }
 
@@ -286,8 +276,6 @@ int write_hits_header(etfits_t * etf, int beampol, size_t nhits) {
     int * status_p = &(etf->status);
     *status_p = 0;
 
-    static int first_time=1;
-
     int tbltype                = BINARY_TBL;
     long long naxis2           = 0;
     //const int tfields          = 3;
@@ -295,25 +283,25 @@ int write_hits_header(etfits_t * etf, int beampol, size_t nhits) {
     const char *ttype[TFIELDS] = {"DETPOW  ", "MEANPOW ",  "COARCHAN", "FINECHAN"};
     const char *tform[TFIELDS] = {"1E",       "1E",        "1U",        "1V"};     // cfitsio format codes 
                              //     32-bit floats       16-bit unint   32-bit uint
-    if(first_time) {
-        // go to the template created HDU
+
+    if(etf->integration_cnt == 0 && etf->beampol_cnt == 0) {
+        // at start of file go to the template created HDU for this set of beampols
         if(! *status_p) fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"ETHITS", 0, status_p);
-        first_time = 0;
     } else {
-        // create new HDU
+        // otherwise create new HDU for this set of beampols
         if(! *status_p) fits_create_tbl(etf->fptr, BINARY_TBL, 0, TFIELDS, (char **)&ttype, (char **)&tform, NULL, (char *)"ETHITS", status_p);
     }
+
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "TIME",    &(etf->hits_hdr[beampol].time),    NULL, status_p);    
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "RA",      &(etf->hits_hdr[beampol].ra),      NULL, status_p);   
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr[beampol].dec),     NULL, status_p);   
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "BEAMPOL", &(etf->hits_hdr[beampol].beampol), NULL, status_p);   
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "NHITS",   &nhits,                            NULL, status_p);   
 
-//fprintf(stderr, "beampol %d nhits : %ld\n", etf->hits_hdr[beampol].beampol, nhits);
+//fprintf(stderr, "writing hits header. beampol %d nhits : %ld\n", etf->hits_hdr[beampol].beampol, nhits);
 
     if (*status_p) {
         hashpipe_error(__FUNCTION__, "Error writing hits header");
-        //fprintf(stderr, "Error writing hits header.\n");
         fits_report_error(stderr, *status_p);
     }
 }
@@ -325,12 +313,13 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
     long firstrow, firstelem, colnum;
     size_t nrows, hit_i, nhits_this_input;  
     int cur_beam, cur_input, cur_beampol;  
-    static int first_time=1;
 
     size_t nhits = db->block[block_idx].header.nhits;
 
     int * status_p = &(etf->status);
     *status_p = 0;
+
+    etf->beampol_cnt = 0;
 
 //fprintf(stderr, "writing hits\n");
     //std::vector<hits_t> hits;
@@ -393,6 +382,8 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
         if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, coarse_chan_p, status_p);
         colnum      = 4;
         if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, fine_chan_p, status_p);
+
+        etf->beampol_cnt++;
     }  // end while hit_i < nhits
 
     //etf->rownum += nhits;

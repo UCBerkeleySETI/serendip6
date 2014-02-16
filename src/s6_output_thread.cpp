@@ -71,7 +71,7 @@ static void *run(hashpipe_thread_args_t * args)
                 != HASHPIPE_OK) {
             if (rv==HASHPIPE_TIMEOUT) {
                 hashpipe_status_lock_safe(&st);
-                hputs(st.buf, status_key, "blocked_in");
+                hputs(st.buf, status_key, "blocked");
                 hashpipe_status_unlock_safe(&st);
                 continue;
             } else {

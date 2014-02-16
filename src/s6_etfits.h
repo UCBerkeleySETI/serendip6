@@ -45,13 +45,15 @@ typedef struct etfits_hits {
 typedef struct etfits {
     char basefilename[200]; // The base filename from which to build the true filename
     char filename[200];     // Filename of the current PSRFITs file
+    char * s6_dir;
     long long N;            // Current number of spectra written
     double T;               // Current duration of the observation written
-    int filenum;            // The current number of the file in the scan (1-offset)
     int new_file;           // Indicates that a new file must be created.    
-    //int rownum;             // The current data row number to be written (1-offset)
+    //int rownum;           // The current data row number to be written (1-offset)
+    int file_cnt;           // The current file count
     int integration_cnt;    // The current integration count
-    size_t tot_rows;      // The total number of data rows written this integration
+    int beampol_cnt;        // The current beampol count for this integration
+    size_t tot_rows;        // The total number of data rows written this integration
     //int rows_per_file;      // The maximum number of data rows per file
     int integrations_per_file;      // The maximum number of data rows per file
     int status;             // The CFITSIO status value
