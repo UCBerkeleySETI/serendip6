@@ -99,6 +99,8 @@ int etfits_create(etfits_t * etf) {
     int * status_p = &(etf->status);
     *status_p = 0;
 
+    static bool first_time = true;
+
     // TODO enclose all init code in a do-as-needed block
     // Initialize the key variables if needed
     if (etf->new_file == 1) {  // first time writing to the file
@@ -130,13 +132,17 @@ int etfits_create(etfits_t * etf) {
 
     // Create basic FITS file from our template
 //fprintf(stderr, "(4) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
-    char *s6_dir = getenv("S6_DIR");
+    static char *s6_dir;
     char template_file[1024];
-    if (s6_dir==NULL) {
-        s6_dir = (char *)".";
-        hashpipe_warn(__FUNCTION__, "S6_DIR environment variable not set, using current directory for ETFITS template");
-        //fprintf(stderr, 
-        //        "Warning: S6_DIR environment variable not set, using current directory for ETFITS template.\n");
+    if(first_time) {
+        first_time = false;
+        s6_dir = getenv("S6_DIR");
+        if (s6_dir==NULL) {
+            s6_dir = (char *)".";
+            hashpipe_warn(__FUNCTION__, "S6_DIR environment variable not set, using current directory for ETFITS template");
+            //fprintf(stderr, 
+            //        "Warning: S6_DIR environment variable not set, using current directory for ETFITS template.\n");
+        }
     }
     printf("Opening file '%s'\n", etf->filename);
     sprintf(template_file, "%s/%s", s6_dir, ETFITS_TEMPLATE);
