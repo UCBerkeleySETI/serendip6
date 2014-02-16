@@ -34,6 +34,9 @@ static void *run(hashpipe_thread_args_t * args)
     int error_count = 0, max_error_count = 0;
     float error, max_error = 0.0;
 
+    time_t t, prior_t;
+    prior_t = time(&prior_t);
+
     while (run_threads()) {
 
         hashpipe_status_lock_safe(&st);
@@ -43,6 +46,9 @@ static void *run(hashpipe_thread_args_t * args)
         hashpipe_status_unlock_safe(&st);
         //hashpipe_status_unlock_safe(p_st);
  
+        t = time(&t);
+        fprintf(stderr, "elapsed seconds for block %d : %ld\n", block_idx, t - prior_t);
+        prior_t = t;
         // Wait for data
         struct timespec sleep_dur, rem_sleep_dur;
         sleep_dur.tv_sec = 1;
