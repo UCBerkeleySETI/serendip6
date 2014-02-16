@@ -87,7 +87,7 @@ static void *run(hashpipe_thread_args_t * args)
         while ((rv=hashpipe_databuf_wait_filled((hashpipe_databuf_t *)db_in, curblock_in)) != HASHPIPE_OK) {
             if (rv==HASHPIPE_TIMEOUT) {
                 hashpipe_status_lock_safe(&st);
-                hputs(st.buf, status_key, "blocked_in");
+                hputs(st.buf, status_key, "blocked");
                 hashpipe_status_unlock_safe(&st);
                 continue;
             } else {

@@ -34,6 +34,14 @@ static void *run(hashpipe_thread_args_t * args)
     int error_count = 0, max_error_count = 0;
     float error, max_error = 0.0;
 
+    hashpipe_status_lock_safe(&st);
+    //hashpipe_status_lock_safe(p_st);
+    hputi4(st.buf, "NUMCCHAN", N_COARSE_CHAN);
+    hputi4(st.buf, "NUMFCHAN", N_FINE_CHAN);
+    hputi4(st.buf, "THRESHLD", POWER_THRESH);
+    hashpipe_status_unlock_safe(&st);
+    //hashpipe_status_unlock_safe(p_st);
+
     time_t t, prior_t;
     prior_t = time(&prior_t);
 
@@ -93,6 +101,7 @@ static void *run(hashpipe_thread_args_t * args)
         static bool first_time = true;
         if(first_time) {
             first_time = false;
+            fprintf(stderr, "generating fake data...\n");
             gen_fake_data(&(db->block[0].data[0]));
             for(int beam_i = 1; beam_i < N_BEAMS; beam_i++) {
                 memcpy((void *)&db->block[0].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)], 
