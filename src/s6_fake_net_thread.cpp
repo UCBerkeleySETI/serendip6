@@ -43,16 +43,13 @@ static void *run(hashpipe_thread_args_t * args)
         hashpipe_status_unlock_safe(&st);
         //hashpipe_status_unlock_safe(p_st);
  
-#if 1
         // Wait for data
         struct timespec sleep_dur, rem_sleep_dur;
         sleep_dur.tv_sec = 1;
         sleep_dur.tv_nsec = 0;
-        fprintf(stderr, "sleeping\n");
+        fprintf(stderr, "sleeping for %7.5f seconds\n", 
+                sleep_dur.tv_sec + (double)sleep_dur.tv_nsec/1000000000.0);
         nanosleep(&sleep_dur, &rem_sleep_dur);
-        fprintf(stderr, "slept\n");
-#endif
-
 	
         /* Wait for new block to be free, then clear it
          * if necessary and fill its header with new values.
@@ -78,25 +75,29 @@ static void *run(hashpipe_thread_args_t * args)
         // populate block header
         db->block[block_idx].header.mcnt = mcnt;
         db->block[block_idx].header.coarse_chan_id = 321;
-        memset(db->block[block_idx].header.missed_pkts, 0, sizeof(uint64_t) * N_BEAMS);
+        memset(db->block[block_idx].header.missed_pkts, 0, sizeof(uint64_t) * N_BEAM_SLOTS);
 
         // For testing, zero out block and set input FAKE_TEST_INPUT, FAKE_TEST_CHAN to
         // all -16 (-1 * 16)
         //data = db->block[block_idx].data;
         //memset(data, 0, N_BYTES_PER_BLOCK);
-#if 1
-        // gen fake data for all beams   
+#if 0
+        // gen fake data for all beams, all blocks   
         // TODO vary data by beam
         static bool first_time = true;
         if(first_time) {
             first_time = false;
-            gen_fake_data(&(db->block[block_idx].data[0]));
-            //for(int beam_i = 0; beam_i < N_BEAMS; beam_i++) {
+            gen_fake_data(&(db->block[0].data[0]));
             for(int beam_i = 1; beam_i < N_BEAMS; beam_i++) {
-                memcpy((void *)&db->block[block_idx].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)], 
-                       (const void *)&db->block[block_idx].data[0], 
+                memcpy((void *)&db->block[0].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)], 
+                       (const void *)&db->block[0].data[0], 
                        N_BYTES_PER_BEAM);
                 //gen_fake_data(&(db->block[block_idx].data[beam_i*N_BYTES_PER_BEAM]));
+            }
+            for(int block_i = 1; block_i < N_INPUT_BLOCKS; block_i++) {
+                memcpy((void *)&db->block[block_i].data, 
+                       (void *)&db->block[0].data, 
+                       N_DATA_BYTES_PER_BLOCK);
             }
         }
 #endif

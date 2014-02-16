@@ -42,7 +42,6 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
     if (etf->new_file || (etf->multifile==1 && etf->integration_cnt > etf->integrations_per_file)) {
 //fprintf(stderr, "(1) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
         if (!etf->new_file) {
-            printf("Closing file '%s'\n", etf->filename);
             etfits_close(etf);
         }
         etfits_create(etf);
@@ -159,7 +158,7 @@ int etfits_close(etfits_t *etf) {
     int * status_p = &(etf->status);
     *status_p = 0;
 
-fprintf(stderr, "in close, status is %d\n", *status_p);
+//fprintf(stderr, "in close, status is %d\n", *status_p);
     if (! *status_p) {
         fits_close_file(etf->fptr, status_p);
         printf("Closing file '%s'\n", etf->filename);
@@ -180,7 +179,7 @@ int write_primary_header(etfits_t * etf) {
     int itmp;
     char ctmp[40];
 
-fprintf(stderr, "writing primary header\n");
+//fprintf(stderr, "writing primary header\n");
 
     if(! *status_p) fits_get_system_time(ctmp, &itmp, status_p);      // date the file was written
 
@@ -215,7 +214,7 @@ int write_integration_header(etfits_t * etf, scram_t *scram) {
 
     static int first_time=1;
     
-fprintf(stderr, "writing integration header\n");
+//fprintf(stderr, "writing integration header\n");
     if(first_time) {
         // go to the template created HDU
         if(! *status_p) fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"AOSCRAM", 0, status_p);
@@ -304,6 +303,8 @@ int write_hits_header(etfits_t * etf, int beampol, size_t nhits) {
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "BEAMPOL", &(etf->hits_hdr[beampol].beampol), NULL, status_p);   
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "NHITS",   &nhits,                            NULL, status_p);   
 
+//fprintf(stderr, "beampol %d nhits : %ld\n", etf->hits_hdr[beampol].beampol, nhits);
+
     if (*status_p) {
         hashpipe_error(__FUNCTION__, "Error writing hits header");
         //fprintf(stderr, "Error writing hits header.\n");
@@ -325,7 +326,7 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
     int * status_p = &(etf->status);
     *status_p = 0;
 
-fprintf(stderr, "writing hits\n");
+//fprintf(stderr, "writing hits\n");
     //std::vector<hits_t> hits;
 
     std::vector<float> det_pow;
@@ -342,7 +343,7 @@ fprintf(stderr, "writing hits\n");
 
     hit_i = 0;              
     while(hit_i < nhits) {
-fprintf(stderr, "hit_i %ld nhits %ld\n", hit_i, nhits);
+//fprintf(stderr, "hit_i %ld nhits %ld\n", hit_i, nhits);
         // init for first / next input
         det_pow.clear();
         mean_pow.clear();
@@ -354,7 +355,7 @@ fprintf(stderr, "hit_i %ld nhits %ld\n", hit_i, nhits);
         cur_beam    = db->block[block_idx].hits[hit_i].beam;
         cur_input   = db->block[block_idx].hits[hit_i].input;
         cur_beampol = cur_beam * N_POLS_PER_BEAM + cur_input;
-fprintf(stderr, "at hit_i %ld : writing header for beam %d input %d beampol %d\n", hit_i, cur_beam, cur_input, etf->hits_hdr[cur_beampol].beampol);
+//fprintf(stderr, "at hit_i %ld : writing header for beam %d input %d beampol %d\n", hit_i, cur_beam, cur_input, etf->hits_hdr[cur_beampol].beampol);
         etf->hits_hdr[cur_beampol].beampol = cur_beampol;
 
         // separate the data columns for this input
@@ -369,7 +370,7 @@ fprintf(stderr, "at hit_i %ld : writing header for beam %d input %d beampol %d\n
             hit_i++;
         }
         // hit_i should now reference next input or one past all inputs
-fprintf(stderr, "det_pow.size %ld nhits_this_input %ld\n", det_pow.size(), nhits_this_input);
+//fprintf(stderr, "det_pow.size %ld nhits_this_input %ld\n", det_pow.size(), nhits_this_input);
 
         write_hits_header(etf, cur_beampol, nhits_this_input);
 

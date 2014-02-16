@@ -21,12 +21,13 @@
 #define MAXGPUHITS              4096
 #define GPU_DEV                 1
 
-#define N_BEAMS                 8
+#define N_BEAMS                 7
+#define N_BEAM_SLOTS            8
 #define N_POLS_PER_BEAM         2
 #define N_BYTES_PER_SAMPLE      2
 #define N_GPU_ELEMENTS          (N_FINE_CHAN * N_COARSE_CHAN)
 #define N_SAMPLES_PER_BEAM      (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM)
-#define N_SAMPLES_PER_BLOCK     (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM * N_BEAMS)
+#define N_SAMPLES_PER_BLOCK     (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM * N_BEAM_SLOTS)
 #define N_DATA_BYTES_PER_BLOCK  (N_BYTES_PER_SAMPLE * N_SAMPLES_PER_BLOCK)
 #define N_BYTES_PER_BEAM        (N_BYTES_PER_SAMPLE * N_SAMPLES_PER_BEAM)
 
@@ -45,7 +46,7 @@ typedef uint8_t hashpipe_databuf_cache_alignment[
 typedef struct s6_input_block_header {
   uint64_t mcnt;                    // mcount of first packet
   uint64_t coarse_chan_id;          // coarse channel number of lowest channel in this block
-  uint64_t missed_pkts[N_BEAMS];    // missed per beam - this block or this run? TODO
+  uint64_t missed_pkts[N_BEAM_SLOTS];    // missed per beam - this block or this run? TODO
 } s6_input_block_header_t;
 
 typedef uint8_t s6_input_header_cache_alignment[
@@ -69,7 +70,7 @@ typedef struct s6_input_databuf {
 typedef struct s6_output_block_header {
   uint64_t mcnt;
   uint64_t coarse_chan_id;          // coarse channel number of lowest channel in this block
-  uint64_t missed_pkts[N_BEAMS];    // missed per beam - this block or this run? TODO
+  uint64_t missed_pkts[N_BEAM_SLOTS];    // missed per beam - this block or this run? TODO
   uint64_t nhits;
 } s6_output_block_header_t;
 
@@ -80,7 +81,7 @@ typedef uint8_t s6_output_header_cache_alignment[
 typedef struct s6_output_block {
   s6_output_block_header_t header;
   s6_output_header_cache_alignment padding; // Maintain cache alignment
-  hits_t hits[MAXHITS*N_BEAMS*N_POLS_PER_BEAM];
+  hits_t hits[MAXHITS*N_BEAM_SLOTS*N_POLS_PER_BEAM];
 } s6_output_block_t;
 
 typedef struct s6_output_databuf {

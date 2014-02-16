@@ -129,32 +129,35 @@ static void *run(hashpipe_thread_args_t * args)
         db_in->block[curblock_out].header.mcnt = db_in->block[curblock_in].header.mcnt;
         memcpy(&db_out->block[curblock_out].header.missed_pkts, 
                &db_in->block[curblock_in].header.missed_pkts, 
-               sizeof(uint64_t) * N_BEAMS);
+               sizeof(uint64_t) * N_BEAM_SLOTS);
 
         // do spectroscopy and hit detection on this block.
         // spectroscopy() writes directly to the output buffer.
         // TODO error checking
+        size_t total_hits = 0;
         for(int beam_i = 0; beam_i < N_BEAMS; beam_i++) {
             // TODO putting beam into hits_t is kind of ugly.
-            db_out->block[curblock_out].header.nhits += 
-                spectroscopy(N_COARSE_CHAN,
-                             N_FINE_CHAN,
-                             N_POLS_PER_BEAM,
-                             beam_i,
-                             MAXHITS,
-                             MAXGPUHITS,
-                             POWER_THRESH,
-                             SMOOTH_SCALE,
-                             &(db_in->block[curblock_in].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)]),
-                             N_BYTES_PER_BEAM,
-                             (hits_t *) &db_out->block[curblock_out].hits,
-                             dv_p,
-                             fft_plan_p);
-
+            size_t nhits = 0; 
+            nhits = spectroscopy(N_COARSE_CHAN,
+                                 N_FINE_CHAN,
+                                 N_POLS_PER_BEAM,
+                                 beam_i,
+                                 MAXHITS,
+                                 MAXGPUHITS,
+                                 POWER_THRESH,
+                                 SMOOTH_SCALE,
+                                 &(db_in->block[curblock_in].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)]),
+                                 N_BYTES_PER_BEAM,
+                                 (hits_t *) &db_out->block[curblock_out].hits[total_hits],
+                                 dv_p,
+                                 fft_plan_p);
+//fprintf(stderr, "spectroscopy() returned %ld for beam %d\n", nhits, beam_i);
+            total_hits += nhits;
             clock_gettime(CLOCK_MONOTONIC, &stop);
             elapsed_gpu_ns += ELAPSED_NS(start, stop);
             gpu_block_count++;
         }
+        db_out->block[curblock_out].header.nhits = total_hits;
 
         hashpipe_status_lock_safe(&st);
         hputr4(st.buf, "GPUMXERR", max_error);
