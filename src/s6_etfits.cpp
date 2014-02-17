@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include <math.h>
 #include <vector>
 #include <hiredis.h>
@@ -17,16 +18,36 @@ int init_etfits(etfits_t *etf) {
 
     strcpy(etf->basefilename, "etfitstestfile");     // TODO where to get file name?
     etf->file_cnt              = 0;
+    etf->new_run               = 1;
     etf->new_file              = 1;
     etf->multifile             = 1;
     etf->integrations_per_file = 3;    // TODO place holder - should come from status shmem
     etf->integration_cnt       = 0;    
+    etf->max_file_size         = 1000000; // 1MB
 
     etf->s6_dir = getenv("S6_DIR");
     if (etf->s6_dir==NULL) {
         etf->s6_dir = (char *)".";
         hashpipe_warn(__FUNCTION__, "S6_DIR environment variable not set, using current directory for ETFITS template");
     }
+}
+
+//----------------------------------------------------------
+int check_for_file_roll(etfits_t *etf) {
+//----------------------------------------------------------
+// checks if we need to roll over to a new file
+    int * status_p = &(etf->status);
+    struct stat st;
+    fits_flush_file(etf->fptr, status_p);   // flush to get true size
+    if(stat(etf->filename, &st) == -1) { 
+        hashpipe_error(__FUNCTION__, "Error getting etfits file size");
+    } else {
+        fprintf(stderr, "size of %s is %ld\n", etf->filename, st.st_size);
+        if(st.st_size >= etf->max_file_size) {
+            etf->new_file = 1;
+        }
+    }
+    return *status_p;
 }
 
 //----------------------------------------------------------
@@ -45,9 +66,11 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
 
     // Create the initial file or change to a new one if needed.
     //if (etf->new_file || (etf->multifile==1 && etf->rownum > etf->rows_per_file)) {
-    if (etf->new_file || (etf->multifile==1 && etf->integration_cnt >= etf->integrations_per_file)) {
-//fprintf(stderr, "(1) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
-        if (!etf->new_file) {
+    //if (etf->new_file || (etf->multifile==1 && etf->integration_cnt >= etf->integrations_per_file)) {
+    if (etf->new_run || etf->new_file) {
+        etf->new_file = 0;
+//fprintf(stderr, "(1) new_run %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_run, etf->multifile, etf->rownum, etf->rows_per_file);
+        if (!etf->new_run) {
             etfits_close(etf);
             etf->integration_cnt = 0;
         }
@@ -92,6 +115,7 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
     if (! *status_p) {
         etf->tot_rows += nhits;
         etf->N += 1;
+        *status_p = check_for_file_roll(etf);
     }
 
     if(*status_p) {
@@ -111,8 +135,8 @@ int etfits_create(etfits_t * etf) {
 
     // TODO enclose all init code in a do-as-needed block
     // Initialize the key variables if needed
-    if (etf->new_file == 1) {  // first time writing to the file
-//fprintf(stderr, "(2) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
+    if (etf->new_run == 1) {  // first time writing to the file
+//fprintf(stderr, "(2) new_run %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_run, etf->multifile, etf->rownum, etf->rows_per_file);
         etf->status = 0;
         etf->tot_rows = 0;
         etf->N = 0L;
@@ -130,8 +154,8 @@ int etfits_create(etfits_t * etf) {
             sprintf(cmd, "mkdir -m 1777 -p %s", datadir);
             system(cmd);
         }
-        etf->new_file = 0;
-//fprintf(stderr, "(3) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
+        etf->new_run = 0;
+//fprintf(stderr, "(3) new_run %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_run, etf->multifile, etf->rownum, etf->rows_per_file);
     }   // end first time writing to the file
 
     sprintf(etf->filename, "%s_%04d.fits", etf->basefilename, etf->file_cnt+1);     // file_cnt starts at 0, file number at 1
