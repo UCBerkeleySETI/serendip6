@@ -13,10 +13,11 @@
 #include "s6_etfits.h"
 
 //----------------------------------------------------------
-int init_etfits(etfits_t *etf) {
+int init_etfits(etfits_t *etf, int start_file_num) {
 //----------------------------------------------------------
 
     strcpy(etf->basefilename, "etfitstestfile");     // TODO where to get file name?
+    etf->file_num              = start_file_num;
     etf->file_cnt              = 0;
     etf->new_run               = 1;
     etf->new_file              = 1;
@@ -44,6 +45,7 @@ int check_for_file_roll(etfits_t *etf) {
     } else {
         fprintf(stderr, "size of %s is %ld\n", etf->filename, st.st_size);
         if(st.st_size >= etf->max_file_size) {
+            etf->file_num++;
             etf->new_file = 1;
         }
     }
@@ -153,7 +155,8 @@ int etfits_create(etfits_t * etf) {
         }
     }   // end first time writing to the file
 
-    sprintf(etf->filename, "%s_%04d.fits", etf->basefilename, etf->file_cnt+1);     // file_cnt starts at 0, file number at 1
+    //sprintf(etf->filename, "%s_%04d.fits", etf->basefilename, etf->file_cnt+1);     // file_cnt starts at 0, file number at 1
+    sprintf(etf->filename, "%s_%04d.fits", etf->basefilename, etf->file_num);     // file_cnt starts at 0, file number at 1
 
     // Create basic FITS file from our template
     char template_file[1024];

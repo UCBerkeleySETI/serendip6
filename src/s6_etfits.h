@@ -50,6 +50,7 @@ typedef struct etfits {
     double T;               // Current duration of the observation written TODO obsolete?
     int new_run;            // Indicates that this is a new s6 run   
     int new_file;           // indicates that we need a new file
+    int file_num;           // used in naming files
     int file_cnt;           // The current file count
     int integration_cnt;    // The current integration count
     int beampol_cnt;        // The current beampol count for this integration
@@ -67,7 +68,7 @@ typedef struct etfits {
     etfits_hits_t               hits;
 } etfits_t;
 
-int init_etfits(etfits_t *etf);
+int init_etfits(etfits_t *etf, int file_num_start);
 int check_for_file_roll(etfits_t *etf);
 int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t *scram_p);
 int etfits_create(etfits_t *etf);

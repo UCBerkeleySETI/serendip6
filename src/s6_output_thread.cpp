@@ -51,7 +51,12 @@ static void *run(hashpipe_thread_args_t * args)
     //                         0           1
     char *alfa_state[2] = {"disabled", "enabled"};
 
-    init_etfits(&etf);
+    int file_num_start = -1;
+    hashpipe_status_lock_safe(&st);
+    hgeti4(st.buf, "FILENUM", &file_num_start);
+    hashpipe_status_unlock_safe(&st);
+    if(file_num_start == -1) file_num_start = 0;
+    init_etfits(&etf, file_num_start+1);
 
     /* Main loop */
     int i, rv, debug=20;
@@ -108,6 +113,7 @@ static void *run(hashpipe_thread_args_t * args)
         }
 
         hashpipe_status_lock_safe(&st);
+        hputi4(st.buf, "FILENUM", etf.file_num);
         hputr4(st.buf, "OUTMXERR", max_error);
         hputi4(st.buf, "OUTERCNT", error_count);
         hputi4(st.buf, "OUTMXECT", max_error_count);
