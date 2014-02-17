@@ -96,6 +96,10 @@ fprintf(stderr, "output thread input db                                         
 
         // get scram, etc data
         rv = get_obs_info_from_redis(scram_p, (char *)"redishost", 6379);
+        if(rv) {
+            hashpipe_error(__FUNCTION__, "error error returned from get_obs_info_from_redis()");
+            pthread_exit(NULL);
+        }
         scram.alfa_enabled = 1;  // TODO remove once get_obs_info_from_redis() is working
 
         hashpipe_status_lock_safe(&st);
@@ -112,6 +116,10 @@ fprintf(stderr, "output thread input db                                         
         // alfa_enabled might be a second or so out of sync with data
         if(scram.alfa_enabled) {
             rv = write_etfits(db, block_idx, &etf, scram_p);
+            if(rv) {
+                hashpipe_error(__FUNCTION__, "error error returned from write_etfits()");
+                pthread_exit(NULL);
+            }
         }
 
         hashpipe_status_lock_safe(&st);

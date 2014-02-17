@@ -33,6 +33,9 @@ static void *run(hashpipe_thread_args_t * args)
 
     int gpu_dev = GPU_DEV;
 
+fprintf(stderr, "gpu thread : input  db                                                       addr is %p\n", (void *)db_in);
+fprintf(stderr, "gpu thread : output db                                                       addr is %p\n", (void *)db_out);
+
 #ifdef DEBUG_SEMS
     fprintf(stderr, "s/tid %lu/                      GPU/\n", pthread_self());
 #endif
@@ -133,11 +136,11 @@ static void *run(hashpipe_thread_args_t * args)
 
         // do spectroscopy and hit detection on this block.
         // spectroscopy() writes directly to the output buffer.
-        // TODO error checking
         size_t total_hits = 0;
         for(int beam_i = 0; beam_i < N_BEAMS; beam_i++) {
-            // TODO putting beam into hits_t is kind of ugly.
             size_t nhits = 0; 
+            // TODO there is no real c error checking in spectroscopy()
+            //      Errors are handled via c++ exceptions
             nhits = spectroscopy(N_COARSE_CHAN,
                                  N_FINE_CHAN,
                                  N_POLS_PER_BEAM,

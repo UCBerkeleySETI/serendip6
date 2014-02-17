@@ -417,5 +417,10 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
         fits_report_error(stderr, *status_p);
     }
 
-    return nhits;
+    // non-standard return
+    if(*status_p) {
+        return -1;
+    } else {
+        return nhits;
+    }
 }
