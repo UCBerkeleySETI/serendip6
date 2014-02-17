@@ -243,7 +243,9 @@ int write_integration_header(etfits_t * etf, scram_t *scram) {
         if(! *status_p) fits_create_tbl(etf->fptr, BINARY_TBL, 0, 0, NULL, NULL, NULL, (char *)"AOSCRAM", status_p);
     }
 
-    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "EXTNAME", (char *)"AOSCRAM", NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "EXTNAME",  (char *)"AOSCRAM",  NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TINT,     "COARCHID", &scram->coarse_chan_id,   NULL, status_p); 
+
     // observatory (scram) data 
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "PNTSTIME",  &(scram->PNTSTIME), NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "PNTRA",     &(scram->PNTRA),    NULL, status_p);      

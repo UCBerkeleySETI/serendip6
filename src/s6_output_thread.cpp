@@ -101,9 +101,11 @@ fprintf(stderr, "output thread input db                                         
             pthread_exit(NULL);
         }
         scram.alfa_enabled = 1;  // TODO remove once get_obs_info_from_redis() is working
+        scram.coarse_chan_id = db->block[block_idx].header.coarse_chan_id;
 
         hashpipe_status_lock_safe(&st);
         hputs(st.buf, "ALFASTAT", alfa_state[scram.alfa_enabled]);
+        hputi4(st.buf, "COARCHID", scram.coarse_chan_id);
         // TODO lots more scram to go here
         hashpipe_status_unlock_safe(&st);
     

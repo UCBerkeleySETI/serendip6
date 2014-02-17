@@ -128,8 +128,9 @@ fprintf(stderr, "gpu thread : output db                                         
 
         clock_gettime(CLOCK_MONOTONIC, &start);
 
-        // pass mcnt and missed_pkts on to the output thread
-        db_in->block[curblock_out].header.mcnt = db_in->block[curblock_in].header.mcnt;
+        // pass input metadata to output
+        db_out->block[curblock_out].header.mcnt           = db_in->block[curblock_in].header.mcnt;
+        db_out->block[curblock_out].header.coarse_chan_id = db_in->block[curblock_in].header.coarse_chan_id;
         memcpy(&db_out->block[curblock_out].header.missed_pkts, 
                &db_in->block[curblock_in].header.missed_pkts, 
                sizeof(uint64_t) * N_BEAM_SLOTS);
