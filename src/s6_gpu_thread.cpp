@@ -146,7 +146,7 @@ static void *run(hashpipe_thread_args_t * args)
                                  MAXGPUHITS,
                                  POWER_THRESH,
                                  SMOOTH_SCALE,
-                                 &(db_in->block[curblock_in].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)]),
+                                 &db_in->block[curblock_in].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)],
                                  N_BYTES_PER_BEAM,
                                  (hits_t *) &db_out->block[curblock_out].hits[total_hits],
                                  dv_p,
@@ -170,7 +170,8 @@ static void *run(hashpipe_thread_args_t * args)
         curblock_out = (curblock_out + 1) % db_out->header.n_block;
 
         // Mark input block as free and advance
-        //memset((void *)&(db_in->block[curblock_in]), 0, sizeof(s6_input_block_t));     // TODO re-init first
+        //memset((void *)&db_in->block[curblock_in], 0, sizeof(s6_input_block_t));     // TODO re-init first
+//fprintf(stderr, "input block %d memset done\n", curblock_in);
         hashpipe_databuf_set_free((hashpipe_databuf_t *)db_in, curblock_in);
         curblock_in = (curblock_in + 1) % db_in->header.n_block;
 

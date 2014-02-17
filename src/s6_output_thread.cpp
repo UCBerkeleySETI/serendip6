@@ -97,7 +97,7 @@ static void *run(hashpipe_thread_args_t * args)
         hashpipe_status_unlock_safe(&st);
     
         if(scram.alfa_enabled != prior_alfa_enabled) {
-            fprintf(stderr, "alfa_enabled had changed from %d to %d\n", prior_alfa_enabled, scram.alfa_enabled);
+            fprintf(stderr, "alfa_enabled has changed from %d to %d\n", prior_alfa_enabled, scram.alfa_enabled);
             prior_alfa_enabled = scram.alfa_enabled;
         }
 
@@ -117,7 +117,7 @@ static void *run(hashpipe_thread_args_t * args)
         // TODO
 
         // Mark block as free
-        //memset((void *)&(db->block[block_idx]), 0, sizeof(s6_output_block_t));    // TODO re-init first
+        //memset((void *)&db->block[block_idx], 0, sizeof(s6_output_block_t));    // TODO re-init first
         s6_output_databuf_set_free(db, block_idx);
 
         // Setup for next block
