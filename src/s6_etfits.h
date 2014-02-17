@@ -46,21 +46,19 @@ typedef struct etfits {
     char basefilename[200]; // The base filename from which to build the true filename
     char filename[200];     // Filename of the current ETFITs file
     char * s6_dir;
-    long long N;            // Current number of spectra written
-    double T;               // Current duration of the observation written
+    long long N;            // Current number of spectra written TODO obsolete?
+    double T;               // Current duration of the observation written TODO obsolete?
     int new_run;            // Indicates that this is a new s6 run   
     int new_file;           // indicates that we need a new file
-    //int rownum;           // The current data row number to be written (1-offset)
     int file_cnt;           // The current file count
     int integration_cnt;    // The current integration count
     int beampol_cnt;        // The current beampol count for this integration
     size_t tot_rows;        // The total number of data rows written this integration
-    //int rows_per_file;      // The maximum number of data rows per file
     int integrations_per_file;      // The maximum number of data rows per file
     int max_file_size;
     int status;             // The CFITSIO status value
     fitsfile *fptr;         // The CFITSIO file structure
-    int multifile;          // Write multiple output files
+    int multifile;          // Write multiple output files TODO obsolete?
     int quiet;              // Be quiet about writing each subint
     char mode;              // Read (r) or write (w).
     etfits_primary_header_t     primary_hdr;

@@ -65,11 +65,8 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
     scram_t scram;
 
     // Create the initial file or change to a new one if needed.
-    //if (etf->new_file || (etf->multifile==1 && etf->rownum > etf->rows_per_file)) {
-    //if (etf->new_file || (etf->multifile==1 && etf->integration_cnt >= etf->integrations_per_file)) {
     if (etf->new_run || etf->new_file) {
         etf->new_file = 0;
-//fprintf(stderr, "(1) new_run %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_run, etf->multifile, etf->rownum, etf->rows_per_file);
         if (!etf->new_run) {
             etfits_close(etf);
             etf->integration_cnt = 0;
@@ -136,7 +133,7 @@ int etfits_create(etfits_t * etf) {
     // TODO enclose all init code in a do-as-needed block
     // Initialize the key variables if needed
     if (etf->new_run == 1) {  // first time writing to the file
-//fprintf(stderr, "(2) new_run %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_run, etf->multifile, etf->rownum, etf->rows_per_file);
+        etf->new_run = 0;
         etf->status = 0;
         etf->tot_rows = 0;
         etf->N = 0L;
@@ -154,14 +151,11 @@ int etfits_create(etfits_t * etf) {
             sprintf(cmd, "mkdir -m 1777 -p %s", datadir);
             system(cmd);
         }
-        etf->new_run = 0;
-//fprintf(stderr, "(3) new_run %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_run, etf->multifile, etf->rownum, etf->rows_per_file);
     }   // end first time writing to the file
 
     sprintf(etf->filename, "%s_%04d.fits", etf->basefilename, etf->file_cnt+1);     // file_cnt starts at 0, file number at 1
 
     // Create basic FITS file from our template
-//fprintf(stderr, "(4) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
     char template_file[1024];
     printf("Opening file '%s'\n", etf->filename);
     sprintf(template_file, "%s/%s", etf->s6_dir, ETFITS_TEMPLATE);
@@ -411,7 +405,6 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
     }  // end while hit_i < nhits
 
     //etf->rownum += nhits;
-//fprintf(stderr, "(5) new_file %d  multifile %d  rownum %d  rows_per_file %d\n", etf->new_file, etf->multifile, etf->rownum, etf->rows_per_file);
 
     if (*status_p) {
         hashpipe_error(__FUNCTION__, "Error writing hits");
