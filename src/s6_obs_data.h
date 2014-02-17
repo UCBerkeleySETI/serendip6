@@ -8,6 +8,8 @@ typedef struct scram {
     double  PNTRA;   
     double  PNTDEC;  
     double  PNTMJD;  
+    double  PNTAZCOR;  
+    double  PNTZACOR;  
     int     AGCSTIME;
     int     AGCTIME; 
     double  AGCAZ;   

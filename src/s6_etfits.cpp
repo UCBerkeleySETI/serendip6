@@ -249,6 +249,8 @@ int write_integration_header(etfits_t * etf, scram_t *scram) {
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "PNTRA",     &(scram->PNTRA),    NULL, status_p);      
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "PNTDEC",    &(scram->PNTDEC),   NULL, status_p);      
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "PNTMJD",    &(scram->PNTMJD),   NULL, status_p);      
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "PNTAZCOR",  &(scram->PNTAZCOR), NULL, status_p);      
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "PNTZACOR",  &(scram->PNTZACOR), NULL, status_p);      
 
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "AGCSTIME", &(scram->AGCSTIME),  NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "AGCAZ",    &(scram->AGCAZ),     NULL, status_p); 

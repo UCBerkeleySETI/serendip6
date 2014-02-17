@@ -33,7 +33,7 @@ int get_obs_info_from_redis(scram_t *scram,
 
     // TODO factor out all the redis error checking (use hashpipe_error())
 
-    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:PNT        PNTSTIME PNTRA PNTDEC PNTMJD");
+    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:PNT        PNTSTIME PNTRA PNTDEC PNTMJD PNTAZCOR PNTZACOR");
     if (reply->type == REDIS_REPLY_ERROR)               // TODO error checking does not seem to work
         fprintf(stderr, "Error: %s\n", reply->str);              //      check for correct # elements
     else if (reply->type != REDIS_REPLY_ARRAY)          //      move error check to function
@@ -43,12 +43,16 @@ int get_obs_info_from_redis(scram_t *scram,
         scram->PNTRA     = atof(reply->element[1]->str);
         scram->PNTDEC    = atof(reply->element[2]->str);
         scram->PNTMJD    = atof(reply->element[3]->str);
+        scram->PNTAZCOR  = atof(reply->element[4]->str);
+        scram->PNTZACOR  = atof(reply->element[5]->str);
     }
     freeReplyObject(reply);
     fprintf(stderr, "GET SCRAM:PNTSTIME %d\n", scram->PNTSTIME);
     fprintf(stderr, "GET SCRAM:PNTRA %lf\n", scram->PNTRA);   
     fprintf(stderr, "GET SCRAM:PNTDEC %lf\n", scram->PNTDEC);  
     fprintf(stderr, "GET SCRAM:PNTMJD %lf\n", scram->PNTMJD);  
+    fprintf(stderr, "GET SCRAM:PNTAZCOR %lf\n", scram->PNTAZCOR);  
+    fprintf(stderr, "GET SCRAM:PNTZACOR %lf\n", scram->PNTZACOR);  
 
     reply = (redisReply *)redisCommand(c, "HMGET SCRAM:AGC       AGCSTIME AGCTIME AGCAZ AGCZA AGCLST");
     if (reply->type == REDIS_REPLY_ERROR)

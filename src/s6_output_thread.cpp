@@ -58,6 +58,8 @@ static void *run(hashpipe_thread_args_t * args)
     if(file_num_start == -1) file_num_start = 0;
     init_etfits(&etf, file_num_start+1);
 
+fprintf(stderr, "output thread input db                                                       addr is %p\n", (void *)db);
+
     /* Main loop */
     int i, rv, debug=20;
     int block_idx=0;
@@ -93,7 +95,7 @@ static void *run(hashpipe_thread_args_t * args)
         // TODO check mcnt
 
         // get scram, etc data
-        //rv = get_obs_info_from_redis(scram_p, (char *)"redishost", 6379);
+        rv = get_obs_info_from_redis(scram_p, (char *)"redishost", 6379);
         scram.alfa_enabled = 1;  // TODO remove once get_obs_info_from_redis() is working
 
         hashpipe_status_lock_safe(&st);
