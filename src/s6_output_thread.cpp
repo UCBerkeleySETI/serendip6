@@ -49,7 +49,7 @@ static void *run(hashpipe_thread_args_t * args)
     int prior_alfa_enabled=-1;      // initial value - should change very fast
 
     //                         0           1
-    char *alfa_state[2] = {"disabled", "enabled"};
+    const char *alfa_state[2] = {"disabled", "enabled"};
 
     int file_num_start = -1;
     hashpipe_status_lock_safe(&st);
@@ -117,6 +117,7 @@ fprintf(stderr, "output thread input db                                         
         // write hits and metadata to etFITS file only if alfa is enabled
         // alfa_enabled might be a second or so out of sync with data
         if(scram.alfa_enabled) {
+            etf.file_chan = scram.coarse_chan_id;
             rv = write_etfits(db, block_idx, &etf, scram_p);
             if(rv) {
                 hashpipe_error(__FUNCTION__, "error error returned from write_etfits()");

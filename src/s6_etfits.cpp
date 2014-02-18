@@ -16,7 +16,7 @@
 int init_etfits(etfits_t *etf, int start_file_num) {
 //----------------------------------------------------------
 
-    strcpy(etf->basefilename, "etfitstestfile");     // TODO where to get file name?
+    strcpy(etf->basefilename, "data/serendip6");     // TODO where to get file name?
     etf->file_num              = start_file_num;
     etf->file_cnt              = 0;
     etf->new_run               = 1;
@@ -24,7 +24,7 @@ int init_etfits(etfits_t *etf, int start_file_num) {
     etf->multifile             = 1;
     etf->integrations_per_file = 3;    // TODO place holder - should come from status shmem
     etf->integration_cnt       = 0;    
-    etf->max_file_size         = 1000000; // 1MB
+    etf->max_file_size         = 1000000; // 1MB    TODO runtime config
 
     etf->s6_dir = getenv("S6_DIR");
     if (etf->s6_dir==NULL) {
@@ -132,6 +132,11 @@ int etfits_create(etfits_t * etf) {
     int * status_p = &(etf->status);
     *status_p = 0;
 
+    struct tm tm_now;
+    time_t time_now;
+
+    char file_name_str[256];
+
     // TODO enclose all init code in a do-as-needed block
     // Initialize the key variables if needed
     if (etf->new_run == 1) {  // first time writing to the file
@@ -155,8 +160,14 @@ int etfits_create(etfits_t * etf) {
         }
     }   // end first time writing to the file
 
-    //sprintf(etf->filename, "%s_%04d.fits", etf->basefilename, etf->file_cnt+1);     // file_cnt starts at 0, file number at 1
-    sprintf(etf->filename, "%s_%04d.fits", etf->basefilename, etf->file_num);     // file_cnt starts at 0, file number at 1
+    // Form file name 
+    time(&time_now);
+    localtime_r(&time_now, &tm_now);
+    sprintf(file_name_str, "%04d_%04d%02d%02d_%02d%02d%02d", 
+            etf->file_chan,
+            1900+tm_now.tm_year, 1+tm_now.tm_mon, tm_now.tm_mday, 
+            tm_now.tm_hour, tm_now.tm_min, tm_now.tm_sec); 
+    sprintf(etf->filename, "%s_%s.fits", etf->basefilename, file_name_str);  
 
     // Create basic FITS file from our template
     char template_file[1024];

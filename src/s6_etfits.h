@@ -51,6 +51,7 @@ typedef struct etfits {
     int new_run;            // Indicates that this is a new s6 run   
     int new_file;           // indicates that we need a new file
     int file_num;           // used in naming files
+    int file_chan;          // used in naming files
     int file_cnt;           // The current file count
     int integration_cnt;    // The current integration count
     int beampol_cnt;        // The current beampol count for this integration
