@@ -58,8 +58,6 @@ static void *run(hashpipe_thread_args_t * args)
     if(file_num_start == -1) file_num_start = 0;
     init_etfits(&etf, file_num_start+1);
 
-fprintf(stderr, "output thread input db                                                       addr is %p\n", (void *)db);
-
     /* Main loop */
     int i, rv, debug=20;
     int block_idx=0;

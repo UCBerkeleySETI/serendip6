@@ -31,9 +31,6 @@ static void *run(hashpipe_thread_args_t * args)
     hashpipe_status_t st = args->st;
     const char * status_key = args->thread_desc->skey;
 
-fprintf(stderr, "gpu thread : input  db                                                       addr is %p\n", (void *)db_in);
-fprintf(stderr, "gpu thread : output db                                                       addr is %p\n", (void *)db_out);
-
 #ifdef DEBUG_SEMS
     fprintf(stderr, "s/tid %lu/                      GPU/\n", pthread_self());
 #endif
