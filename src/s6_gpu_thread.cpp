@@ -31,18 +31,12 @@ static void *run(hashpipe_thread_args_t * args)
     hashpipe_status_t st = args->st;
     const char * status_key = args->thread_desc->skey;
 
-    int gpu_dev = GPU_DEV;
-
 fprintf(stderr, "gpu thread : input  db                                                       addr is %p\n", (void *)db_in);
 fprintf(stderr, "gpu thread : output db                                                       addr is %p\n", (void *)db_out);
 
 #ifdef DEBUG_SEMS
     fprintf(stderr, "s/tid %lu/                      GPU/\n", pthread_self());
 #endif
-
-    hashpipe_status_lock_safe(&st);
-    hputi4(st.buf, "GPUDEV", gpu_dev);
-    hashpipe_status_unlock_safe(&st);
 
     int rv;
     uint64_t start_mcount, last_mcount=0;
@@ -57,11 +51,17 @@ fprintf(stderr, "gpu thread : output db                                         
     uint64_t gpu_block_count = 0;
 
     // init s6GPU
+    int gpu_dev=0;  // default to 0
+    hashpipe_status_lock_safe(&st);
+    hgeti4(st.buf, "GPUDEV", &gpu_dev);
+    hashpipe_status_unlock_safe(&st);
+    init_device(gpu_dev);
+
     device_vectors_t *dv_p;
+
     cufftHandle fft_plan;
     cufftHandle *fft_plan_p = &fft_plan;
 
-    init_device(gpu_dev);
 
     // TODO handle errors
 
