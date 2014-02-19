@@ -97,43 +97,27 @@ static void *run(hashpipe_thread_args_t * args)
         db->block[block_idx].header.coarse_chan_id = 321;
         memset(db->block[block_idx].header.missed_pkts, 0, sizeof(uint64_t) * N_BEAM_SLOTS);
 
-    if(gen_fake) {
-        gen_fake = 0;
-        // gen fake data for all beams, all blocks   
-        // TODO vary data by beam
-//fprintf(stderr, "db->block[0]                                             addr is %p\n", (void *)&db->block[0]);
-//fprintf(stderr, "db->block[1]                                             addr is %p\n", (void *)&db->block[1]);
-//fprintf(stderr, "db->block[2]                                             addr is %p\n", (void *)&db->block[2]);
-//fprintf(stderr, "db->block[0].data[0]                                     addr is %p\n", (void *)&db->block[0].data[0]);
-//fprintf(stderr, "db->block[0].data[1 * N_BYTES_PER_BEAM/sizeof(uint64_t)] addr is %p\n", (void *)&db->block[0].data[1 * N_BYTES_PER_BEAM/sizeof(uint64_t)]);
-//fprintf(stderr, "db->block[0].data[2 * N_BYTES_PER_BEAM/sizeof(uint64_t)] addr is %p\n", (void *)&db->block[0].data[2 * N_BYTES_PER_BEAM/sizeof(uint64_t)]);
-//fprintf(stderr, "db->block[0].data[3 * N_BYTES_PER_BEAM/sizeof(uint64_t)] addr is %p\n", (void *)&db->block[0].data[3 * N_BYTES_PER_BEAM/sizeof(uint64_t)]);
-//fprintf(stderr, "db->block[0].data[4 * N_BYTES_PER_BEAM/sizeof(uint64_t)] addr is %p\n", (void *)&db->block[0].data[4 * N_BYTES_PER_BEAM/sizeof(uint64_t)]);
-//fprintf(stderr, "db->block[0].data[5 * N_BYTES_PER_BEAM/sizeof(uint64_t)] addr is %p\n", (void *)&db->block[0].data[5 * N_BYTES_PER_BEAM/sizeof(uint64_t)]);
-//fprintf(stderr, "db->block[0].data[6 * N_BYTES_PER_BEAM/sizeof(uint64_t)] addr is %p\n", (void *)&db->block[0].data[6 * N_BYTES_PER_BEAM/sizeof(uint64_t)]);
-//fprintf(stderr, "db->block[1].data[0]                                     addr is %p\n", (void *)&db->block[1].data[0]);
-//fprintf(stderr, "db->block[2].data[0]                                     addr is %p\n", (void *)&db->block[2].data[0]);
+        if(gen_fake) {
+            gen_fake = 0;
+            // gen fake data for all beams, all blocks   
+            // TODO vary data by beam
             fprintf(stderr, "generating fake data to block 0 beam 0...");
-//fprintf(stderr, "generating data to %p\n", &db->block[0].data[0]);
             gen_fake_data(&(db->block[0].data[0]));
             fprintf(stderr, " done\n");
             fprintf(stderr, "copying to block 0 beam");
             for(int beam_i = 1; beam_i < N_BEAMS; beam_i++) {
                 fprintf(stderr, " %d", beam_i);
-//fprintf(stderr, "beam  %d copying %ld bytes from %p to %p\n", beam_i, N_BYTES_PER_BEAM, &db->block[0].data[0], &db->block[0].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)]);
                 memcpy((void *)&db->block[0].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)], 
-                       (void *)&db->block[0].data[0], 
-                       N_BYTES_PER_BEAM);
-                //gen_fake_data(&(db->block[block_idx].data[beam_i*N_BYTES_PER_BEAM]));
+                    (void *)&db->block[0].data[0], 
+                    N_BYTES_PER_BEAM);
             }
             fprintf(stderr, " done\n");
             fprintf(stderr, "copying to block");
             for(int block_i = 1; block_i < N_INPUT_BLOCKS; block_i++) {
                 fprintf(stderr, " %d", block_i);
-//fprintf(stderr, "block %d copying %ld bytes from %p to %p\n", block_i, N_DATA_BYTES_PER_BLOCK, &db->block[0].data[0], &db->block[block_i].data[0]);
                 memcpy((void *)&db->block[block_i].data[0], 
-                       (void *)&db->block[0].data[0], 
-                       N_DATA_BYTES_PER_BLOCK);
+                    (void *)&db->block[0].data[0], 
+                    N_DATA_BYTES_PER_BLOCK);
             }
             fprintf(stderr, " done\n");
         }

@@ -61,7 +61,7 @@ device_vectors_t * init_device_vectors(int n_element, int n_input) {
 int init_device(int gpu_dev) {
     int rv = cudaSetDevice(gpu_dev);
     // TODO error checking
-    return 0;
+    return rv;
 }
 
 void delete_device_vectors( device_vectors_t * dv_p) {
@@ -418,7 +418,6 @@ int spectroscopy(int n_subband,
 
     char2 * h_raw_timeseries = (char2 *)input_data;
 
-fprintf(stderr, "n_input_data_bytes is %ld\n", n_input_data_bytes);
     if(use_total_gpu_timer) total_gpu_timer.start();
 
     // Copy to the device
