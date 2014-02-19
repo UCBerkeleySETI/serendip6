@@ -39,4 +39,12 @@ typedef struct scram {
 
 int get_obs_info_from_redis(scram_t *scram, char *hostname, int port);
 
+int is_alfa_enabled (scram_t *scram);
+
 #endif  // _S6_OBS_DATA_H
+
+// these values were pulled from SETI@home datarecorder2 
+#define ScramLagTolerance 10     // in seconds
+#define TT_TurretDegreesAlfa 26.64
+#define TT_TurretDegreesTolerance 1.0
+

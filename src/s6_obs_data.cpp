@@ -16,6 +16,7 @@ int get_obs_info_from_redis(scram_t *scram,
 
     redisContext *c;
     redisReply *reply;
+    int rv = 0;
 
     struct timeval timeout = { 1, 500000 }; // 1.5 seconds
 
@@ -34,10 +35,9 @@ int get_obs_info_from_redis(scram_t *scram,
     // TODO factor out all the redis error checking (use hashpipe_error())
 
     reply = (redisReply *)redisCommand(c, "HMGET SCRAM:PNT        PNTSTIME PNTRA PNTDEC PNTMJD PNTAZCOR PNTZACOR");
-    if (reply->type == REDIS_REPLY_ERROR)               // TODO error checking does not seem to work
-        fprintf(stderr, "Error: %s\n", reply->str);              //      check for correct # elements
-    else if (reply->type != REDIS_REPLY_ARRAY)          //      move error check to function
-        fprintf(stderr, "Unexpected type: %d\n", reply->type);
+    if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
+    else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
+    else if (!reply->element[0]->str) { fprintf(stderr,"SCRAM:PNT not set yet!\n"); rv = 1; }
     else {
         scram->PNTSTIME  = atoi(reply->element[0]->str);
         scram->PNTRA     = atof(reply->element[1]->str);
@@ -54,99 +54,127 @@ int get_obs_info_from_redis(scram_t *scram,
     fprintf(stderr, "GET SCRAM:PNTAZCOR %lf\n", scram->PNTAZCOR);  
     fprintf(stderr, "GET SCRAM:PNTZACOR %lf\n", scram->PNTZACOR);  
 
-    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:AGC       AGCSTIME AGCTIME AGCAZ AGCZA AGCLST");
-    if (reply->type == REDIS_REPLY_ERROR)
-        fprintf(stderr, "Error: %s\n", reply->str);
-    else if (reply->type != REDIS_REPLY_ARRAY )
-        fprintf(stderr, "Unexpected type: %d\n", reply->type);
-    else {
-        scram->AGCSTIME  = atoi(reply->element[0]->str);
-        scram->AGCTIME   = atoi(reply->element[1]->str);
-        scram->AGCAZ     = atof(reply->element[2]->str);
-        scram->AGCZA     = atof(reply->element[3]->str);
-        scram->AGCLST    = atof(reply->element[4]->str);
+    if (!rv) {
+      reply = (redisReply *)redisCommand(c, "HMGET SCRAM:AGC       AGCSTIME AGCTIME AGCAZ AGCZA AGCLST");
+      if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
+      else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
+      else if (!reply->element[0]->str) { fprintf(stderr,"SCRAM:AGC not set yet!\n"); rv = 1; }
+      else {
+          scram->AGCSTIME  = atoi(reply->element[0]->str);
+          scram->AGCTIME   = atoi(reply->element[1]->str);
+          scram->AGCAZ     = atof(reply->element[2]->str);
+          scram->AGCZA     = atof(reply->element[3]->str);
+          scram->AGCLST    = atof(reply->element[4]->str);
+      }
+      freeReplyObject(reply);
     }
-    freeReplyObject(reply);
 
-    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:ALFASHM       ALFSTIME ALFBIAS1 ALFBIAS2 ALFMOPOS");
-    if (reply->type == REDIS_REPLY_ERROR)
-        fprintf(stderr, "Error: %s\n", reply->str);
-    else if (reply->type != REDIS_REPLY_ARRAY )
-        fprintf(stderr, "Unexpected type: %d\n", reply->type);
-    else {
-        scram->ALFSTIME  = atoi(reply->element[0]->str);
-        scram->ALFBIAS1  = atoi(reply->element[1]->str);
-        scram->ALFBIAS2  = atoi(reply->element[2]->str);
-        scram->ALFMOPOS  = atof(reply->element[3]->str);
+    if (!rv) {
+      reply = (redisReply *)redisCommand(c, "HMGET SCRAM:ALFASHM       ALFSTIME ALFBIAS1 ALFBIAS2 ALFMOPOS");
+      if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
+      else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
+      else if (!reply->element[0]->str) { fprintf(stderr,"SCRAM:ALFASHM not set yet!\n"); rv = 1; }
+      else {
+          scram->ALFSTIME  = atoi(reply->element[0]->str);
+          scram->ALFBIAS1  = atoi(reply->element[1]->str);
+          scram->ALFBIAS2  = atoi(reply->element[2]->str);
+          scram->ALFMOPOS  = atof(reply->element[3]->str);
+      }
+      freeReplyObject(reply);
     }
-    freeReplyObject(reply);
 
-    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:IF1      IF1STIME IF1SYNHZ IF1SYNDB IF1RFFRQ IF1IFFRQ IF1ALFFB");
-    if (reply->type == REDIS_REPLY_ERROR)
-        fprintf(stderr, "Error: %s\n", reply->str);
-    else if (reply->type != REDIS_REPLY_ARRAY )
-        fprintf(stderr, "Unexpected type: %d\n", reply->type);
-    else {
-        scram->IF1STIME  = atoi(reply->element[0]->str);
-        scram->IF1SYNHZ  = atof(reply->element[1]->str);
-        scram->IF1SYNDB  = atoi(reply->element[2]->str);
-        scram->IF1RFFRQ  = atof(reply->element[3]->str);
-        scram->IF1IFFRQ  = atof(reply->element[4]->str);
-        scram->IF1ALFFB  = atoi(reply->element[5]->str);
+    if (!rv) {
+      reply = (redisReply *)redisCommand(c, "HMGET SCRAM:IF1      IF1STIME IF1SYNHZ IF1SYNDB IF1RFFRQ IF1IFFRQ IF1ALFFB");
+      if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
+      else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
+      else if (!reply->element[0]->str) { fprintf(stderr,"SCRAM:IF1 not set yet!\n"); rv = 1; }
+      else {
+          scram->IF1STIME  = atoi(reply->element[0]->str);
+          scram->IF1SYNHZ  = atof(reply->element[1]->str);
+          scram->IF1SYNDB  = atoi(reply->element[2]->str);
+          scram->IF1RFFRQ  = atof(reply->element[3]->str);
+          scram->IF1IFFRQ  = atof(reply->element[4]->str);
+          scram->IF1ALFFB  = atoi(reply->element[5]->str);
+      }
+      freeReplyObject(reply);
     }
-    freeReplyObject(reply);
 
-    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:IF2      IF2STIME IF2ALFON");
-    if (reply->type == REDIS_REPLY_ERROR)
-        fprintf(stderr, "Error: %s\n", reply->str);
-    else if (reply->type != REDIS_REPLY_ARRAY )
-        fprintf(stderr, "Unexpected type: %d\n", reply->type);
-    else {
-        scram->IF2STIME  = atoi(reply->element[0]->str);
-        scram->IF2ALFON  = atoi(reply->element[1]->str);
+    if (!rv) {
+      reply = (redisReply *)redisCommand(c, "HMGET SCRAM:IF2      IF2STIME IF2ALFON");
+      if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
+      else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
+      else if (!reply->element[0]->str) { fprintf(stderr,"SCRAM:IF2 not set yet!\n"); rv = 1; }
+      else {
+          scram->IF2STIME  = atoi(reply->element[0]->str);
+          scram->IF2ALFON  = atoi(reply->element[1]->str);
+      }
+      freeReplyObject(reply);
     }
-    freeReplyObject(reply);
 
-    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:TT      TTSTIME TTTURENC TTTURDEG");
-    if (reply->type == REDIS_REPLY_ERROR)
-        fprintf(stderr, "Error: %s\n", reply->str);
-    else if (reply->type != REDIS_REPLY_ARRAY )
-        fprintf(stderr, "Unexpected type: %d\n", reply->type);
-    else {
-        scram->TTSTIME  = atoi(reply->element[0]->str);
-        scram->TTTURENC = atoi(reply->element[1]->str);
-        scram->TTTURDEG = atof(reply->element[2]->str);
+    if (!rv) {
+      reply = (redisReply *)redisCommand(c, "HMGET SCRAM:TT      TTSTIME TTTURENC TTTURDEG");
+      if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
+      else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
+      else if (!reply->element[0]->str) { fprintf(stderr,"SCRAM:TT not set yet!\n"); rv = 1; }
+      else {
+          scram->TTSTIME  = atoi(reply->element[0]->str);
+          scram->TTTURENC = atoi(reply->element[1]->str);
+          scram->TTTURDEG = atof(reply->element[2]->str);
+      }
+      freeReplyObject(reply);
     }
-    freeReplyObject(reply);
 
 #if 0
 // waiting on fix to s6_observatory
-    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:DERIVED      DERTIME RA0 DEC0 RA1 DEC1 RA2 DEC2 RA3 DEC3 RA4 DEC4 RA5 DEC5 RA6 DEC6");
-    if (reply->type == REDIS_REPLY_ERROR)
-        fprintf(stderr, "Error: %s\n", reply->str);
-    else if (reply->type != REDIS_REPLY_ARRAY )
-        fprintf(stderr, "Unexpected type: %d\n", reply->type);
-    else {
-        scram->DERTIME        = atoi(reply->element[0]->str);
-        scram->ra_by_beam[0]  = atof(reply->element[1]->str);
-        scram->dec_by_beam[0] = atof(reply->element[2]->str);
-        scram->ra_by_beam[1]  = atof(reply->element[3]->str);
-        scram->dec_by_beam[1] = atof(reply->element[4]->str);
-        scram->ra_by_beam[2]  = atof(reply->element[5]->str);
-        scram->dec_by_beam[2] = atof(reply->element[6]->str);
-        scram->ra_by_beam[3]  = atof(reply->element[7]->str);
-        scram->dec_by_beam[3] = atof(reply->element[8]->str);
-        scram->ra_by_beam[4]  = atof(reply->element[9]->str);
-        scram->dec_by_beam[4] = atof(reply->element[10]->str);
-        scram->ra_by_beam[5]  = atof(reply->element[11]->str);
-        scram->dec_by_beam[5] = atof(reply->element[12]->str);
-        scram->ra_by_beam[6]  = atof(reply->element[13]->str);
-        scram->dec_by_beam[6] = atof(reply->element[14]->str);
+    if (!rv) {
+      reply = (redisReply *)redisCommand(c, "HMGET SCRAM:DERIVED      DERTIME RA0 DEC0 RA1 DEC1 RA2 DEC2 RA3 DEC3 RA4 DEC4 RA5 DEC5 RA6 DEC6");
+      if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
+      else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
+      else if (!reply->element[0]->str) { fprintf(stderr,"SCRAM:DERIVED not set yet!\n"); rv = 1; }
+      else {
+          scram->DERTIME        = atoi(reply->element[0]->str);
+          scram->ra_by_beam[0]  = atof(reply->element[1]->str);
+          scram->dec_by_beam[0] = atof(reply->element[2]->str);
+          scram->ra_by_beam[1]  = atof(reply->element[3]->str);
+          scram->dec_by_beam[1] = atof(reply->element[4]->str);
+          scram->ra_by_beam[2]  = atof(reply->element[5]->str);
+          scram->dec_by_beam[2] = atof(reply->element[6]->str);
+          scram->ra_by_beam[3]  = atof(reply->element[7]->str);
+          scram->dec_by_beam[3] = atof(reply->element[8]->str);
+          scram->ra_by_beam[4]  = atof(reply->element[9]->str);
+          scram->dec_by_beam[4] = atof(reply->element[10]->str);
+          scram->ra_by_beam[5]  = atof(reply->element[11]->str);
+          scram->dec_by_beam[5] = atof(reply->element[12]->str);
+          scram->ra_by_beam[6]  = atof(reply->element[13]->str);
+          scram->dec_by_beam[6] = atof(reply->element[14]->str);
+      }
+      freeReplyObject(reply);
     }
-    freeReplyObject(reply);
 #endif
 
     redisFree(c);       // TODO do I really want to free each time?
 
-    return 0;           // TODO return something meaningful
+    if (!rv) {
+      scram->alfa_enabled = is_alfa_enabled(scram);
+      }
+
+    return rv;           // TODO return something meaningful
 }
+
+int is_alfa_enabled (scram_t *scram) {
+
+  time_t now;
+  
+  now = time(NULL);
+  if ((now - scram->AGCSTIME) > ScramLagTolerance) return false;
+  if ((now - scram->ALFSTIME) > ScramLagTolerance) return false;
+  if (!scram->ALFBIAS1 && !scram->ALFBIAS2) return false;
+  if ((now - scram->IF1STIME) > ScramLagTolerance) return false;
+  if ((now - scram->IF2STIME) > ScramLagTolerance) return false;
+  if (!scram->IF2ALFON) return false;
+  if ((now - scram->TTSTIME) > ScramLagTolerance) return false;
+  if (fabs(scram->TTTURDEG - TT_TurretDegreesAlfa) > TT_TurretDegreesTolerance) return false;
+
+  return true;
+
+  }
