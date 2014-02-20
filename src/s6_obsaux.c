@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include "s6obsaux.h"
+#include "s6_obsaux.h"
 #include <math.h>
 #include "azzaToRaDec.h"
 
@@ -7,6 +7,7 @@
 /// NOTE: the call the phils code is set to precess which is DIFFERENT than
 ///       the setilib code, which is set to NOT precess.
 
+#if 0
 double s6_seti_ao_timeMS2unixtime(long timeMs, time_t now) {
 //=======================================================
 // converts millisecs past midnight to a unix time_t.
@@ -37,6 +38,7 @@ double s6_seti_ao_timeMS2unixtime(long timeMs, time_t now) {
     fnow+=AST_TO_UTC_HOURS*3600;                // translate AST to UTC
     return(fnow);
 }
+#endif
 
 bool s6_BeamOffset(double *Az, double *ZA, int Beam, double AlfaMotorPosition) {
 

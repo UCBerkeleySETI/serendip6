@@ -1,7 +1,7 @@
 NVCC        = nvcc
 NVCCFLAGS   = -O3 --compiler-options '-fPIC' --shared -Xcompiler -Wall -arch=sm_35 -lrt -lcufft
 CC          = gcc
-S6_LIB_CCFLAGS     = -g -fPIC -shared -lstdc++ -fpermissive \
+S6_LIB_CCFLAGS     = -g -fPIC -shared -lstdc++ \
                      -I. -I/usr/local/cuda/include -I../../hiredis/ -I/usr/include/tcl8.5 \
                      -I/home/jeffc/local/include -I/home/jeffc/local/include/aoscram \
                      -L. -L/home/jeffc/local/lib \
@@ -36,14 +36,17 @@ S6_LIB_SOURCES  = s6_databuf.cpp \
 				  s6_gpu_thread.cpp \
 				  s6_output_thread.cpp \
                   s6_obs_data.cpp \
-                  s6_etfits.cpp 
+                  s6_etfits.cpp \
+                  s6_time.c 
 S6_LIB_INCLUDES = s6_etfits.h \
                   s6_databuf.h
 
 S6OBS_PROG_TARGET   = s6_observatory
 S6OBS_PROG_SOURCES  = s6_observatory.c \
-                      s6_obsaux.c
-S6OBS_PROG_INCLUDES = s6obsaux.h
+                      s6_obsaux.c \
+                      s6_time.c
+S6OBS_PROG_INCLUDES = s6_obsaux.h \
+                      s6_time.h
 
 all: $(S6GPU_LIB_TARGET) $(S6_LIB_TARGET) $(S6GPUTEST_PROG_TARGET) $(S6OBS_PROG_TARGET) 
 

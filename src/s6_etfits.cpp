@@ -11,6 +11,7 @@
 #include "s6_databuf.h"
 #include "s6_obs_data.h"
 #include "s6_etfits.h"
+#include "s6_obsaux.h"
 
 //----------------------------------------------------------
 int init_etfits(etfits_t *etf, int start_file_num) {
@@ -96,9 +97,9 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
 
     // populate hits header data
     // TODO maybe I should do away with this and write directly to the header
-    //      from sram in write_hits_header()
+    //      from scram in write_hits_header()
     for(int i=0; i < N_BEAMS*N_POLS_PER_BEAM; i++) {
-        etf->hits_hdr[i].time    = scram_p->AGCTIME;     // TODO is this right?   
+        etf->hits_hdr[i].time    = (time_t)s6_seti_ao_timeMS2unixtime(scram_p->AGCTIME, scram_p->AGCSTIME);
         etf->hits_hdr[i].ra      = scram_p->ra_by_beam[int(floor(i/N_POLS_PER_BEAM))];       
         etf->hits_hdr[i].dec     = scram_p->dec_by_beam[int(floor(i/N_POLS_PER_BEAM))];  
         etf->hits_hdr[i].beampol = i;       
@@ -333,8 +334,6 @@ int write_hits_header(etfits_t * etf, int beampol, size_t nhits) {
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr[beampol].dec),     NULL, status_p);   
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "BEAMPOL", &(etf->hits_hdr[beampol].beampol), NULL, status_p);   
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "NHITS",   &nhits,                            NULL, status_p);   
-
-//fprintf(stderr, "writing hits header. beampol %d nhits : %ld\n", etf->hits_hdr[beampol].beampol, nhits);
 
     if (*status_p) {
         hashpipe_error(__FUNCTION__, "Error writing hits header");

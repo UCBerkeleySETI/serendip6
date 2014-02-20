@@ -36,7 +36,8 @@
 
 //}
 
-#include "s6obsaux.h"
+#include "s6_time.h"
+#include "s6_obsaux.h"
 
 #define ftoa(A,B) sprintf(B,"%0.10lf",A);
 
@@ -281,10 +282,10 @@ int main(int argc, char ** argv) {
             freeReplyObject(reply);
         }
 
-        sprintf(strbuf,"SCRAM:DERIVED DERTIME %ld RA0 0.0 DEC0 0.0 RA1 1.0 DEC1 1.0 RA2 2.0 DEC2 2.0 RA3 3.0 DEC3 3.0 RA4 4.0 DEC4 4.0 RA5 5.0 DEC5 5.0 RA6 6.0 DEC6 6.0",time(NULL));
+        sprintf(strbuf,"SCRAM:DERIVED DERTIME %ld RA0 0.1 DEC0 0.1 RA1 1.2 DEC1 1.2 RA2 2.3 DEC2 2.3 RA3 3.4 DEC3 3.4 RA4 4.4 DEC4 4.5 RA5 5.6 DEC5 5.6 RA6 6.7 DEC6 6.7",time(NULL));
         if (dostdout) fprintf(stderr,"%s\n",strbuf);
         if (!nodb) { 
-            reply = redisCommand(c,"HMSET %s %s %d %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s","SCRAM:DERIVED","DERTIME",time(NULL),"RA0","0.0","DEC0","0.0","RA1","1.0","DEC1","1.0","RA2","2.0","DEC2","2.0","RA3","3.0","DEC3","3.0","RA4","4.0","DEC4","4.0","RA5","5.0","DEC5","5.0","RA6","6.0","DEC6","6.0");
+            reply = redisCommand(c,"HMSET %s %s %d %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s","SCRAM:DERIVED","DERTIME",time(NULL),"RA0","0.1","DEC0","0.1","RA1","1.2","DEC1","1.2","RA2","2.3","DEC2","2.3","RA3","3.4","DEC3","3.4","RA4","4.5","DEC4","4.5","RA5","5.6","DEC5","5.6","RA6","6.7","DEC6","6.7");
             if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); }
             freeReplyObject(reply);
         }

@@ -124,7 +124,7 @@ int get_obs_info_from_redis(scram_t *scram,
       freeReplyObject(reply);
     }
 
-#if 0
+#if 1
 // waiting on fix to s6_observatory
     if (!rv) {
       reply = (redisReply *)redisCommand(c, "HMGET SCRAM:DERIVED      DERTIME RA0 DEC0 RA1 DEC1 RA2 DEC2 RA3 DEC3 RA4 DEC4 RA5 DEC5 RA6 DEC6");
