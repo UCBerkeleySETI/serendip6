@@ -25,7 +25,7 @@ int init_etfits(etfits_t *etf, int start_file_num) {
     etf->multifile             = 1;
     etf->integrations_per_file = 3;    // TODO place holder - should come from status shmem
     etf->integration_cnt       = 0;    
-    etf->max_file_size         = 1000000; // 1MB    TODO runtime config
+    etf->max_file_size         = 1000000000; // 1GB    TODO runtime config
 
     etf->s6_dir = getenv("S6_DIR");
     if (etf->s6_dir==NULL) {
@@ -372,6 +372,8 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
     firstrow  = 1;
     firstelem = 1;
 
+    int beampols_done[N_BEAMS*N_POLS_PER_BEAM] = {0};;
+
     hit_i = 0;              
     while(hit_i < nhits) {
 //fprintf(stderr, "hit_i %ld nhits %ld\n", hit_i, nhits);
@@ -388,6 +390,8 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
         cur_beampol = cur_beam * N_POLS_PER_BEAM + cur_input;
 //fprintf(stderr, "at hit_i %ld : writing header for beam %d input %d beampol %d\n", hit_i, cur_beam, cur_input, etf->hits_hdr[cur_beampol].beampol);
         etf->hits_hdr[cur_beampol].beampol = cur_beampol;
+
+        beampols_done[cur_beampol] = 1;   // mark this beampol as having at least 1 hit
 
         // separate the data columns for this input
         // TODO - if this is too slow, we can make hits 4 separate arrays rather
@@ -423,6 +427,14 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
     }  // end while hit_i < nhits
 
     //etf->rownum += nhits;
+
+    // output "null" headers for any beampols that had no hits
+    // TODO this situation has not been tested!!
+    for(int i=0; i < N_BEAMS*N_POLS_PER_BEAM; i++) {
+        if(beampols_done[i] == 0) {
+            write_hits_header(etf, i, 0);
+        }
+    }
 
     if (*status_p) {
         hashpipe_error(__FUNCTION__, "Error writing hits");

@@ -47,13 +47,14 @@ static void *run(hashpipe_thread_args_t * args)
     scram_t * scram_p = &scram;
     
     int prior_alfa_enabled=-1;      // initial value - should change very fast
+    int run_always;                 // 1 = run even if alfa_enabled is 0
 
     //                         0           1
     const char *alfa_state[2] = {"disabled", "enabled"};
 
     int file_num_start = -1;
     hashpipe_status_lock_safe(&st);
-    hgeti4(st.buf, "FILENUM", &file_num_start);
+    hgeti4(st.buf, "RUNALWYS", &run_always);
     hashpipe_status_unlock_safe(&st);
     if(file_num_start == -1) file_num_start = 0;
     init_etfits(&etf, file_num_start+1);
@@ -98,7 +99,7 @@ static void *run(hashpipe_thread_args_t * args)
             hashpipe_error(__FUNCTION__, "error error returned from get_obs_info_from_redis()");
             pthread_exit(NULL);
         }
-        scram.alfa_enabled = 1;  // TODO remove once get_obs_info_from_redis() is working
+        //scram.alfa_enabled = 1;  // TODO remove once get_obs_info_from_redis() is working
         scram.coarse_chan_id = db->block[block_idx].header.coarse_chan_id;
 
         hashpipe_status_lock_safe(&st);
@@ -114,7 +115,7 @@ static void *run(hashpipe_thread_args_t * args)
 
         // write hits and metadata to etFITS file only if alfa is enabled
         // alfa_enabled might be a second or so out of sync with data
-        if(scram.alfa_enabled) {
+        if(scram.alfa_enabled || run_always) {
             etf.file_chan = scram.coarse_chan_id;
             rv = write_etfits(db, block_idx, &etf, scram_p);
             if(rv) {

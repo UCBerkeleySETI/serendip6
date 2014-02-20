@@ -4,6 +4,7 @@
 PATH="$(dirname $0):${PATH}"
 
 instance=$1
+gen_fake=$2
 
 shopt -s extglob
 if [[ $instance != +([0-9]) ]]
@@ -32,8 +33,8 @@ hashpipe -p serendip6 -I $instance  \
     -o VERS6SW=0.0.1                \
     -o VERS6GW=0.0.1                \
     -o GPUDEV=$gpudev               \
-    -o RUNALWYS=0                   \
-    -o GENFAKE=0                    \
+    -o RUNALWYS=1                   \
+    -o GENFAKE=$gen_fake            \
     -c $netcpu s6_fake_net_thread   \
     -c $gpucpu s6_gpu_thread        \
     -c $outcpu s6_output_thread 
