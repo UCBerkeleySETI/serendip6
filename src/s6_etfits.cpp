@@ -44,7 +44,7 @@ int check_for_file_roll(etfits_t *etf) {
     if(stat(etf->filename, &st) == -1) { 
         hashpipe_error(__FUNCTION__, "Error getting etfits file size");
     } else {
-        fprintf(stderr, "size of %s is %ld\n", etf->filename, st.st_size);
+        //fprintf(stderr, "size of %s is %ld\n", etf->filename, st.st_size);
         if(st.st_size >= etf->max_file_size) {
             etf->file_num++;
             etf->new_file = 1;
@@ -140,10 +140,9 @@ int etfits_create(etfits_t * etf) {
 
     // TODO enclose all init code in a do-as-needed block
     // Initialize the key variables if needed
-    if (etf->new_run == 1) {  // first time writing to the file
+    if (etf->new_run == 1) {  // first time writing this run
         etf->new_run = 0;
         etf->status = 0;
-        etf->tot_rows = 0;
         etf->N = 0L;
         etf->T = 0.0;
         etf->mode = 'w';
@@ -159,7 +158,9 @@ int etfits_create(etfits_t * etf) {
             sprintf(cmd, "mkdir -m 1777 -p %s", datadir);
             system(cmd);
         }
-    }   // end first time writing to the file
+    }   // end first time writing this run
+
+    etf->tot_rows = 0;      // count rows per file
 
     // Form file name 
     time(&time_now);
@@ -172,7 +173,7 @@ int etfits_create(etfits_t * etf) {
 
     // Create basic FITS file from our template
     char template_file[1024];
-    printf("Opening file '%s'\n", etf->filename);
+    //printf("Opening file '%s'\n", etf->filename);
     sprintf(template_file, "%s/%s", etf->s6_dir, ETFITS_TEMPLATE);
     if(! *status_p) fits_create_template(&(etf->fptr), etf->filename, template_file, status_p);
 
@@ -195,11 +196,11 @@ int etfits_close(etfits_t *etf) {
 //fprintf(stderr, "in close, status is %d\n", *status_p);
     if (! *status_p) {
         fits_close_file(etf->fptr, status_p);
-        printf("Closing file '%s'\n", etf->filename);
+        //printf("Closing file '%s'\n", etf->filename);
     }
-    printf("Done.  %s %ld data rows in %d files (status = %d).\n",
+    printf("Done.  %s %ld data rows into %s (status = %d).\n",
             etf->mode=='r' ? "Read" : "Wrote", 
-            etf->tot_rows, etf->file_cnt, *status_p);
+            etf->tot_rows, etf->filename, *status_p);
 
     return *status_p;
 }

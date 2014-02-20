@@ -47,12 +47,14 @@ int get_obs_info_from_redis(scram_t *scram,
         scram->PNTZACOR  = atof(reply->element[5]->str);
     }
     freeReplyObject(reply);
+#if 0
     fprintf(stderr, "GET SCRAM:PNTSTIME %d\n", scram->PNTSTIME);
     fprintf(stderr, "GET SCRAM:PNTRA %lf\n", scram->PNTRA);   
     fprintf(stderr, "GET SCRAM:PNTDEC %lf\n", scram->PNTDEC);  
     fprintf(stderr, "GET SCRAM:PNTMJD %lf\n", scram->PNTMJD);  
     fprintf(stderr, "GET SCRAM:PNTAZCOR %lf\n", scram->PNTAZCOR);  
     fprintf(stderr, "GET SCRAM:PNTZACOR %lf\n", scram->PNTZACOR);  
+#endif
 
     if (!rv) {
       reply = (redisReply *)redisCommand(c, "HMGET SCRAM:AGC       AGCSTIME AGCTIME AGCAZ AGCZA AGCLST");
@@ -124,8 +126,6 @@ int get_obs_info_from_redis(scram_t *scram,
       freeReplyObject(reply);
     }
 
-#if 1
-// waiting on fix to s6_observatory
     if (!rv) {
       reply = (redisReply *)redisCommand(c, "HMGET SCRAM:DERIVED      DERTIME RA0 DEC0 RA1 DEC1 RA2 DEC2 RA3 DEC3 RA4 DEC4 RA5 DEC5 RA6 DEC6");
       if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
@@ -150,7 +150,6 @@ int get_obs_info_from_redis(scram_t *scram,
       }
       freeReplyObject(reply);
     }
-#endif
 
     redisFree(c);       // TODO do I really want to free each time?
 
@@ -158,7 +157,7 @@ int get_obs_info_from_redis(scram_t *scram,
       scram->alfa_enabled = is_alfa_enabled(scram);
       }
 
-    return rv;           // TODO return something meaningful
+    return rv;         
 }
 
 int is_alfa_enabled (scram_t *scram) {

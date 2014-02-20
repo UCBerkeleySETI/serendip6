@@ -67,8 +67,8 @@ static void *run(hashpipe_thread_args_t * args)
         struct timespec sleep_dur, rem_sleep_dur;
         sleep_dur.tv_sec = 1;
         sleep_dur.tv_nsec = 0;
-        fprintf(stderr, "fake net thread sleeping for %7.5f seconds\n", 
-                sleep_dur.tv_sec + (double)sleep_dur.tv_nsec/1000000000.0);
+        //fprintf(stderr, "fake net thread sleeping for %7.5f seconds\n", 
+        //        sleep_dur.tv_sec + (double)sleep_dur.tv_nsec/1000000000.0);
         nanosleep(&sleep_dur, &rem_sleep_dur);
 	
         /* Wait for new block to be free, then clear it
