@@ -48,9 +48,11 @@ static void *run(hashpipe_thread_args_t * args)
     uint64_t gpu_block_count = 0;
 
     // init s6GPU
-    int gpu_dev=0;  // default to 0
+    int gpu_dev=0;          // default to 0
+    int maxhits = MAXHITS; // default
     hashpipe_status_lock_safe(&st);
     hgeti4(st.buf, "GPUDEV", &gpu_dev);
+    hgeti4(st.buf, "MAXHITS", &maxhits);
     hashpipe_status_unlock_safe(&st);
     init_device(gpu_dev);
 
@@ -143,7 +145,7 @@ static void *run(hashpipe_thread_args_t * args)
                                  N_FINE_CHAN,
                                  N_POLS_PER_BEAM,
                                  beam_i,
-                                 MAXHITS,
+                                 maxhits,
                                  MAXGPUHITS,
                                  POWER_THRESH,
                                  SMOOTH_SCALE,

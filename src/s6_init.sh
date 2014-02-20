@@ -35,6 +35,7 @@ hashpipe -p serendip6 -I $instance  \
     -o GPUDEV=$gpudev               \
     -o RUNALWYS=1                   \
     -o GENFAKE=$gen_fake            \
+    -o MAXHITS=2048                 \
     -c $netcpu s6_fake_net_thread   \
     -c $gpucpu s6_gpu_thread        \
     -c $outcpu s6_output_thread 

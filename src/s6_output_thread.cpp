@@ -27,7 +27,6 @@ static int init(hashpipe_thread_args_t *args)
     //hputr4(st.buf, "CGOMXERR", 0.0);
     //hputi4(st.buf, "CGOERCNT", 0);
     //hputi4(st.buf, "CGOMXECT", 0);
-    hputi4(st.buf, "MAXHITS ", MAXHITS);
     hashpipe_status_unlock_safe(&st);
 
     // Success!

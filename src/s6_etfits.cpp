@@ -429,7 +429,6 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
     //etf->rownum += nhits;
 
     // output "null" headers for any beampols that had no hits
-    // TODO this situation has not been tested!!
     for(int i=0; i < N_BEAMS*N_POLS_PER_BEAM; i++) {
         if(beampols_done[i] == 0) {
             write_hits_header(etf, i, 0);

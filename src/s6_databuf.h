@@ -18,8 +18,8 @@
 #define SMOOTH_SCALE            1024
 #define POWER_THRESH            20.0
 #define MIN_POWER_THRESH        10.0
-#define MAXHITS                 ((int)(1.0 / MIN_POWER_THRESH * N_FINE_CHAN))    
-#define MAXGPUHITS              4096
+#define MAXGPUHITS              ((int)(1.0 / MIN_POWER_THRESH * N_FINE_CHAN))    
+#define MAXHITS                 4096
 
 #define N_BEAMS                 7
 #define N_BEAM_SLOTS            8
@@ -83,7 +83,7 @@ typedef uint8_t s6_output_header_cache_alignment[
 typedef struct s6_output_block {
   s6_output_block_header_t header;
   s6_output_header_cache_alignment padding; // Maintain cache alignment
-  hits_t hits[MAXHITS*N_BEAM_SLOTS*N_POLS_PER_BEAM];
+  hits_t hits[MAXGPUHITS*N_BEAM_SLOTS*N_POLS_PER_BEAM];
 } s6_output_block_t;
 
 typedef struct s6_output_databuf {
