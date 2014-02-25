@@ -57,12 +57,14 @@ bool s6_BeamOffset(double *Az, double *ZA, int Beam, double AlfaMotorPosition) {
   double AzCorrection = *Az;
   double ZenCorrection = *ZA;
 
-  double posrot=(array_angle[Beam] - AlfaMotorPosition)*D2R; 
-  AzCorrection+=array_az_ellipse*cos(posrot);
-  ZenCorrection+=array_za_ellipse*sin(posrot);
+  if(Beam != 0) {
+    double posrot=(array_angle[Beam] - AlfaMotorPosition)*D2R; 
+    AzCorrection+=array_az_ellipse*cos(posrot);
+    ZenCorrection+=array_za_ellipse*sin(posrot);
 
-  *ZA -= ZenCorrection / 3600.0;                 // Correction is in arcsec.
-  *Az -= (AzCorrection  / 3600.0) / sin(*ZA * D2R);
+    *ZA -= ZenCorrection / 3600.0;                 // Correction is in arcsec.
+    *Az -= (AzCorrection  / 3600.0) / sin(*ZA * D2R);
+  }
 
   // Correction is in arcsec.
 
@@ -119,6 +121,7 @@ void s6_AzZaToRaDec(double Az, double Za, double coord_time, double *Ra, double 
     // Ra to hours and Dec to degrees
     *Ra = (*Ra / d2r) / 15;
     *Dec = *Dec / d2r;
+//fprintf(stderr, "azzaToRaDec Az %lf Za %lf i_mjd %d utc1Frac %lf ofdate %d Ra %6.3lf Dec %6.3lf\n", Az+180.0, Za, i_mjd, utcFrac, ofDate, *Ra, *Dec);
 
     // Take care of wrap situations in RA
     while (*Ra < 0) {

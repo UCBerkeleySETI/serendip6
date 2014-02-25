@@ -96,3 +96,25 @@
 # linfit prediction 27dec07->21nov08 linfit, file: ut1Utcdec07.dat 361 pnts
 # peak error over region: -35ms rms: 20 ms
 2007       331     -261.167 -.701459
+# linfit prediction 01jan09->11dec09 linfit, file: ut1Utcjan09.dat 345 pnts
+# peak error over region:  38ms rms: 22.7 ms
+2009         1      367.131 -.691979
+# peak error over region:  30ms rms: 17.4 ms
+2010         36      59.162 -.661890 
+# peak error over region:  50ms (only at end) rms: 23.1 ms
+2011        105     -208.715 -.564566
+#   lin fit prediction 24feb12 ->06jun12 (then leap sec)
+# peak error over region:  16ms  rms:  6.9 ms 
+2012         55     -469.827 -1.052878 
+#   lin fit prediction 01jul12-01oct12 after leap sec
+# peak error over region:  5ms  rms:  4.1 ms 
+2012        183     421.452 -.322170 
+#   lin fit prediction 01oct12-jun13 from jun12 dataset
+# peak error over region:  13ms  rms:  6 ms 
+2012        275     388.359 -1.101452
+#   lin fit prediction 05jul13-30sep13 from 04jul13 dataset
+# peak error over region:  8.5ms  rms:  4.2 ms 
+2013        186     66.382 -.538438
+#   lin fit prediction 21oct13-15jun14 from oct13 dataset
+# peak error over region:  10ms  rms:  5.9 ms 
+2013        294      -4.587 -1.338775
