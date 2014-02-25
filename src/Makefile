@@ -60,4 +60,12 @@ $(S6OBS_PROG_TARGET): $(S6OBS_PROG_SOURCES) $(S6OBS_PROG_INCLUDES) ; $(CC) -o $(
 
 clean: ; rm -f $(S6GPU_LIB_TARGET) $(S6_LIB_TARGET) $(S6OBS_PROG_TARGET) $(S6GPUTEST_PROG_TARGET)
 
+prefix=/usr/local
+LIBDIR=$(prefix)/lib
+
+install: $(S6GPU_LIB_TARGET) $(S6_LIB_TARGET)
+	mkdir -p "$(DESTDIR)$(LIBDIR)"
+	install $^ "$(DESTDIR)$(LIBDIR)"
+
+.PHONY: all clean install
 # vi: set ts=8 noet :
