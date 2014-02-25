@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 #include <math.h>
 #include <vector>
-#include <hiredis.h>
+#include <hiredis/hiredis.h>
 #include "hashpipe.h"
 #include "s6_databuf.h"
 #include "s6_obs_data.h"

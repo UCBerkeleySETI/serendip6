@@ -32,7 +32,7 @@
 #include "vtxLib.h"
 #include "scram.h"
 
-#include <hiredis.h>
+#include <hiredis/hiredis.h>
 
 //}
 

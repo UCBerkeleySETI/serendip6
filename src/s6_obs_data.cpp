@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include <hiredis.h>
+#include <hiredis/hiredis.h>
 
 #include "hashpipe.h"
 #include "s6_obs_data.h"

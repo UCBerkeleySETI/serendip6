@@ -7,7 +7,7 @@
 #include <math.h>
 #include <string.h>
 #include <pthread.h>
-#include <hiredis.h>
+#include <hiredis/hiredis.h>
 
 #include <cuda.h>
 #include <cufft.h>
