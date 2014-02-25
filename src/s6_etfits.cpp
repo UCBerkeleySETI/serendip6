@@ -17,7 +17,7 @@
 int init_etfits(etfits_t *etf, int start_file_num) {
 //----------------------------------------------------------
 
-    strcpy(etf->basefilename, "data/serendip6");     // TODO where to get file name?
+    strcpy(etf->basefilename, "serendip6");     // TODO where to get file name?
     etf->file_num              = start_file_num;
     etf->file_cnt              = 0;
     etf->new_run               = 1;
@@ -29,8 +29,8 @@ int init_etfits(etfits_t *etf, int start_file_num) {
 
     etf->s6_dir = getenv("S6_DIR");
     if (etf->s6_dir==NULL) {
-        etf->s6_dir = (char *)".";
-        hashpipe_warn(__FUNCTION__, "S6_DIR environment variable not set, using current directory for ETFITS template");
+        etf->s6_dir = (char *)"/usr/local/etc";
+        hashpipe_warn(__FUNCTION__, "S6_DIR environment variable not set, using /usr/local/etc for ETFITS template");
     }
 }
 
