@@ -14,6 +14,7 @@
 #include <sys/types.h>
 
 #include <cuda.h>
+//#include <cuda_runtime_api.h>
 #include <cufft.h>
 
 #include <s6GPU.h>
@@ -55,6 +56,11 @@ static void *run(hashpipe_thread_args_t * args)
     hgeti4(st.buf, "MAXHITS", &maxhits);
     hashpipe_status_unlock_safe(&st);
     init_device(gpu_dev);
+    
+    // pin the memory from cudu's point of view
+    cudaHostRegister((void *) db_in, 
+                     sizeof(s6_input_databuf_t) + sizeof(hashpipe_databuf_cache_alignment), 
+                     cudaHostRegisterPortable);
 
     device_vectors_t *dv_p;
 
@@ -183,6 +189,8 @@ static void *run(hashpipe_thread_args_t * args)
     }
 
     // Thread success!
+    // unpin the memory from cudu's point of view
+    cudaHostUnregister((void *) db_in);
     return NULL;
 }
 

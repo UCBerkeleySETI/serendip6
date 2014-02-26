@@ -1,5 +1,5 @@
 NVCC        = nvcc
-NVCCFLAGS   = -O3 --compiler-options '-fPIC' --shared -Xcompiler -Wall -arch=sm_35 -lrt -lcufft
+NVCCFLAGS   = -O3 --compiler-options '-fPIC' --shared -Xcompiler -Wall -arch=sm_35 -lrt -lcudart -lcufft
 CC          = gcc
 S6_LIB_CCFLAGS     = -g -fPIC -shared -lstdc++ \
 		     -I. -I$(CUDA_DIR)/include -I/usr/local/include \
