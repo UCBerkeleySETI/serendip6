@@ -63,6 +63,7 @@ typedef struct s6_input_block {
 
 typedef struct s6_input_databuf {
   hashpipe_databuf_t header;
+  hashpipe_databuf_cache_alignment padding; // Maintain cache alignment   
   s6_input_block_t block[N_INPUT_BLOCKS];
 } s6_input_databuf_t;
 
