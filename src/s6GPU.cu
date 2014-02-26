@@ -311,7 +311,7 @@ void normalize_power_spectrum(device_vectors_t *dv_p) {
     if(use_timer) timer.reset();
 }
 
-size_t find_hits(device_vectors_t *dv_p, int n_element, size_t maxgpuhits, float power_thresh) {
+size_t find_hits(device_vectors_t *dv_p, int n_element, size_t maxhits, float power_thresh) {
 // Extract and retrieve values exceeding the threshold
 
     using thrust::make_counting_iterator;
@@ -329,7 +329,7 @@ size_t find_hits(device_vectors_t *dv_p, int n_element, size_t maxgpuhits, float
                                    greater_than_val<float>(power_thresh))
                                                           - dv_p->hit_indices_p->begin();
 
-    nhits = nhits > maxgpuhits ? maxgpuhits : nhits;    // overrun protection - hits beyond maxgpuhits are thrown away
+    nhits = nhits > maxhits ? maxhits : nhits;       // overrun protection - hits beyond maxgpuhits are thrown away
     dv_p->hit_indices_p->resize(nhits);                 // this will only be resized downwards
                                             
     cudaThreadSynchronize();
@@ -456,7 +456,8 @@ int spectroscopy(int n_subband,
         compute_power_spectrum      (dv_p);
         compute_baseline            (dv_p, n_chan, n_element, smooth_scale);
         normalize_power_spectrum    (dv_p);
-        nhits = find_hits           (dv_p, n_element, maxgpuhits, power_thresh);
+        nhits = find_hits           (dv_p, n_element, maxhits, power_thresh);
+        //nhits = find_hits           (dv_p, n_element, maxgpuhits, power_thresh);  // TODO remove at some point
         // TODO should probably report if nhits == maxgpuhits, ie overflow
 #ifdef COMPUTE_HIT_DENSITY
 // This is not needed for production but is kept here for reference
