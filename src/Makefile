@@ -63,6 +63,7 @@ clean: ; rm -f $(S6GPU_LIB_TARGET) $(S6_LIB_TARGET) $(S6OBS_PROG_TARGET) $(S6GPU
 prefix=/usr/local
 ETCDIR=$(prefix)/etc
 LIBDIR=$(prefix)/lib
+BINDIR=$(prefix)/bin
 
 install-etc: obsPosition.dat utcToUt1.dat s6_ETFITS_template.txt
 	mkdir -p "$(DESTDIR)$(ETCDIR)"
@@ -72,7 +73,11 @@ install-lib: $(S6GPU_LIB_TARGET) $(S6_LIB_TARGET)
 	mkdir -p "$(DESTDIR)$(LIBDIR)"
 	install $^ "$(DESTDIR)$(LIBDIR)"
 
-install: install-etc install-lib
+install-bin: $(S6OBS_PROG_TARGET) 
+	mkdir -p "$(DESTDIR)$(BINDIR)"
+	install $^ "$(DESTDIR)$(BINDIR)"
 
-.PHONY: all clean install install-lib install-etc
+install: install-etc install-lib install-bin
+
+.PHONY: all clean install install-lib install-etc install-bin
 # vi: set ts=8 noet :
