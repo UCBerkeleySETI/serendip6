@@ -219,7 +219,7 @@ int main(int argc, char ** argv) {
           if (time_agc > time_fix) time_fix = time_agc;
           if (time_pnt > time_fix) time_fix = time_pnt;
           coord_unixtime = s6_seti_ao_timeMS2unixtime(agctime,time_fix);
-          fprintf(stderr,"agctime %d time_fix %ld coord_unixtime %lf\n",agctime,time_fix,coord_unixtime);
+//fprintf(stderr,"agctime %d time_fix %ld coord_unixtime %lf\n",agctime,time_fix,coord_unixtime);
           for (i=0;i<7;i++) {
             beamAz = Azdeg; beamZA = ZAdeg; // in degrees
             // fprintf(stderr,"i %d Az %lf ZA %lf ",i,beamAz,beamZA);
