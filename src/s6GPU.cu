@@ -51,9 +51,11 @@ device_vectors_t * init_device_vectors(int n_element, int n_input) {
     dv_p->hit_indices_p      = new thrust::device_vector<int>();
     dv_p->hit_powers_p       = new thrust::device_vector<float>;
     dv_p->hit_baselines_p    = new thrust::device_vector<float>;
+#ifdef COMPUTE_HIT_DENSITY
     dv_p->hit_indices_high_p = new thrust::device_vector<int>;
     dv_p->hit_indices_low_p  = new thrust::device_vector<int>;
     dv_p->hit_densities_p    = new thrust::device_vector<int>;
+#endif
 
     return dv_p;
 }
@@ -79,9 +81,11 @@ void delete_device_vectors( device_vectors_t * dv_p) {
     delete(dv_p->hit_indices_p);      
     delete(dv_p->hit_powers_p);       
     delete(dv_p->hit_baselines_p);    
+#ifdef COMPUTE_HIT_DENSITY
     delete(dv_p->hit_indices_high_p); 
     delete(dv_p->hit_indices_low_p);  
     delete(dv_p->hit_densities_p);    
+#endif
 
     delete(dv_p);
 }
