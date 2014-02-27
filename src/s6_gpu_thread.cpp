@@ -176,7 +176,6 @@ static void *run(hashpipe_thread_args_t * args)
 
         // Mark input block as free and advance
         //memset((void *)&db_in->block[curblock_in], 0, sizeof(s6_input_block_t));     // TODO re-init first
-//fprintf(stderr, "input block %d memset done\n", curblock_in);
         hashpipe_databuf_set_free((hashpipe_databuf_t *)db_in, curblock_in);
         curblock_in = (curblock_in + 1) % db_in->header.n_block;
 

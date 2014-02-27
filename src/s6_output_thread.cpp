@@ -130,11 +130,8 @@ static void *run(hashpipe_thread_args_t * args)
         hputi4(st.buf, "OUTMXECT", max_error_count);
         hashpipe_status_unlock_safe(&st);
 
-        // re-init output block
-        // TODO
-
         // Mark block as free
-        //memset((void *)&db->block[block_idx], 0, sizeof(s6_output_block_t));    // TODO re-init first
+        memset((void *)&db->block[block_idx], 0, sizeof(s6_output_block_t));    // TODO re-init first
         s6_output_databuf_set_free(db, block_idx);
 
         // Setup for next block
