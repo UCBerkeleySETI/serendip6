@@ -48,6 +48,7 @@ typedef uint8_t hashpipe_databuf_cache_alignment[
 typedef struct s6_input_block_header {
   uint64_t mcnt;                    // mcount of first packet
   uint64_t coarse_chan_id;          // coarse channel number of lowest channel in this block
+  uint64_t num_coarse_chan;         // number of actual coarse channels (<= N_COARSE_CHAN)
   uint64_t missed_pkts[N_BEAM_SLOTS];    // missed per beam - this block or this run? TODO
 } s6_input_block_header_t;
 
