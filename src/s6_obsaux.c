@@ -27,7 +27,7 @@ bool s6_BeamOffset(double *Az, double *ZA, int Beam, double AlfaMotorPosition) {
     double ZenOffset = array_za_ellipse*sin(posrot);
 
     *ZA -= ZenOffset / 3600.0;                 // Correction is in arcsec.
-    *Az -= AzOffset  / 3600.0;
+    *Az -= (AzOffset  / 3600.0) / sin((*ZA)*D2R);
   }
 
   // Sometimes the azimuth is not where the telescope is
