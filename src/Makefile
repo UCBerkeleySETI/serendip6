@@ -58,7 +58,10 @@ $(S6_LIB_TARGET): $(S6_LIB_SOURCES) $(S6_LIB_INCLUDES) ; $(CC) -o $(S6_LIB_TARGE
 
 $(S6OBS_PROG_TARGET): $(S6OBS_PROG_SOURCES) $(S6OBS_PROG_INCLUDES) ; $(CC) -o $(S6OBS_PROG_TARGET) $(S6OBS_PROG_SOURCES) $(S6OBS_PROG_CCFLAGS)
 
-clean: ; rm -f $(S6GPU_LIB_TARGET) $(S6_LIB_TARGET) $(S6OBS_PROG_TARGET) $(S6GPUTEST_PROG_TARGET)
+tags:
+	ctags -R .
+
+clean: ; rm -f $(S6GPU_LIB_TARGET) $(S6_LIB_TARGET) $(S6OBS_PROG_TARGET) $(S6GPUTEST_PROG_TARGET) tags
 
 prefix=/usr/local
 ETCDIR=$(prefix)/etc
@@ -79,5 +82,5 @@ install-bin: $(S6OBS_PROG_TARGET)
 
 install: install-etc install-lib install-bin
 
-.PHONY: all clean install install-lib install-etc install-bin
+.PHONY: all tags clean install install-lib install-etc install-bin
 # vi: set ts=8 noet :
