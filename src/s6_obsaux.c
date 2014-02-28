@@ -21,19 +21,14 @@ bool s6_BeamOffset(double *Az, double *ZA, int Beam, double AlfaMotorPosition) {
           array_za_ellipse = 0;
    }
 
-  double AzCorrection = *Az;
-  double ZenCorrection = *ZA;
-
   if(Beam != 0) {
-    double posrot=(array_angle[Beam] - AlfaMotorPosition)*D2R; 
-    AzCorrection+=array_az_ellipse*cos(posrot);
-    ZenCorrection+=array_za_ellipse*sin(posrot);
+    double posrot    = (array_angle[Beam] - AlfaMotorPosition)*D2R; 
+    double AzOffset  = array_az_ellipse*cos(posrot);
+    double ZenOffset = array_za_ellipse*sin(posrot);
 
-    *ZA -= ZenCorrection / 3600.0;                 // Correction is in arcsec.
-    *Az -= (AzCorrection  / 3600.0) / sin(*ZA * D2R);
+    *ZA -= ZenOffset / 3600.0;                 // Correction is in arcsec.
+    *Az -= AzOffset  / 3600.0;
   }
-
-  // Correction is in arcsec.
 
   // Sometimes the azimuth is not where the telescope is
   // pointing, but rather where it is physically positioned.

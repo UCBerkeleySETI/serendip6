@@ -20,10 +20,10 @@ typedef struct scram {
     int     ALFBIAS2;
     double  ALFMOPOS;
     int     IF1STIME;
-    double  IF1SYNHZ;
+    double  IF1SYNHZ;   // 
     int     IF1SYNDB;
     double  IF1RFFRQ;
-    double  IF1IFFRQ;
+    double  IF1IFFRQ;   //
     int     IF1ALFFB;
     int     IF2STIME;
     int     IF2ALFON;
