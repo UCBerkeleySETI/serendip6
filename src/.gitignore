@@ -1,3 +1,4 @@
+*.fits
 libS6GPU.so
 s6GPU_test
 s6_observatory
