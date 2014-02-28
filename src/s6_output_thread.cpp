@@ -48,6 +48,8 @@ static void *run(hashpipe_thread_args_t * args)
     int prior_alfa_enabled=-1;      // initial value - should change very fast
     int run_always;                 // 1 = run even if alfa_enabled is 0
 
+    size_t num_coarse_chan = 0;
+
     //                         0           1
     const char *alfa_state[2] = {"disabled", "enabled"};
 
@@ -116,6 +118,9 @@ static void *run(hashpipe_thread_args_t * args)
         // alfa_enabled might be a second or so out of sync with data
         if(scram.alfa_enabled || run_always) {
             etf.file_chan = scram.coarse_chan_id;
+            if(num_coarse_chan != db->block[block_idx].header.num_coarse_chan) {
+                etf.new_file = 1; 
+            }
             rv = write_etfits(db, block_idx, &etf, scram_p);
             if(rv) {
                 hashpipe_error(__FUNCTION__, "error error returned from write_etfits()");

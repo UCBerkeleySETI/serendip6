@@ -23,6 +23,33 @@
 #define ELAPSED_NS(start,stop) \
   (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
 
+int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHandle *fft_plan_p, int initial) {
+    
+    const char * re[2] = {"re", ""};
+
+    fprintf(stderr, "%sinitializing with %ld coarse channels...", initial ? re[1] : re[0], num_coarse_chan);
+
+    if(!initial) {
+        delete_device_vectors(*dv_p);
+        cufftDestroy(*fft_plan_p);
+    }
+
+    *dv_p = init_device_vectors(num_coarse_chan * N_FINE_CHAN, N_POLS_PER_BEAM);
+
+    int     n_subband = num_coarse_chan;
+    int     n_chan    = N_FINE_CHAN;
+    int     n_input   = N_POLS_PER_BEAM;
+    size_t  nfft_     = n_chan;
+    size_t  nbatch    = n_subband;
+    int     istride   = n_subband*n_input;   // this effectively transposes the input data
+    int     ostride   = 1;
+    int     idist     = n_input;            // this takes care of the input interleave
+    int     odist     = nfft_;
+    create_fft_plan_1d_c2c(fft_plan_p, istride, idist, ostride, odist, nfft_, nbatch);
+
+    fprintf(stderr, "done\n");
+}
+
 static void *run(hashpipe_thread_args_t * args)
 {
     // Local aliases to shorten access to args fields
@@ -42,6 +69,7 @@ static void *run(hashpipe_thread_args_t * args)
     int curblock_out=0;
     int error_count = 0, max_error_count = 0;
     float error, max_error = 0.0;
+    size_t num_bytes_per_beam;
 
     struct timespec start, stop;
     uint64_t elapsed_gpu_ns  = 0;
@@ -63,6 +91,7 @@ static void *run(hashpipe_thread_args_t * args)
     cufftHandle fft_plan;
     cufftHandle *fft_plan_p = &fft_plan;
 
+#if 0
     // TODO handle errors
 
     int     n_subband = N_COARSE_CHAN;
@@ -76,8 +105,13 @@ static void *run(hashpipe_thread_args_t * args)
     int     odist     = nfft_;
     create_fft_plan_1d_c2c(fft_plan_p, istride, idist, ostride, odist, nfft_, nbatch);
 
-    device_vectors_t *dv_p;
+    device_vectors_t *dv_p = NULL;
     dv_p = init_device_vectors(N_GPU_ELEMENTS, N_POLS_PER_BEAM);
+#endif
+
+    device_vectors_t *dv_p = NULL;
+    uint64_t num_coarse_chan = N_COARSE_CHAN;
+    init_gpu_memory(num_coarse_chan, &dv_p, fft_plan_p, 1);
 
     while (run_threads()) {
 
@@ -106,6 +140,12 @@ static void *run(hashpipe_thread_args_t * args)
         hputu8(st.buf, "GPUMCNT", db_in->block[curblock_in].header.mcnt);
         hashpipe_status_unlock_safe(&st);
 
+        if(db_in->block[curblock_in].header.num_coarse_chan != num_coarse_chan) {
+            // number of coarse channels has changed!  Redo GPU memory / FFT plan
+            num_coarse_chan = db_in->block[curblock_in].header.num_coarse_chan;
+            init_gpu_memory(num_coarse_chan, &dv_p, fft_plan_p, 0);
+        }
+
         if(db_in->block[curblock_in].header.mcnt >= last_mcount) {
           // Wait for new output block to be free
           while ((rv=s6_output_databuf_wait_free(db_out, curblock_out)) != HASHPIPE_OK) {
@@ -130,8 +170,9 @@ static void *run(hashpipe_thread_args_t * args)
         clock_gettime(CLOCK_MONOTONIC, &start);
 
         // pass input metadata to output
-        db_out->block[curblock_out].header.mcnt           = db_in->block[curblock_in].header.mcnt;
-        db_out->block[curblock_out].header.coarse_chan_id = db_in->block[curblock_in].header.coarse_chan_id;
+        db_out->block[curblock_out].header.mcnt            = db_in->block[curblock_in].header.mcnt;
+        db_out->block[curblock_out].header.coarse_chan_id  = db_in->block[curblock_in].header.coarse_chan_id;
+        db_out->block[curblock_out].header.num_coarse_chan = db_in->block[curblock_in].header.num_coarse_chan;
         memcpy(&db_out->block[curblock_out].header.missed_pkts, 
                &db_in->block[curblock_in].header.missed_pkts, 
                sizeof(uint64_t) * N_BEAM_SLOTS);
@@ -143,7 +184,12 @@ static void *run(hashpipe_thread_args_t * args)
             size_t nhits = 0; 
             // TODO there is no real c error checking in spectroscopy()
             //      Errors are handled via c++ exceptions
-            nhits = spectroscopy(N_COARSE_CHAN,
+            //nhits = spectroscopy(N_COARSE_CHAN,
+            num_bytes_per_beam =  N_BYTES_PER_SAMPLE                               * 
+                                  N_FINE_CHAN                                      * 
+                                  db_in->block[curblock_in].header.num_coarse_chan * 
+                                  N_POLS_PER_BEAM;
+            nhits = spectroscopy(num_coarse_chan,
                                  N_FINE_CHAN,
                                  N_POLS_PER_BEAM,
                                  beam_i,
@@ -151,8 +197,10 @@ static void *run(hashpipe_thread_args_t * args)
                                  MAXGPUHITS,
                                  POWER_THRESH,
                                  SMOOTH_SCALE,
-                                 &db_in->block[curblock_in].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)],
-                                 N_BYTES_PER_BEAM,
+                                 //&db_in->block[curblock_in].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)],
+                                 //N_BYTES_PER_BEAM,
+                                 &db_in->block[curblock_in].data[beam_i*num_bytes_per_beam/sizeof(uint64_t)],
+                                 num_bytes_per_beam,
                                  (hits_t *) &db_out->block[curblock_out].hits[total_hits],
                                  dv_p,
                                  fft_plan_p);

@@ -31,6 +31,7 @@ static void *run(hashpipe_thread_args_t * args)
     /* Main loop */
     int i, rv;
     uint64_t mcnt = 0;
+    uint64_t num_coarse_chan = N_COARSE_CHAN;
     uint64_t *data;
     int block_idx = 0;
     int error_count = 0, max_error_count = 0;
@@ -95,6 +96,7 @@ static void *run(hashpipe_thread_args_t * args)
         // populate block header
         db->block[block_idx].header.mcnt = mcnt;
         db->block[block_idx].header.coarse_chan_id = 321;
+        db->block[block_idx].header.num_coarse_chan = num_coarse_chan;
         memset(db->block[block_idx].header.missed_pkts, 0, sizeof(uint64_t) * N_BEAM_SLOTS);
 
         if(gen_fake) {
@@ -134,6 +136,7 @@ static void *run(hashpipe_thread_args_t * args)
         // Setup for next block
         block_idx = (block_idx + 1) % db->header.n_block;
         mcnt++;
+        num_coarse_chan--;
 
         /* Will exit if thread has been cancelled */
         pthread_testcancel();

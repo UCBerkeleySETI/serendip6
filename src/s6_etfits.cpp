@@ -84,7 +84,8 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
         // TODO this could be done once per run rather than once per file
         // TODO some (all?) of these will come from iput parms (status shmem)
         // TODO update code versions
-        etf->primary_hdr.n_subband = N_COARSE_CHAN;
+        //etf->primary_hdr.n_subband = N_COARSE_CHAN;
+        etf->primary_hdr.n_subband = db->block[block_idx].header.num_coarse_chan;
         etf->primary_hdr.n_chan    = N_FINE_CHAN;
         etf->primary_hdr.n_inputs  = N_BEAMS * N_POLS_PER_BEAM;
         // TODO not yet implemented
