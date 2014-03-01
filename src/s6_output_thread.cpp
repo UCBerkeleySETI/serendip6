@@ -118,8 +118,9 @@ static void *run(hashpipe_thread_args_t * args)
         // alfa_enabled might be a second or so out of sync with data
         if(scram.alfa_enabled || run_always) {
             etf.file_chan = scram.coarse_chan_id;
-            if(num_coarse_chan != db->block[block_idx].header.num_coarse_chan) {
-                etf.new_file = 1; 
+              if(num_coarse_chan != db->block[block_idx].header.num_coarse_chan) {
+                  etf.new_file = 1; 
+                  num_coarse_chan = db->block[block_idx].header.num_coarse_chan; 
             }
             rv = write_etfits(db, block_idx, &etf, scram_p);
             if(rv) {
