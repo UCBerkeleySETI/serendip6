@@ -30,7 +30,7 @@
 #endif
 
 // Number of mcnts per block
-static const unsigned int Nm = N_FINE_CHAN;
+static const uint64_t     Nm = N_FINE_CHAN;
 static const unsigned int N_PACKETS_PER_BLOCK = Nm * N_BEAMS;
 static const unsigned int N_BYTES_PER_CHAN = 4;
 
@@ -286,7 +286,7 @@ static inline void initialize_block(s6_input_databuf_t * s6_input_databuf_p,
     int block_i = block_for_mcnt(mcnt);
 
     for(i=0; i<N_BEAM_SLOTS; i++) {
-	s6_input_databuf_p->block[block_i].header.missed_pkts[i] = Nm;
+	s6_input_databuf_p->block[block_i].header.missed_pkts[i] = (i < N_BEAMS ? Nm : 0);
     }
     // Round pkt_mcnt down to nearest multiple of Nm
     s6_input_databuf_p->block[block_i].header.mcnt = mcnt - (mcnt % Nm);
@@ -336,11 +336,13 @@ static inline uint64_t process_packet(s6_input_databuf_t *s6_input_databuf_p, st
     packet_header_t pkt_header;
     const uint64_t *payload_p;
     int pkt_block_i;
+    int new_block_i;
     uint64_t *dest_p;
     int64_t pkt_mcnt_dist;
     uint64_t pkt_mcnt;
     uint64_t cur_mcnt;
     uint64_t netmcnt = -1; // Value to return (!=-1 is stored in status memory)
+    int i = 0;
 #if N_DEBUG_INPUT_BLOCKS == 1
     static uint64_t debug_remaining = -1ULL;
     static off_t debug_offset = 0;
@@ -377,7 +379,14 @@ static inline uint64_t process_packet(s6_input_databuf_t *s6_input_databuf_p, st
     if(0 <= pkt_mcnt_dist && pkt_mcnt_dist < 2*Nm) {
 	// If the packet is for the second half of the next block (i.e. current
 	// block + 3/2 blocks), then "current" block is done.
-	if(pkt_mcnt_dist >= 3*Nm/2) {
+	if(pkt_mcnt_dist >= 3*(Nm/2)) {
+
+	    for(i=0; i<N_BEAMS; i++) {
+		if(s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i] != 0)
+		    printf("missed %lu packets for beam %d\n",
+			s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i], i);
+	    }
+
 	    // Mark the current block as filled
 	    netmcnt = set_block_filled(s6_input_databuf_p, &binfo);
 
@@ -389,9 +398,10 @@ static inline uint64_t process_packet(s6_input_databuf_t *s6_input_databuf_p, st
 	    binfo.pchan = 0;
 	    binfo.nchan = 0;
 
-	    // Wait (hopefully not long!) to acquire the block after next (i.e.
-	    // the block that gets the current packet).
-	    if(s6_input_databuf_busywait_free(s6_input_databuf_p, pkt_block_i) != HASHPIPE_OK) {
+	    // Wait (hopefully not long!) to acquire the block after the new
+	    // "current" block (i.e. plan ahead).
+	    new_block_i = (binfo.block_i + 1) % N_INPUT_BLOCKS;
+	    if(s6_input_databuf_busywait_free(s6_input_databuf_p, new_block_i) != HASHPIPE_OK) {
 		if (errno == EINTR) {
 		    // Interrupted by signal, return -1
 		    hashpipe_error(__FUNCTION__, "interrupted by signal waiting for free databuf");
@@ -405,9 +415,9 @@ static inline uint64_t process_packet(s6_input_databuf_t *s6_input_databuf_p, st
 	    }
 
 	    // Initialize the newly acquired block
-	    initialize_block(s6_input_databuf_p, pkt_mcnt, pkt_header.pchan, pkt_header.nchan);
+	    initialize_block(s6_input_databuf_p, pkt_mcnt+Nm, pkt_header.pchan, pkt_header.nchan);
 	    // Reset binfo's packet counter for this packet's block
-	    binfo.block_packet_counter[pkt_block_i] = 0;
+	    binfo.block_packet_counter[new_block_i] = 0;
 	}
 
 	// Reset out-of-seq counter
@@ -436,6 +446,8 @@ static inline uint64_t process_packet(s6_input_databuf_t *s6_input_databuf_p, st
 	// Copy data into buffer
 	// Use length from packet (minus CRC word)
 	memcpy(dest_p, payload_p, p->packet_size - 8);
+	//memset(dest_p, 0, N_COARSE_CHAN*N_BYTES_PER_CHAN);
+	//dest_p[0] = be64toh(*(uint64_t *)(p->data));
 
 	return netmcnt;
     }
