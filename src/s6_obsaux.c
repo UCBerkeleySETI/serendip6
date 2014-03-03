@@ -83,7 +83,6 @@ void s6_AzZaToRaDec(double Az, double Za, double coord_time, double *Ra, double 
     // Ra to hours and Dec to degrees
     *Ra = (*Ra / d2r) / 15;
     *Dec = *Dec / d2r;
-//fprintf(stderr, "azzaToRaDec Az %lf Za %lf i_mjd %d utc1Frac %lf ofdate %d Ra %6.3lf Dec %6.3lf\n", Az+180.0, Za, i_mjd, utcFrac, ofDate, *Ra, *Dec);
 
     // Take care of wrap situations in RA
     while (*Ra < 0) {

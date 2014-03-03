@@ -58,10 +58,6 @@ int main(int argc, char ** argv) {
 
     const char *usage = "Usage: s6_observatory [-test] [-stdout] [-nodb] [-nottl] [-hostname hostname] [-port port]\n  -test: don't read scram, put in dummy values\n  -stdout: output packets to stdout (normally quiet)\n  -nodb: don't update redis db\n  -nottl: don't expire any of the scram keys in the redis db\n  hostname/port: for redis database (default 127.0.0.1:6379)\n\n";
 
-    // int x = 0; // for debugging
-
-    // fprintf(stderr, "scram size : %d   Enc2Deg = %20.10lf  an int is %d bytes long\n", sizeof(scram), Enc2Deg, sizeof(int));
-
     bool dotest = false;
     bool dostdout = false;
     bool nodb = false;
@@ -140,23 +136,16 @@ int main(int argc, char ** argv) {
         if (strcmp(scram->in.magic, "PNT") == 0) {
             got_pnt = true;
             time_pnt = time(NULL);
-//fprintf(stderr, "-----------> secMidD %lf mjd %d ut1Frac %lf\n", scram->pntData.st.x.pl.tm.secMidD, scram->pntData.st.x.pl.tm.mjd, scram->pntData.st.x.pl.tm.ut1Frac);
             RA  = scram->pntData.st.x.pl.curP.raJ;
             Dec = scram->pntData.st.x.pl.curP.decJ;
             RA  *= 24.0 / C_2PI;
             Dec *= 360.0 / C_2PI;
             MJD  = scram->pntData.st.x.pl.tm.mjd + scram->pntData.st.x.pl.tm.ut1Frac;
-//fprintf(stderr, "1++++++++++> secMidD %lf mjd %d ut1Frac %lf MJD %lf\n", scram->pntData.st.x.pl.tm.secMidD, scram->pntData.st.x.pl.tm.mjd, scram->pntData.st.x.pl.tm.ut1Frac, MJD);
             azfix = scram->pntData.st.x.modelCorEncAzZa[0] / D2R;   // go to degrees
             zafix = scram->pntData.st.x.modelCorEncAzZa[1] / D2R;
-//fprintf(stderr, ">>> Deg %lf %lf Rad %lf %lf\n", azfix, zafix, scram->pntData.st.x.modelCorEncAzZa[0],  scram->pntData.st.x.modelCorEncAzZa[1]);
-            //RA = 10; Dec = 20; MJD = 50000; azfix = 0.1; zafix = 0.2;
-//fprintf(stderr, "2++++++++++> secMidD %lf mjd %d ut1Frac %lf MJD %lf\n", scram->pntData.st.x.pl.tm.secMidD, scram->pntData.st.x.pl.tm.mjd, scram->pntData.st.x.pl.tm.ut1Frac, MJD);
 
             ftoa(RA,RAbuf); ftoa(Dec,Decbuf); ftoa(MJD,MJDbuf); ftoa(azfix,azfixbuf); ftoa(zafix,zafixbuf);
-//fprintf(stderr, "3++++++++++> secMidD %lf mjd %d ut1Frac %lf MJD %lf\n", scram->pntData.st.x.pl.tm.secMidD, scram->pntData.st.x.pl.tm.mjd, scram->pntData.st.x.pl.tm.ut1Frac, MJD);
             sprintf(strbuf,"SCRAM:PNT PNTSTIME %ld PNTRA %0.10lf PNTDEC %0.10lf PNTMJD %0.10lf PNTAZCOR %0.10lf PNTZACOR %0.10lf",time_pnt,RA,Dec,MJD,azfix,zafix);
-//if (dostdout) fprintf(stderr,"==============> %s\n",strbuf);
             if (dostdout) fprintf(stderr,"%s\n",strbuf);
             if (!nodb) { reply = redisCommand(c,"HMSET %s %s %d %s %s %s %s %s %s %s %s %s %s","SCRAM:PNT","PNTSTIME",time_pnt,"PNTRA",RAbuf,"PNTDEC",Decbuf,"PNTMJD",MJDbuf,"PNTAZCOR",azfixbuf,"PNTZACOR",zafixbuf); freeReplyObject(reply); }
             if (dostdout) fprintf(stderr,"%s\n",strbuf);
@@ -251,36 +240,14 @@ fprintf(stderr, "rcv327Active : %d\n", rcv327Active);
           if (time_agc > time_fix) time_fix = time_agc;
           if (time_pnt > time_fix) time_fix = time_pnt;
           coord_unixtime = s6_seti_ao_timeMS2unixtime(agctime,time_fix);
-//fprintf(stderr,"agctime %d time_fix %ld coord_unixtime %lf\n",agctime,time_fix,coord_unixtime);
           for (i=0;i<7;i++) {
             beamAz = Azdeg; beamZA = ZAdeg; // in degrees
-            // fprintf(stderr,"i %d Az %lf ZA %lf ",i,beamAz,beamZA);
             beamAz -= azfix; beamZA -= zafix; // fix also in degrees
-//if(i==0) s6_AzZaToRaDec(beamAz-180.0, beamZA, coord_unixtime, &fixedRA[i], &fixedDec[i]);
-//fprintf(stderr,"fixed: Az %lf ZA %lf ",beamAz,beamZA);
             s6_BeamOffset(&beamAz, &beamZA, i, motorpos); // i is beam
-//fprintf(stderr,"post offset: Az %lf ZA %lf \n",beamAz,beamZA);
             s6_AzZaToRaDec(beamAz, beamZA, coord_unixtime, &fixedRA[i], &fixedDec[i]);
-//if(i==0) s6_AzZaToRaDec(beamAz, beamZA, coord_unixtime, &fixedRA[i], &fixedDec[i]);
-//fprintf(stderr, "azza ===================================================\n");
             ftoa(fixedRA[i],fixedRAbuf[i]); 
             ftoa(fixedDec[i],fixedDecbuf[i]); 
             }
-#if 0
-int j_d, j_m;
-double j_m_d, j_s;
-j_d = floor(fixedDec[0]);
-j_m_d = (fixedDec[0] - j_d) * 60.0;
-j_m = floor(j_m_d);
-j_s = (j_m_d - j_m) * 60;
-int r_h, r_m;
-double r_m_d, r_s;
-r_h = floor(fixedRA[0]);
-r_m_d = (fixedRA[0] - r_h) * 60.0;
-r_m = floor(r_m_d);
-r_s = (r_m_d - r_m) * 60;
-fprintf(stderr, "RA HMS %02d:%02d:%lf DEC DMS %02d:%02d:%lf\n", r_h, r_m, r_s, j_d, j_m, j_s);
-#endif
           sprintf(strbuf,"SCRAM:DERIVED DERTIME %ld RA0 %0.10lf DEC0 %0.10lf RA1 %0.10lf DEC1 %0.10lf RA2 %0.10lf DEC2 %0.10lf RA3 %0.10lf DEC3 %0.10lf RA4 %0.10lf DEC4 %0.10lf RA5 %0.10lf DEC5 %0.10lf RA6 %0.10lf DEC6 %0.10lf",time_fix,fixedRA[0],fixedDec[0],fixedRA[1],fixedDec[1],fixedRA[2],fixedDec[2],fixedRA[3],fixedDec[3],fixedRA[4],fixedDec[4],fixedRA[5],fixedDec[5],fixedRA[6],fixedDec[6]);
           if (!nodb) { reply = redisCommand(c,"HMSET %s %s %d %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s","SCRAM:DERIVED","DERTIME",time_fix,"RA0",fixedRAbuf[0],"DEC0",fixedDecbuf[0],"RA1",fixedRAbuf[1],"DEC1",fixedDecbuf[1],"RA2",fixedRAbuf[2],"DEC2",fixedDecbuf[2],"RA3",fixedRAbuf[3],"DEC3",fixedDecbuf[3],"RA4",fixedRAbuf[4],"DEC4",fixedDecbuf[4],"RA5",fixedRAbuf[5],"DEC5",fixedDecbuf[5],"RA6",fixedRAbuf[6],"DEC6",fixedDecbuf[6]); freeReplyObject(reply); }
           if (dostdout) fprintf(stderr,"%s\n",strbuf);
