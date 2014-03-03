@@ -73,6 +73,7 @@ int main(int argc, char ** argv) {
     bool useAlfa; // IF2 vars
     int encoder; double degrees; // TT vars
     int fstbias, sndbias; double motorpos; // ALFASHM vars
+    double lo2Hz;
 
     double beamAz, beamZA; // ra/dec conversion per beam vars
     double coord_unixtime;
@@ -189,13 +190,44 @@ int main(int argc, char ** argv) {
           } else if (strcmp(scram->in.magic, "IF2") == 0) {
             time_if2 = time(NULL); 
             if(scram->if2Data.st.stat1.useAlfa) { useAlfa = true; } else { useAlfa = false; }
+            lo2Hz=scram->if2Data.st.synI.freqHz[0]*1e-6;
+
             sprintf(strbuf,"SCRAM:IF2 IF2STIME %ld IF2ALFON %d",time_if2,useAlfa);
             if (!nodb) { reply = redisCommand(c,"HMSET %s %s %d %s %d","SCRAM:IF2","IF2STIME",time_if2,"IF2ALFON",useAlfa); freeReplyObject(reply); }
             if (dostdout) fprintf(stderr,"%s\n",strbuf);
           } else if (strcmp(scram->in.magic, "TT") == 0) {
+#define TUR_DEG_TO_ENC_UNITS  ( (4096. * 210. / 5.0) / (360.) )
+//  error we allow in position
+#define RCV_POS_327 339.90
+
             time_tt = time(NULL);
             encoder = scram->ttData.st.slv[0].inpMsg.position;
             degrees = (double)(scram->ttData.st.slv[0].inpMsg.position) * Enc2Deg;
+double turDeg=scram->ttData.st.slv[0].tickMsg.position/ TUR_DEG_TO_ENC_UNITS;
+
+
+int    rcv327Active=0;
+double  epsPosDeg=.5;
+double  epsFrqMhz=1e-6;
+double  rfCfr;
+double  if1Cfr;
+double  if2Cfr;
+
+// p1693 mixing
+//   rfcfr = 327, 1st IF 750Mhz, 2nd IF 325 mHZ
+        rfCfr=327.;
+        if1Cfr=750.;
+        if2Cfr=325.;
+    
+        double syn1Mhz =  synIHz_0*1e6;
+        double syn2Mhz =  lo2Hz*1e6;
+
+        rcv327Active=((fabs(turDeg - RCV_POS_327) < epsPosDeg) &&   // turret in position
+                      (fabs(syn1Mhz -(rfCfr + if1Cfr)) < epsFrqMhz)  &&
+                      (fabs(syn2Mhz -(if1Cfr + if2Cfr)) < epsFrqMhz));
+
+fprintf(stderr, "rcv327Active : %d\n", rcv327Active);
+
             ftoa(degrees,degreesbuf);
             sprintf(strbuf,"SCRAM:TT TTSTIME %ld TTTURENC %d TTTURDEG %0.10lf",time_tt,encoder,degrees);
             if (!nodb) { reply = redisCommand(c,"HMSET %s %s %d %s %d %s %s","SCRAM:TT","TTSTIME",time_tt,"TTTURENC",encoder,"TTTURDEG",degreesbuf); freeReplyObject(reply); }
