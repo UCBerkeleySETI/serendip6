@@ -55,10 +55,6 @@ void print_hits(hits_t *hits_p, size_t nhits) {
              << hits_p[i].power << "\t"
              << hits_p[i].baseline << "\t"
              << hits_p[i].strength << "\t\t"
-#ifdef COMPUTE_HIT_DENSITY
-// This is not needed for production but is kept here for reference
-             << hits_p[i].density << "\t"
-#endif
              << hits_p[i].input << "\t"
              << hits_p[i].beam << endl;
     }

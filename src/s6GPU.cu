@@ -51,11 +51,6 @@ device_vectors_t * init_device_vectors(int n_element, int n_input) {
     dv_p->hit_indices_p      = new thrust::device_vector<int>();
     dv_p->hit_powers_p       = new thrust::device_vector<float>;
     dv_p->hit_baselines_p    = new thrust::device_vector<float>;
-#ifdef COMPUTE_HIT_DENSITY
-    dv_p->hit_indices_high_p = new thrust::device_vector<int>;
-    dv_p->hit_indices_low_p  = new thrust::device_vector<int>;
-    dv_p->hit_densities_p    = new thrust::device_vector<int>;
-#endif
 
     return dv_p;
 }
@@ -81,11 +76,6 @@ void delete_device_vectors( device_vectors_t * dv_p) {
     delete(dv_p->hit_indices_p);      
     delete(dv_p->hit_powers_p);       
     delete(dv_p->hit_baselines_p);    
-#ifdef COMPUTE_HIT_DENSITY
-    delete(dv_p->hit_indices_high_p); 
-    delete(dv_p->hit_indices_low_p);  
-    delete(dv_p->hit_densities_p);    
-#endif
 
     delete(dv_p);
 }
@@ -355,50 +345,6 @@ size_t find_hits(device_vectors_t *dv_p, int n_element, size_t maxhits, float po
     return nhits;
 }    
 
-#ifdef COMPUTE_HIT_DENSITY
-// This is not needed for production but is kept here for reference
-void compute_hit_density(device_vectors_t &dv, size_t nhits, int n_chan, float smooth_scale) {
-    using thrust::make_transform_iterator;
-
-    Stopwatch timer;
-    if(use_timer) timer.start();
-    // Compute hit density
-    // Note: This searches forward and backward smooth_scale/2 indices
-    //         from each hit and counts how many hits lie in that range.
-    dv.hit_indices_high_p->resize(nhits);
-    int fwd = smooth_scale/2+1;
-    int bck = smooth_scale/2;
-    thrust::lower_bound(dv.hit_indices_p->begin(), dv.hit_indices_p->end(),
-                        make_transform_iterator(dv.hit_indices_p->begin(),
-                                                advance_within_region(fwd,
-                                                                      n_chan)),
-                        make_transform_iterator(dv.hit_indices_p->end(),
-                                                advance_within_region(fwd,
-                                                                      n_chan)),
-                        dv.hit_indices_high_p->begin());
-    dv.hit_indices_low_p->resize(nhits);
-    thrust::upper_bound(dv.hit_indices_p->begin(), dv.hit_indices_p->end(),
-                        make_transform_iterator(dv.hit_indices_p->begin(),
-                                                advance_within_region(-bck,
-                                                                      n_chan)),
-                        make_transform_iterator(dv.hit_indices_p->end(),
-                                                advance_within_region(-bck,
-                                                                      n_chan)),
-                        dv.hit_indices_low_p->begin());
-    dv.hit_densities_p->resize(nhits);
-    thrust::transform(dv.hit_indices_high_p->begin(), dv.hit_indices_high_p->end(),
-                      dv.hit_indices_low_p->begin(),
-                      dv.hit_densities_p->begin(),
-                      //_1 - _2);
-                      //thrust::minus<float>());
-                      thrust::minus<int>());
-    cudaThreadSynchronize();
-    if(use_timer) timer.stop();
-    if(use_timer) cout << "Hit density time:\t" << timer.getTime() << endl;
-    if(use_timer) timer.reset();
-}    
-#endif  //COMPUTE_HIT_DENSITY
-
 int spectroscopy(int n_subband,
                  int n_chan,
                  int n_input,
@@ -459,10 +405,6 @@ int spectroscopy(int n_subband,
         nhits = find_hits           (dv_p, n_element, maxhits, power_thresh);
         //nhits = find_hits           (dv_p, n_element, maxgpuhits, power_thresh);  // TODO remove at some point
         // TODO should probably report if nhits == maxgpuhits, ie overflow
-#ifdef COMPUTE_HIT_DENSITY
-// This is not needed for production but is kept here for reference
-        //compute_hit_density         (dv, nhits, n_chan, smooth_scale);
-#endif
     
         // copy to return vector
         nhits = nhits > maxhits ? maxhits : nhits;
@@ -472,10 +414,6 @@ int spectroscopy(int n_subband,
             hits_p[i].power       = (*(dv_p->hit_powers_p))[j];
             hits_p[i].baseline    = (*(dv_p->hit_baselines_p))[j];
             hits_p[i].strength    = hits_p[j].power / hits_p[j].baseline;
-#ifdef COMPUTE_HIT_DENSITY
-// This is not needed for production but is kept here for reference
-            //hits_p[i].density   = (*dv.hit_densities_p)[j]; 
-#endif
             hits_p[i].coarse_chan = idx / n_chan;
             hits_p[i].fine_chan   = idx % n_chan;
             hits_p[i].input       = input;
