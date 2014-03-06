@@ -136,7 +136,8 @@ static void *run(hashpipe_thread_args_t * args)
         // Setup for next block
         block_idx = (block_idx + 1) % db->header.n_block;
         mcnt++;
-        num_coarse_chan--;
+        // uncomment the following to test dynamic setting of num_coarse_chan
+        //num_coarse_chan--;
 
         /* Will exit if thread has been cancelled */
         pthread_testcancel();
