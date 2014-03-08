@@ -10,15 +10,7 @@
 #include <thrust/binary_search.h>
 #include <thrust/device_ptr.h>
 
-typedef struct {
-    float power;
-    float baseline;
-    float strength;
-    int   beam;
-    int   input;    // ie, polariazation
-    int   coarse_chan;
-    int   fine_chan;
-} hits_t;
+#include "s6_databuf.h"
 
 typedef struct {
     thrust::device_vector<char2>  * raw_timeseries_p;       // input time series, correctly ordered

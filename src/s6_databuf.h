@@ -5,7 +5,7 @@
 #include <cufft.h>
 #include "hashpipe_databuf.h"
 //#include "config.h"
-#include "s6GPU.h"
+//#include "s6GPU.h"
 
 #define PAGE_SIZE               (4096)
 #define CACHE_ALIGNMENT         (128)
@@ -71,6 +71,16 @@ typedef struct s6_input_databuf {
 /*
  * OUTPUT BUFFER STRUCTURES
  */
+typedef struct {
+    float power;
+    float baseline;
+    float strength;
+    int   beam;
+    int   input;    // ie, polariazation
+    int   coarse_chan;
+    int   fine_chan;
+} hits_t;
+
 typedef struct s6_output_block_header {
   uint64_t mcnt;
   uint64_t coarse_chan_id;          // coarse channel number of lowest channel in this block

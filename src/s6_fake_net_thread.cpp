@@ -10,6 +10,7 @@
 #include <math.h>
 #include <unistd.h>
 #include <string.h>
+#include <pthread.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
