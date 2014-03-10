@@ -53,19 +53,8 @@ int spectroscopy(int n_subband,
                  float smooth_scale,
                  uint64_t * input_data,
                  size_t n_input_data_bytes,
-                 hits_t *hits_p, 
+                 s6_output_block_t *s6_output_block,
                  device_vectors_t    *dv_p,
                  cufftHandle *fft_plan);
-#if 0
-int spectroscopy(int n_subband,
-                 int n_chan,
-                 int n_input,
-                 float power_thresh,
-                 float smooth_scale,
-                 std::vector<char2>  &h_raw_timeseries, 
-                 std::vector<hits_t> &hits, 
-                 device_vectors_t    *dv,
-                 cufftHandle   *plan);
-#endif
 
 #endif  // _S6GPU_TEST_H

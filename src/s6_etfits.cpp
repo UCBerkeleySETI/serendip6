@@ -351,7 +351,7 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
     size_t nrows, hit_i, nhits_this_input;  
     int cur_beam, cur_input, cur_beampol;  
 
-    size_t nhits = db->block[block_idx].header.nhits;
+    size_t nhits = 0;
 
     int * status_p = &(etf->status);
     *status_p = 0;
@@ -361,10 +361,6 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
 //fprintf(stderr, "writing hits\n");
     //std::vector<hits_t> hits;
 
-    std::vector<float> det_pow;
-    std::vector<float> mean_pow;
-    std::vector<int>   coarse_chan;
-    std::vector<int>   fine_chan;
     float* det_pow_p;
     float* mean_pow_p;
     int* coarse_chan_p;
@@ -375,65 +371,30 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
 
     int beampols_done[N_BEAMS*N_POLS_PER_BEAM] = {0};;
 
-    hit_i = 0;              
-    while(hit_i < nhits) {
-//fprintf(stderr, "hit_i %ld nhits %ld\n", hit_i, nhits);
-        // init for first / next input
-        det_pow.clear();
-        mean_pow.clear();
-        coarse_chan.clear();
-        fine_chan.clear();
-        nhits_this_input = 0;
+    for(int beam=0; beam < N_BEAMS; beam++) {
+        for(int input=0; input < N_POLS_PER_BEAM; input++) {        
 
-        // calculate hits header fields and populate the header 
-        cur_beam    = db->block[block_idx].hits[hit_i].beam;
-        cur_input   = db->block[block_idx].hits[hit_i].input;
-        cur_beampol = cur_beam * N_POLS_PER_BEAM + cur_input;
-//fprintf(stderr, "at hit_i %ld : writing header for beam %d input %d beampol %d\n", hit_i, cur_beam, cur_input, etf->hits_hdr[cur_beampol].beampol);
-        etf->hits_hdr[cur_beampol].beampol = cur_beampol;
+            int beampol = beam * N_POLS_PER_BEAM + input;
+            nhits_this_input = (size_t)db->block[block_idx].header.nhits[beam][input];
+            write_hits_header(etf, beampol, nhits_this_input);
+            nhits += nhits_this_input;
 
-        beampols_done[cur_beampol] = 1;   // mark this beampol as having at least 1 hit
+            // write the hits for this input
+            det_pow_p        = &db->block[block_idx].power[beam][input][0];
+            mean_pow_p       = &db->block[block_idx].baseline[beam][input][0];
+            coarse_chan_p    = &db->block[block_idx].coarse_chan[beam][input][0];
+            fine_chan_p      = &db->block[block_idx].fine_chan[beam][input][0];
+            colnum      = 1;
+            if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, det_pow_p, status_p);
+            colnum      = 2;
+            if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, mean_pow_p, status_p);
+            colnum      = 3;
+            if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, coarse_chan_p, status_p);
+            colnum      = 4;
+            if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, fine_chan_p, status_p);
 
-        // separate the data columns for this input
-        // TODO - if this is too slow, we can make hits 4 separate arrays rather
-        // than an array of structs
-        while(db->block[block_idx].hits[hit_i].input == cur_input && hit_i < nhits) {
-            det_pow.push_back       (db->block[block_idx].hits[hit_i].power);
-            mean_pow.push_back      (db->block[block_idx].hits[hit_i].baseline);
-            coarse_chan.push_back   (db->block[block_idx].hits[hit_i].coarse_chan);
-            fine_chan.push_back     (db->block[block_idx].hits[hit_i].fine_chan);
-            nhits_this_input++;
-            hit_i++;
-        }
-        // hit_i should now reference next input or one past all inputs
-//fprintf(stderr, "det_pow.size %ld nhits_this_input %ld\n", det_pow.size(), nhits_this_input);
-
-        write_hits_header(etf, cur_beampol, nhits_this_input);
-
-        // write the hits for this input
-        det_pow_p     = &det_pow[0];
-        mean_pow_p    = &mean_pow[0];
-        coarse_chan_p = &coarse_chan[0];
-        fine_chan_p   = &fine_chan[0];
-        colnum      = 1;
-        if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, det_pow_p, status_p);
-        colnum      = 2;
-        if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, mean_pow_p, status_p);
-        colnum      = 3;
-        if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, coarse_chan_p, status_p);
-        colnum      = 4;
-        if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, fine_chan_p, status_p);
-
-        etf->beampol_cnt++;
-    }  // end while hit_i < nhits
-
-    //etf->rownum += nhits;
-
-    // output "null" headers for any beampols that had no hits
-    for(int i=0; i < N_BEAMS*N_POLS_PER_BEAM; i++) {
-        if(beampols_done[i] == 0) {
-            write_hits_header(etf, i, 0);
-        }
+            etf->beampol_cnt++;
+        } 
     }
 
     if (*status_p) {

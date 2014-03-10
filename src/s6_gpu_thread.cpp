@@ -91,24 +91,6 @@ static void *run(hashpipe_thread_args_t * args)
     cufftHandle fft_plan;
     cufftHandle *fft_plan_p = &fft_plan;
 
-#if 0
-    // TODO handle errors
-
-    int     n_subband = N_COARSE_CHAN;
-    int     n_chan    = N_FINE_CHAN;
-    int     n_input   = N_POLS_PER_BEAM;
-    size_t  nfft_     = n_chan;
-    size_t  nbatch    = n_subband;
-    int     istride   = n_subband*n_input;   // this effectively transposes the input data
-    int     ostride   = 1;
-    int     idist     = n_input;            // this takes care of the input interleave
-    int     odist     = nfft_;
-    create_fft_plan_1d_c2c(fft_plan_p, istride, idist, ostride, odist, nfft_, nbatch);
-
-    device_vectors_t *dv_p = NULL;
-    dv_p = init_device_vectors(N_GPU_ELEMENTS, N_POLS_PER_BEAM);
-#endif
-
     device_vectors_t *dv_p = NULL;
     uint64_t num_coarse_chan = N_COARSE_CHAN;
     init_gpu_memory(num_coarse_chan, &dv_p, fft_plan_p, 1);
@@ -184,7 +166,6 @@ static void *run(hashpipe_thread_args_t * args)
             size_t nhits = 0; 
             // TODO there is no real c error checking in spectroscopy()
             //      Errors are handled via c++ exceptions
-            //nhits = spectroscopy(N_COARSE_CHAN,
             num_bytes_per_beam =  N_BYTES_PER_SAMPLE                               * 
                                   N_FINE_CHAN                                      * 
                                   db_in->block[curblock_in].header.num_coarse_chan * 
@@ -197,11 +178,9 @@ static void *run(hashpipe_thread_args_t * args)
                                  MAXGPUHITS,
                                  POWER_THRESH,
                                  SMOOTH_SCALE,
-                                 //&db_in->block[curblock_in].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)],
-                                 //N_BYTES_PER_BEAM,
                                  &db_in->block[curblock_in].data[beam_i*num_bytes_per_beam/sizeof(uint64_t)],
                                  num_bytes_per_beam,
-                                 (hits_t *) &db_out->block[curblock_out].hits[total_hits],
+                                 &db_out->block[curblock_out],
                                  dv_p,
                                  fft_plan_p);
 //fprintf(stderr, "spectroscopy() returned %ld for beam %d\n", nhits, beam_i);
@@ -210,7 +189,6 @@ static void *run(hashpipe_thread_args_t * args)
             elapsed_gpu_ns += ELAPSED_NS(start, stop);
             gpu_block_count++;
         }
-        db_out->block[curblock_out].header.nhits = total_hits;
 
         hashpipe_status_lock_safe(&st);
         hputr4(st.buf, "GPUMXERR", max_error);

@@ -137,7 +137,7 @@ static void *run(hashpipe_thread_args_t * args)
         hashpipe_status_unlock_safe(&st);
 
         // Mark block as free
-        memset((void *)&db->block[block_idx], 0, sizeof(s6_output_block_t));    // TODO re-init first
+        memset((void *)&db->block[block_idx], 0, sizeof(s6_output_block_t));   
         s6_output_databuf_set_free(db, block_idx);
 
         // Setup for next block

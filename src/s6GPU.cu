@@ -355,7 +355,7 @@ int spectroscopy(int n_subband,
                  float smooth_scale,
                  uint64_t * input_data,
                  size_t n_input_data_bytes,
-                 hits_t *hits_p, 
+                 s6_output_block_t *s6_output_block,
                  device_vectors_t    *dv_p,
                  cufftHandle *fft_plan) {
 
@@ -363,7 +363,7 @@ int spectroscopy(int n_subband,
     Stopwatch total_gpu_timer;
     int n_element = n_subband*n_chan;
     size_t nhits;
-    size_t prior_nhits=0;
+    //size_t prior_nhits=0;
     size_t total_nhits=0;
 
     char2 * h_raw_timeseries = (char2 *)input_data;
@@ -403,24 +403,23 @@ int spectroscopy(int n_subband,
         compute_baseline            (dv_p, n_chan, n_element, smooth_scale);
         normalize_power_spectrum    (dv_p);
         nhits = find_hits           (dv_p, n_element, maxhits, power_thresh);
-        //nhits = find_hits           (dv_p, n_element, maxgpuhits, power_thresh);  // TODO remove at some point
         // TODO should probably report if nhits == maxgpuhits, ie overflow
     
         // copy to return vector
         nhits = nhits > maxhits ? maxhits : nhits;
         if(use_timer) timer.start();
-        for(size_t i=prior_nhits, j=0; j<nhits; ++i, j++ ) {
-            int idx               = (*(dv_p->hit_indices_p))[j];
-            hits_p[i].power       = (*(dv_p->hit_powers_p))[j];
-            hits_p[i].baseline    = (*(dv_p->hit_baselines_p))[j];
-            hits_p[i].strength    = hits_p[j].power / hits_p[j].baseline;
-            hits_p[i].coarse_chan = idx / n_chan;
-            hits_p[i].fine_chan   = idx % n_chan;
-            hits_p[i].input       = input;
-            hits_p[i].beam        = beam;
-        }
-        prior_nhits = nhits;
+
         total_nhits += nhits;
+        s6_output_block->header.nhits[beam][input] = nhits;
+        thrust::copy(dv_p->hit_powers_p->begin(),    dv_p->hit_powers_p->end(),    &s6_output_block->power[beam][input][0]);
+        thrust::copy(dv_p->hit_baselines_p->begin(), dv_p->hit_baselines_p->end(), &s6_output_block->baseline[beam][input][0]);
+        thrust::copy(dv_p->hit_indices_p->begin(),   dv_p->hit_indices_p->end(),   &s6_output_block->hit_indices[beam][input][0]);
+        for(size_t i=0; i<nhits; ++i) {
+            s6_output_block->coarse_chan[beam][input][i] = s6_output_block->hit_indices[beam][input][i] / n_chan;
+            s6_output_block->fine_chan[beam][input][i]   = s6_output_block->hit_indices[beam][input][i] % n_chan;
+        }
+        
+       
         if(use_timer) timer.stop();
         if(use_timer) cout << "Copy to return vector time:\t" << timer.getTime() << endl;
         if(use_timer) timer.reset();
