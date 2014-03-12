@@ -69,7 +69,7 @@ int main(int argc, char ** argv) {
     bool useAlfa; // IF2 vars
     int encoder; double degrees; // TT vars
     int fstbias, sndbias; double motorpos; // ALFASHM vars
-    double lo2Hz;
+    double synIHz_1, lo2Hz;
 
     double beamAz, beamZA; // ra/dec conversion per beam vars
     double coord_unixtime;
@@ -85,6 +85,7 @@ int main(int argc, char ** argv) {
     char Azdegbuf[24];
     char ZAdegbuf[24];
     char synIHz_0buf[24];
+    char synIHz_1buf[24];
     char rfFreqbuf[24];
     char FrqMhzbuf[24];
     char degreesbuf[24];
@@ -149,6 +150,7 @@ int main(int argc, char ** argv) {
             if (dostdout) fprintf(stderr,"%s\n",strbuf);
             if (!nodb) { reply = redisCommand(c,"HMSET %s %s %d %s %s %s %s %s %s %s %s %s %s","SCRAM:PNT","PNTSTIME",time_pnt,"PNTRA",RAbuf,"PNTDEC",Decbuf,"PNTMJD",MJDbuf,"PNTAZCOR",azfixbuf,"PNTZACOR",zafixbuf); freeReplyObject(reply); }
             if (dostdout) fprintf(stderr,"%s\n",strbuf);
+
           } else if (strcmp(scram->in.magic, "AGC") == 0) {
             got_agc = true;
             time_agc = time(NULL);
@@ -165,9 +167,10 @@ int main(int argc, char ** argv) {
             sprintf(strbuf,"SCRAM:AGC AGCSTIME %ld AGCTIME %d AGCAZ %0.10lf AGCZA %0.10lf",time_agc,agctime,Azdeg,ZAdeg);
             if (!nodb) { reply = redisCommand(c,"HMSET %s %s %d %s %d %s %s %s %s","SCRAM:AGC","AGCSTIME",time_agc,"AGCTIME",agctime,"AGCAZ",Azdegbuf,"AGCZA",ZAdegbuf); freeReplyObject(reply); }
             if (dostdout) fprintf(stderr,"%s\n",strbuf);
+
           } else if (strcmp(scram->in.magic, "IF1") == 0) {
             time_if1 = time(NULL); 
-            synIHz_0 = scram->if1Data.st.synI.freqHz[0];
+            synIHz_0 = scram->if1Data.st.synI.freqHz[0];        // TODO label/name as 1st LO, right?
             synIDB_0 = scram->if1Data.st.synI.ampDb[0];
             rfFreq = scram->if1Data.st.rfFreq;
             FrqMhz = scram->if1Data.st.if1FrqMhz;
@@ -176,51 +179,27 @@ int main(int argc, char ** argv) {
             sprintf(strbuf,"SCRAM:IF1 IF1STIME %ld IF1SYNHZ %0.10lf IF1SYNDB %d IF1RFFRQ %0.10lf IF1IFFRQ %0.10lf IF1ALFFB %d",time_if1,synIHz_0,synIDB_0,rfFreq,FrqMhz,fltrbank);
             if (!nodb) { reply = redisCommand(c,"HMSET %s %s %d %s %s %s %d %s %s %s %s %s %d","SCRAM:IF1","IF1STIME",time_if1,"IF1SYNHZ",synIHz_0buf,"IF1SYNDB",synIDB_0,"IF1RFFRQ",rfFreqbuf,"IF1IFFRQ",FrqMhzbuf,"IF1ALFFB",fltrbank); freeReplyObject(reply); }
             if (dostdout) fprintf(stderr,"%s\n",strbuf);
+
           } else if (strcmp(scram->in.magic, "IF2") == 0) {
             time_if2 = time(NULL); 
             if(scram->if2Data.st.stat1.useAlfa) { useAlfa = true; } else { useAlfa = false; }
-            lo2Hz=scram->if2Data.st.synI.freqHz[0]*1e-6;
-
+            synIHz_1 = scram->if2Data.st.synI.freqHz[0];        // TODO label/name as 2nd LO, right?
+            ftoa(synIHz_1,synIHz_1buf);
             sprintf(strbuf,"SCRAM:IF2 IF2STIME %ld IF2ALFON %d",time_if2,useAlfa);
-            if (!nodb) { reply = redisCommand(c,"HMSET %s %s %d %s %d","SCRAM:IF2","IF2STIME",time_if2,"IF2ALFON",useAlfa); freeReplyObject(reply); }
+            if (!nodb) { reply = redisCommand(c,"HMSET %s %s %d %s %d","SCRAM:IF2","IF2STIME",time_if2, "IF2SYNHZ", synIHz_1buf, "IF2ALFON",useAlfa); freeReplyObject(reply); }
             if (dostdout) fprintf(stderr,"%s\n",strbuf);
-          } else if (strcmp(scram->in.magic, "TT") == 0) {
-#define TUR_DEG_TO_ENC_UNITS  ( (4096. * 210. / 5.0) / (360.) )
-//  error we allow in position
-#define RCV_POS_327 339.90
 
+          } else if (strcmp(scram->in.magic, "TT") == 0) {
             time_tt = time(NULL);
             encoder = scram->ttData.st.slv[0].inpMsg.position;
             degrees = (double)(scram->ttData.st.slv[0].inpMsg.position) * Enc2Deg;
 double turDeg=scram->ttData.st.slv[0].tickMsg.position/ TUR_DEG_TO_ENC_UNITS;
 
-
-int    rcv327Active=0;
-double  epsPosDeg=.5;
-double  epsFrqMhz=1e-6;
-double  rfCfr;
-double  if1Cfr;
-double  if2Cfr;
-
-// p1693 mixing
-//   rfcfr = 327, 1st IF 750Mhz, 2nd IF 325 mHZ
-        rfCfr=327.;
-        if1Cfr=750.;
-        if2Cfr=325.;
-    
-        double syn1Mhz =  synIHz_0*1e6;
-        double syn2Mhz =  lo2Hz*1e6;
-
-        rcv327Active=((fabs(turDeg - RCV_POS_327) < epsPosDeg) &&   // turret in position
-                      (fabs(syn1Mhz -(rfCfr + if1Cfr)) < epsFrqMhz)  &&
-                      (fabs(syn2Mhz -(if1Cfr + if2Cfr)) < epsFrqMhz));
-
-fprintf(stderr, "rcv327Active : %d\n", rcv327Active);
-
             ftoa(degrees,degreesbuf);
             sprintf(strbuf,"SCRAM:TT TTSTIME %ld TTTURENC %d TTTURDEG %0.10lf",time_tt,encoder,degrees);
             if (!nodb) { reply = redisCommand(c,"HMSET %s %s %d %s %d %s %s","SCRAM:TT","TTSTIME",time_tt,"TTTURENC",encoder,"TTTURDEG",degreesbuf); freeReplyObject(reply); }
             if (dostdout) fprintf(stderr,"%s\n",strbuf);
+
           } else if (strcmp(scram->in.magic, "ALFASHM") == 0) {
             got_alfashm = true; 
             time_alfashm = time(NULL);

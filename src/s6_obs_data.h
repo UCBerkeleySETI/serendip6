@@ -8,6 +8,11 @@
 #define TT_TurretDegreesAlfa        26.64
 #define TT_TurretDegreesTolerance   1.0
 
+// receivers that s6 uses
+#define RECEIVER_NONE    0
+#define RECEIVER_ALFA    1
+#define RECEIVER_327MHZ  2
+
 typedef struct scram {
     int     PNTSTIME;
     double  PNTRA;   
@@ -25,25 +30,28 @@ typedef struct scram {
     int     ALFBIAS2;
     double  ALFMOPOS;
     int     IF1STIME;
-    double  IF1SYNHZ;   // for 327 receiver : ___ 
+    double  IF1SYNHZ;   
     int     IF1SYNDB;
     double  IF1RFFRQ;
-    double  IF1IFFRQ;   // for 327 receiver : ___
+    double  IF1IFFRQ;   
     int     IF1ALFFB;
     int     IF2STIME;
+    double  IF2SYNHZ;   
     int     IF2ALFON;
     int     TTSTIME; 
-    int     TTTURENC;   // for 327 receiver : ___
-    double  TTTURDEG;   // for 327 receiver : ___
+    int     TTTURENC;   
+    double  TTTURDEG;  
     int     DERTIME;
     double  ra_by_beam[N_BEAMS];   
     double  dec_by_beam[N_BEAMS];
-    int     alfa_enabled;
+    int     rec_alfa_enabled;
+    int     rec_327_enabled;
+    int     receiver;
     int     coarse_chan_id;     // not from scram
 } scram_t;
 
 int get_obs_info_from_redis(scram_t *scram, char *hostname, int port);
-
 int is_alfa_enabled (scram_t *scram);
+int is_327_enabled (scram_t *scram);
 
 #endif  // _S6_OBS_DATA_H

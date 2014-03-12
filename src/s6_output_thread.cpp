@@ -45,13 +45,12 @@ static void *run(hashpipe_thread_args_t * args)
     scram_t   scram;
     scram_t * scram_p = &scram;
     
-    int prior_alfa_enabled=-1;      // initial value - should change very fast
-    int run_always;                 // 1 = run even if alfa_enabled is 0
+    int prior_receiver = 0;    
+    int run_always;                 // 1 = run even if no receiver
 
     size_t num_coarse_chan = 0;
 
-    //                         0           1
-    const char *alfa_state[2] = {"disabled", "enabled"};
+    extern const char *receiver[];
 
     int file_num_start = -1;
     hashpipe_status_lock_safe(&st);
@@ -60,12 +59,12 @@ static void *run(hashpipe_thread_args_t * args)
     if(file_num_start == -1) file_num_start = 0;
     init_etfits(&etf, file_num_start+1);
 
-    /* Main loop */
     int i, rv, debug=20;
     int block_idx=0;
     int error_count, max_error_count = 0;
     float error, max_error = 0.0;
 
+    /* Main loop */
     while (run_threads()) {
 
         hashpipe_status_lock_safe(&st);
@@ -100,27 +99,25 @@ static void *run(hashpipe_thread_args_t * args)
             hashpipe_error(__FUNCTION__, "error error returned from get_obs_info_from_redis()");
             pthread_exit(NULL);
         }
-        //scram.alfa_enabled = 1;  // TODO remove once get_obs_info_from_redis() is working
+
         scram.coarse_chan_id = db->block[block_idx].header.coarse_chan_id;
 
         hashpipe_status_lock_safe(&st);
-        hputs(st.buf, "ALFASTAT", alfa_state[scram.alfa_enabled]);
+        hputs(st.buf,  "TELESCOP", receiver[scram.receiver]);
         hputi4(st.buf, "COARCHID", scram.coarse_chan_id);
         // TODO lots more scram to go here
         hashpipe_status_unlock_safe(&st);
     
-        if(scram.alfa_enabled != prior_alfa_enabled) {
-            fprintf(stderr, "alfa_enabled has changed from %d to %d\n", prior_alfa_enabled, scram.alfa_enabled);
-            prior_alfa_enabled = scram.alfa_enabled;
-        }
-
         // write hits and metadata to etFITS file only if alfa is enabled
         // alfa_enabled might be a second or so out of sync with data
-        if(scram.alfa_enabled || run_always) {
+        if(scram.receiver || run_always) {
             etf.file_chan = scram.coarse_chan_id;
-              if(num_coarse_chan != db->block[block_idx].header.num_coarse_chan) {
-                  etf.new_file = 1; 
-                  num_coarse_chan = db->block[block_idx].header.num_coarse_chan; 
+            // start new file on important parameter change (incl startup)
+            if(num_coarse_chan != db->block[block_idx].header.num_coarse_chan ||
+               scram.receiver  != prior_receiver) {
+                etf.new_file = 1; 
+                num_coarse_chan = db->block[block_idx].header.num_coarse_chan; 
+                prior_receiver  = scram.receiver;
             }
             rv = write_etfits(db, block_idx, &etf, scram_p);
             if(rv) {
@@ -131,6 +128,7 @@ static void *run(hashpipe_thread_args_t * args)
 
         hashpipe_status_lock_safe(&st);
         hputi4(st.buf, "FILENUM", etf.file_num);
+        // TODO error counts not yet implemented
         hputr4(st.buf, "OUTMXERR", max_error);
         hputi4(st.buf, "OUTERCNT", error_count);
         hputi4(st.buf, "OUTMXECT", max_error_count);

@@ -14,6 +14,7 @@
 
 typedef struct etfits_primary_header {
     char date[16];          // Date file was created (dd/mm/yy)  TODO does this need to be populated?
+    char receiver[200];     // receiver used
     int n_subband;
     int n_chan;
     int n_inputs;

@@ -9,6 +9,9 @@
 #include "hashpipe.h"
 #include "s6_obs_data.h"
 
+//                          0       1       2
+const char *receiver[3] = {"none", "AO ALFA", "AO 327MHz"};
+
 //----------------------------------------------------------
 int get_obs_info_from_redis(scram_t *scram,     
                             char    *hostname, 
@@ -155,8 +158,17 @@ int get_obs_info_from_redis(scram_t *scram,
     redisFree(c);       // TODO do I really want to free each time?
 
     if (!rv) {
-      scram->alfa_enabled = is_alfa_enabled(scram);
-      }
+        // TODO this should be collapsed a bit once testing/debugging is done
+        scram->rec_alfa_enabled = is_alfa_enabled(scram);
+        scram->rec_327_enabled  = is_327_enabled(scram);
+        if(scram->rec_alfa_enabled) {
+            scram->receiver = RECEIVER_ALFA;
+        } else if(scram->rec_327_enabled) {
+            scram->receiver = RECEIVER_327MHZ;
+        } else {
+            scram->receiver = RECEIVER_NONE;
+        }
+    }
 
     return rv;         
 }
@@ -168,13 +180,38 @@ int is_alfa_enabled (scram_t *scram) {
   now = time(NULL);
   if ((now - scram->AGCSTIME) > ScramLagTolerance) return false;
   if ((now - scram->ALFSTIME) > ScramLagTolerance) return false;
-  if (!scram->ALFBIAS1 && !scram->ALFBIAS2) return false;
   if ((now - scram->IF1STIME) > ScramLagTolerance) return false;
   if ((now - scram->IF2STIME) > ScramLagTolerance) return false;
+  if (!scram->ALFBIAS1 && !scram->ALFBIAS2) return false;
   if (!scram->IF2ALFON) return false;
   if ((now - scram->TTSTIME) > ScramLagTolerance) return false;
   if (fabs(scram->TTTURDEG - TT_TurretDegreesAlfa) > TT_TurretDegreesTolerance) return false;
 
   return true;
 
-  }
+}
+
+int is_327_enabled (scram_t *scram) {
+#define TUR_DEG_TO_ENC_UNITS  ( (4096. * 210. / 5.0) / (360.) )
+#define RCV_POS_327 339.90
+
+    int    rcv327Active = 0;
+
+    double turDeg     = scram->TTTURDEG;
+    double syn1Mhz    = scram->IF1SYNHZ * 1e-6;
+    double syn2Mhz    = scram->IF2SYNHZ * 1e-6;
+
+    double epsPosDeg  = 0.5;      // epsilon, the error we allow
+    double epsFrqMhz  = 1e-6;     // epsilon, the error we allow
+
+    double rfCfr      = 327.0;
+    double if1Cfr     = 750.0;
+    double if2Cfr     = 325.0;
+
+    rcv327Active=((fabs(turDeg  - RCV_POS_327)      < epsPosDeg)  &&   
+                  (fabs(syn1Mhz -(rfCfr + if1Cfr))  < epsFrqMhz)  &&
+                  (fabs(syn2Mhz -(if1Cfr + if2Cfr)) < epsFrqMhz));
+
+fprintf(stderr, "rcv327Active : %d\n", rcv327Active);
+    return(rcv327Active);
+}

@@ -67,6 +67,8 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
 
     scram_t scram;
 
+    extern const char *receiver[];
+
     // Create the initial file or change to a new one if needed.
     if (etf->new_run || etf->new_file) {
         etf->new_file = 0;
@@ -81,13 +83,11 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
             fits_report_error(stderr, *status_p);
             exit(1);
         }    
-        // TODO this could be done once per run rather than once per file
-        // TODO some (all?) of these will come from iput parms (status shmem)
         // TODO update code versions
-        //etf->primary_hdr.n_subband = N_COARSE_CHAN;
         etf->primary_hdr.n_subband = db->block[block_idx].header.num_coarse_chan;
         etf->primary_hdr.n_chan    = N_FINE_CHAN;
         etf->primary_hdr.n_inputs  = N_BEAMS * N_POLS_PER_BEAM;
+        strncpy(etf->primary_hdr.receiver, receiver[scram_p->receiver], sizeof(etf->primary_hdr.receiver));
         // TODO not yet implemented
         //etf->primary_hdr.bandwidth = ;
         //etf->primary_hdr.chan_bandwidth = ;
@@ -222,6 +222,7 @@ int write_primary_header(etfits_t * etf) {
     if(! *status_p) fits_movabs_hdu(etf->fptr, 1, NULL, status_p);    // go to primary HDU
 
     if(! *status_p) fits_update_key(etf->fptr, TSTRING, "DATE",     ctmp,                            NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING, "TELESCOP", &(etf->primary_hdr.receiver),    NULL, status_p);
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "NSUBBAND", &(etf->primary_hdr.n_subband),   NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "NCHAN",    &(etf->primary_hdr.n_chan),      NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "NINPUTS",  &(etf->primary_hdr.n_inputs),    NULL, status_p); 
