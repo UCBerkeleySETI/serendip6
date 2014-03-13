@@ -118,6 +118,14 @@ static void *run(hashpipe_thread_args_t * args)
                 etf.new_file = 1; 
                 num_coarse_chan = db->block[block_idx].header.num_coarse_chan; 
                 prior_receiver  = scram.receiver;
+                // TODO timestamped log messages should be functionalized
+                char timebuf[256];
+                time_t now;
+                time(&now);
+                ctime_r(&now, timebuf);
+                timebuf[strlen(timebuf)-1] = '\0';  // strip the newline
+                fprintf(stderr, "%s : Initializing output for %ld coarse channels, using receiver %s\n",
+                        timebuf, num_coarse_chan, receiver[scram.receiver]); 
             }
             rv = write_etfits(db, block_idx, &etf, scram_p);
             if(rv) {

@@ -212,6 +212,5 @@ int is_327_enabled (scram_t *scram) {
                   (fabs(syn1Mhz -(rfCfr + if1Cfr))  < epsFrqMhz)  &&
                   (fabs(syn2Mhz -(if1Cfr + if2Cfr)) < epsFrqMhz));
 
-fprintf(stderr, "rcv327Active : %d\n", rcv327Active);
     return(rcv327Active);
 }

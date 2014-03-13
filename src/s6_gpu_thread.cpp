@@ -27,7 +27,7 @@ int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHand
     
     const char * re[2] = {"re", ""};
 
-    fprintf(stderr, "%sinitializing with %ld coarse channels...", initial ? re[1] : re[0], num_coarse_chan);
+    fprintf(stderr, "%sinitializing GPU structures for %ld coarse channels...", initial ? re[1] : re[0], num_coarse_chan);
 
     if(!initial) {
         delete_device_vectors(*dv_p);

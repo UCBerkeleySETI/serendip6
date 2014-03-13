@@ -20,7 +20,7 @@ using std::endl;
 #include "stopwatch.hpp"
 
 //#define USE_TIMER
-#define USE_TOTAL_GPU_TIMER
+//#define USE_TOTAL_GPU_TIMER
 #ifdef USE_TIMER
     bool use_timer=true;
 #else
