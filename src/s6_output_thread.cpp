@@ -105,7 +105,19 @@ static void *run(hashpipe_thread_args_t * args)
         hashpipe_status_lock_safe(&st);
         hputs(st.buf,  "TELESCOP", receiver[scram.receiver]);
         hputi4(st.buf, "COARCHID", scram.coarse_chan_id);
-        // TODO lots more scram to go here
+        hputi4(st.buf, "SCRALFON", scram.IF2ALFON);
+        hputr4(st.buf, "SCRAGCAZ", scram.AGCAZ);
+        hputr4(st.buf, "SCRAGCZA", scram.AGCZA);
+        hputr4(st.buf, "SCRALFMO", scram.ALFMOPOS);
+        hputr4(st.buf, "SCRIF1LO", scram.IF1SYNHZ);
+        hputr4(st.buf, "SCRIF2LO", scram.IF2SYNHZ);
+        hputr4(st.buf, "SCRIF1RF", scram.IF1RFFRQ);
+        hputr4(st.buf, "SCRIF1IF", scram.IF1IFFRQ);
+        hputr4(st.buf, "SCRTTDEG", scram.TTTURDEG);
+        hputi4(st.buf, "SCRBIAS1", scram.ALFBIAS1);
+        hputi4(st.buf, "SCRBIAS2", scram.ALFBIAS2);
+        hputi4(st.buf, "SCRALFFB", scram.IF1ALFFB);
+        hputi4(st.buf, "SCRALFON", scram.IF2ALFON);
         hashpipe_status_unlock_safe(&st);
     
         // write hits and metadata to etFITS file only if alfa is enabled
