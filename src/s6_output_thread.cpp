@@ -108,6 +108,8 @@ static void *run(hashpipe_thread_args_t * args)
         hputi4(st.buf, "SCRALFON", scram.IF2ALFON);
         hputr4(st.buf, "SCRAGCAZ", scram.AGCAZ);
         hputr4(st.buf, "SCRAGCZA", scram.AGCZA);
+        hputr4(st.buf, "SCRB0RA",  scram.ra_by_beam[0]);
+        hputr4(st.buf, "SCRB0DEC", scram.dec_by_beam[0]);
         hputr4(st.buf, "SCRALFMO", scram.ALFMOPOS);
         hputr4(st.buf, "SCRIF1LO", scram.IF1SYNHZ);
         hputr4(st.buf, "SCRIF2LO", scram.IF2SYNHZ);
