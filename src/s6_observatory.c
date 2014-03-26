@@ -263,10 +263,10 @@ double turDeg=scram->ttData.st.slv[0].tickMsg.position/ TUR_DEG_TO_ENC_UNITS;
             freeReplyObject(reply);
         }
 
-        sprintf(strbuf,"SCRAM:IF2 IF2STIME %ld IF2ALFON 1",time(NULL));
+        sprintf(strbuf,"SCRAM:IF2 IF2STIME %ld IF2SYNHZ 0.0 IF2ALFON 1",time(NULL));
         if (dostdout) fprintf(stderr,"%s\n",strbuf);
         if (!nodb) { 
-            reply = redisCommand(c,"HMSET %s %s %d %s %d","SCRAM:IF2","IF2STIME",time(NULL),"IF2ALFON",1); 
+            reply = redisCommand(c,"HMSET %s %s %d %s %s %s %d","SCRAM:IF2","IF2STIME",time(NULL),"IF2SYNHZ","0.0","IF2ALFON",1); 
             if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); }
             freeReplyObject(reply);
         }
