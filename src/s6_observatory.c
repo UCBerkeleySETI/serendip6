@@ -185,8 +185,8 @@ int main(int argc, char ** argv) {
             if(scram->if2Data.st.stat1.useAlfa) { useAlfa = true; } else { useAlfa = false; }
             synIHz_1 = scram->if2Data.st.synI.freqHz[0];        // TODO label/name as 2nd LO, right?
             ftoa(synIHz_1,synIHz_1buf);
-            sprintf(strbuf,"SCRAM:IF2 IF2STIME %ld IF2ALFON %d",time_if2,useAlfa);
-            if (!nodb) { reply = redisCommand(c,"HMSET %s %s %d %s %d","SCRAM:IF2","IF2STIME",time_if2, "IF2SYNHZ", synIHz_1buf, "IF2ALFON",useAlfa); freeReplyObject(reply); }
+            sprintf(strbuf,"SCRAM:IF2 IF2STIME %ld IF2SYNHZ %s IF2ALFON %d",time_if2,synIHz_1buf,useAlfa);
+            if (!nodb) { reply = redisCommand(c,"HMSET %s %s %d %s %s %s %d","SCRAM:IF2","IF2STIME",time_if2, "IF2SYNHZ", synIHz_1buf, "IF2ALFON",useAlfa); freeReplyObject(reply); }
             if (dostdout) fprintf(stderr,"%s\n",strbuf);
 
           } else if (strcmp(scram->in.magic, "TT") == 0) {
