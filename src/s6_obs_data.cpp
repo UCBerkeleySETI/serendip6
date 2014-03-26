@@ -106,13 +106,14 @@ int get_obs_info_from_redis(scram_t *scram,
     }
 
     if (!rv) {
-      reply = (redisReply *)redisCommand(c, "HMGET SCRAM:IF2      IF2STIME IF2ALFON");
+      reply = (redisReply *)redisCommand(c, "HMGET SCRAM:IF2      IF2STIME IF2ALFON IF2SYNHZ");
       if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
       else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
       else if (!reply->element[0]->str) { fprintf(stderr,"SCRAM:IF2 not set yet!\n"); rv = 1; }
       else {
           scram->IF2STIME  = atoi(reply->element[0]->str);
           scram->IF2ALFON  = atoi(reply->element[1]->str);
+          scram->IF2SYNHZ  = atof(reply->element[2]->str);
       }
       freeReplyObject(reply);
     }
