@@ -123,7 +123,7 @@ int main(int argc, char ** argv) {
         }
       }
     if (useoutfile) {
-      if ((scramfile = fopen(infilename,"w")) == NULL) {
+      if ((scramfile = fopen(outfilename,"w")) == NULL) {
         fprintf(stderr,"cannot open file for writing: %s\n",outfilename); exit (1);
         }
       }
