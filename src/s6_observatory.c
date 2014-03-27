@@ -56,12 +56,19 @@ int main(int argc, char ** argv) {
     const char *hostname = "127.0.0.1";
     int port = 6379;
 
-    const char *usage = "Usage: s6_observatory [-test] [-stdout] [-nodb] [-nottl] [-hostname hostname] [-port port]\n  -test: don't read scram, put in dummy values\n  -stdout: output packets to stdout (normally quiet)\n  -nodb: don't update redis db\n  -nottl: don't expire any of the scram keys in the redis db\n  hostname/port: for redis database (default 127.0.0.1:6379)\n\n";
+    char *infilename;
+    char *outfilename;
+    FILE *scramfile;
+    time_t scramfiletime;
+   
+    const char *usage = "Usage: s6_observatory [-test] [-stdout] [-nodb] [-nottl] [-hostname hostname] [-port port]\n                      [-infile scram_input_file] [-output scram_output_file]\n  -test: don't read scram, put in dummy values\n  -stdout: output packets to stdout (normally quiet)\n  -nodb: don't update redis db\n  -nottl: don't expire any of the scram keys in the redis db\n  hostname/port: for redis database (default 127.0.0.1:6379)\n  -infile: name of file to read scram packets from\n  -outfile: name of file to write scram packets to\n     (can't use both infile and outfile simultaneously)\n\n";
 
     bool dotest = false;
     bool dostdout = false;
     bool nodb = false;
     bool nottl = false;
+    bool useinfile = false;
+    bool useoutfile = false;
 
     double RA, Dec, MJD, azfix, zafix; // PNT vars
     int mlasttck, Az, ZA, agctime; double Azdeg, ZAdeg, timesecs, Azerrdeg, ZAerrdeg; // AGC vars
@@ -101,7 +108,24 @@ int main(int argc, char ** argv) {
       else if (strcmp(argv[i],"-nottl") == 0) { nottl = true; }
       else if (strcmp(argv[i],"-hostname") == 0) { hostname = argv[++i]; }
       else if (strcmp(argv[i],"-port") == 0) { port = atoi(argv[++i]); }
+      else if (strcmp(argv[i],"-infile") == 0) { useinfile = true; infilename = argv[++i]; }
+      else if (strcmp(argv[i],"-outfile") == 0) { useoutfile = true; outfilename = argv[++i]; }
       else { fprintf(stderr,"%s",usage); exit (1); }
+      }
+
+    if (useinfile && useoutfile) {
+      fprintf(stderr,"can't use both -infile and -outfile\n\n%s",usage); exit (1);
+      }
+
+    if (useinfile) {
+      if ((scramfile = fopen(infilename,"r")) == NULL) {
+        fprintf(stderr,"cannot open file for reading: %s\n",infilename); exit (1);
+        }
+      }
+    if (useoutfile) {
+      if ((scramfile = fopen(outfilename,"w")) == NULL) {
+        fprintf(stderr,"cannot open file for writing: %s\n",outfilename); exit (1);
+        }
       }
 
     if (!nodb) {
@@ -118,7 +142,7 @@ int main(int argc, char ** argv) {
         }
       }
 
-    if (!dotest) scram = init_scramread(NULL);
+    if (!dotest && !useinfile) scram = init_scramread(NULL);
 
     got_pnt = got_agc = got_alfashm = false;
     time_pnt = time_agc = time_if1 = time_if2 = time_tt = time_alfashm = time_fix = 0;
@@ -127,16 +151,43 @@ int main(int argc, char ** argv) {
 
       if (!dotest) {
 
-        if (read_scram(scram) == -1) {
-            fprintf(stderr, "GetScramData : bad scram read\n");
-            exit(1);
+        if (useinfile) {
+          if (fread(scram,sizeof(struct SCRAMNET),1,scramfile) != 1) {
+            fprintf(stderr,"end of file\n");
+            fclose(scramfile);
+            exit(0);
+            }
+          if (fread(&scramfiletime,sizeof(time_t),1,scramfile) != 1) {
+            fprintf(stderr,"end of file\n");
+            fclose(scramfile);
+            exit(0);
+            }
+          }
+        else { 
+          if (read_scram(scram) == -1) {
+              fprintf(stderr, "GetScramData : bad scram read\n");
+              exit(1);
+            }
+          if (useoutfile) {
+            scramfiletime = time(NULL);
+            if (fwrite(scram,sizeof(struct SCRAMNET),1,scramfile) != 1) {
+              fprintf(stderr,"problem writing to scram file\n");
+              fclose(scramfile);
+              exit(1);
+              }
+            if (fwrite(&scramfiletime,sizeof(time_t),1,scramfile) != 1) {
+              fprintf(stderr,"problem writing to scram file\n");
+              fclose(scramfile);
+              exit(1);
+              }
+            } 
           }
 
         getnameinfo((const struct sockaddr *)&scram->from, sizeof(struct sockaddr_in), name, 256, NULL, 0, 0);
 
         if (strcmp(scram->in.magic, "PNT") == 0) {
             got_pnt = true;
-            time_pnt = time(NULL);
+            time_pnt = time(NULL); if (useinfile) time_pnt = scramfiletime;
             RA  = scram->pntData.st.x.pl.curP.raJ;
             Dec = scram->pntData.st.x.pl.curP.decJ;
             RA  *= 24.0 / C_2PI;
@@ -153,7 +204,7 @@ int main(int argc, char ** argv) {
 
           } else if (strcmp(scram->in.magic, "AGC") == 0) {
             got_agc = true;
-            time_agc = time(NULL);
+            time_agc = time(NULL); if (useinfile) time_agc = scramfiletime;
             mlasttck = scram->agcData.st.secMLastTick;
             Az = scram->agcData.st.cblkMCur.dat.posAz;
             Azdeg = scram->agcData.st.cblkMCur.dat.posAz * 0.0001;
@@ -169,7 +220,7 @@ int main(int argc, char ** argv) {
             if (dostdout) fprintf(stderr,"%s\n",strbuf);
 
           } else if (strcmp(scram->in.magic, "IF1") == 0) {
-            time_if1 = time(NULL); 
+            time_if1 = time(NULL); if (useinfile) time_if1 = scramfiletime;
             synIHz_0 = scram->if1Data.st.synI.freqHz[0];        // TODO label/name as 1st LO, right?
             synIDB_0 = scram->if1Data.st.synI.ampDb[0];
             rfFreq = scram->if1Data.st.rfFreq;
@@ -181,7 +232,7 @@ int main(int argc, char ** argv) {
             if (dostdout) fprintf(stderr,"%s\n",strbuf);
 
           } else if (strcmp(scram->in.magic, "IF2") == 0) {
-            time_if2 = time(NULL); 
+            time_if2 = time(NULL); if (useinfile) time_if2 = scramfiletime;
             if(scram->if2Data.st.stat1.useAlfa) { useAlfa = true; } else { useAlfa = false; }
             synIHz_1 = scram->if2Data.st.synI.freqHz[0];        // TODO label/name as 2nd LO, right?
             ftoa(synIHz_1,synIHz_1buf);
@@ -190,7 +241,7 @@ int main(int argc, char ** argv) {
             if (dostdout) fprintf(stderr,"%s\n",strbuf);
 
           } else if (strcmp(scram->in.magic, "TT") == 0) {
-            time_tt = time(NULL);
+            time_tt = time(NULL); if (useinfile) time_tt = scramfiletime;
             encoder = scram->ttData.st.slv[0].inpMsg.position;
             degrees = (double)(scram->ttData.st.slv[0].inpMsg.position) * Enc2Deg;
 double turDeg=scram->ttData.st.slv[0].tickMsg.position/ TUR_DEG_TO_ENC_UNITS;
@@ -202,7 +253,7 @@ double turDeg=scram->ttData.st.slv[0].tickMsg.position/ TUR_DEG_TO_ENC_UNITS;
 
           } else if (strcmp(scram->in.magic, "ALFASHM") == 0) {
             got_alfashm = true; 
-            time_alfashm = time(NULL);
+            time_alfashm = time(NULL); if (useinfile) time_alfashm = scramfiletime;
             fstbias = (int)scram->alfa.first_bias;
             sndbias = (int)scram->alfa.second_bias;
             motorpos = scram->alfa.motor_position; 
