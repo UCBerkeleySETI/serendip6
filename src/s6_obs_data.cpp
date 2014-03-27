@@ -193,6 +193,7 @@ int is_alfa_enabled (scram_t *scram) {
 }
 
 int is_327_enabled (scram_t *scram) {
+// Code and values via AO Phil.
 #define TUR_DEG_TO_ENC_UNITS  ( (4096. * 210. / 5.0) / (360.) )
 #define RCV_POS_327 339.90
 
@@ -202,9 +203,10 @@ int is_327_enabled (scram_t *scram) {
     double syn1Mhz    = scram->IF1SYNHZ * 1e-6;
     double syn2Mhz    = scram->IF2SYNHZ * 1e-6;
 
-    double epsPosDeg  = 0.5;      // epsilon, the error we allow
-    double epsFrqMhz  = 1e-6;     // epsilon, the error we allow
+    double epsPosDeg  = 0.5;      // allowable error
+    double epsFrqMhz  = 1e-6;     
 
+#if 0
     double rfCfr      = 327.0;
     double if1Cfr     = 750.0;
     double if2Cfr     = 325.0;
@@ -212,6 +214,18 @@ int is_327_enabled (scram_t *scram) {
     rcv327Active=((fabs(turDeg  - RCV_POS_327)      < epsPosDeg)  &&   
                   (fabs(syn1Mhz -(rfCfr + if1Cfr))  < epsFrqMhz)  &&
                   (fabs(syn2Mhz -(if1Cfr + if2Cfr)) < epsFrqMhz));
+#endif 
+
+//if2Data.st.synI.freqHz[4]
+
+    double syn1Mhz_327       = 1077;    // RF + IF1 synth
+    double syn2Mhz_327_puppi = 1010;    // IF1 synth + IF2 synth
+    double syn2Mhz_327_mock  = 1075;    // IF1 synth + IF2 synth
+
+    rcv327Active=((fabs(turDeg  - RCV_POS_327)       < epsPosDeg)  &&   
+                  (fabs(syn1Mhz - syn1Mhz_327)       < epsFrqMhz)  &&
+                  ((fabs(syn2Mhz - syn2Mhz_327_puppi) < epsFrqMhz) ||
+                   (fabs(syn2Mhz - syn2Mhz_327_mock ) < epsFrqMhz)));
 
     return(rcv327Active);
 }
