@@ -114,6 +114,7 @@ IF1ALFFB=                    *  / alfaFb                 (TINT)
 ### IF2 SCRAM fields ###
 IF2STIME=                    *  / unix time of this IF2 data  (TINT)
 IF2ALFON=                    *  / useAlfa 1 = ALFA is on (TINT)
+IF2SYNHZ=                    *  / synI_freqHz_0 (LO, right?)          (TDOUBLE)
 ### TT SCRAM fields ###
 TTSTIME =                    *  / unix time of this TT data   (TINT)
 TTTURENC=                    *  / TurretEncoder               (TINT)
