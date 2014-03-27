@@ -114,7 +114,7 @@ static void *run(hashpipe_thread_args_t * args)
         hputr4(st.buf, "SCRIF1LO", scram.IF1SYNHZ);
         hputr4(st.buf, "SCRIF2LO", scram.IF2SYNHZ);
         hputr4(st.buf, "SCRIF1RF", scram.IF1RFFRQ);
-        hputr4(st.buf, "SCRIF1IF", scram.IF1IFFRQ);
+        //hputr4(st.buf, "SCRIF1IF", scram.IF1IFFRQ);   // I don't think we use this - take out?
         hputr4(st.buf, "SCRTTDEG", scram.TTTURDEG);
         hputi4(st.buf, "SCRBIAS1", scram.ALFBIAS1);
         hputi4(st.buf, "SCRBIAS2", scram.ALFBIAS2);
