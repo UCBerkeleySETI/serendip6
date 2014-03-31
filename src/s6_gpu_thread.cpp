@@ -27,6 +27,11 @@ int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHand
     
     const char * re[2] = {"re", ""};
 
+    if(num_coarse_chan == 0) {  
+        hashpipe_error(__FUNCTION__, "Cannot initialize GPU memory with 0 coarse channels");
+        pthread_exit(NULL);
+    }
+
     fprintf(stderr, "%sinitializing GPU structures for %ld coarse channels...", initial ? re[1] : re[0], num_coarse_chan);
 
     if(!initial) {
@@ -48,6 +53,8 @@ int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHand
     create_fft_plan_1d_c2c(fft_plan_p, istride, idist, ostride, odist, nfft_, nbatch);
 
     fprintf(stderr, "done\n");
+
+    return 0;
 }
 
 static void *run(hashpipe_thread_args_t * args)
