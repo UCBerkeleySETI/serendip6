@@ -64,9 +64,10 @@ int main(int argc, char ** argv) {
 
     char *infilename;
     char *outfilename;
+    char *rotatefilename;
     FILE *scramfp;
    
-    const char *usage = "Usage: s6_observatory [-test] [-stdout] [-nodb] [-nottl] [-hostname hostname] [-port port]\n                      [-infile scram_input_file] [-output scram_output_file]\n  -test: don't read scram, put in dummy values\n  -stdout: output packets to stdout (normally quiet)\n  -nodb: don't update redis db\n  -nottl: don't expire any of the scram keys in the redis db\n  hostname/port: for redis database (default 127.0.0.1:6379)\n  -infile: name of file to read scram packets from\n  -outfile: name of file to write scram packets to\n     (can't use both infile and outfile simultaneously)\n\n";
+    const char *usage = "Usage: s6_observatory [-test] [-stdout] [-nodb] [-nottl] [-hostname hostname] [-port port]\n                      [-infile scram_input_file] [-output scram_output_file] [-rotate seconds]\n  -test: don't read scram, put in dummy values\n  -stdout: output packets to stdout (normally quiet)\n  -nodb: don't update redis db\n  -nottl: don't expire any of the scram keys in the redis db\n  hostname/port: for redis database (default 127.0.0.1:6379)\n  -infile: name of file to read scram packets from\n  -outfile: name of file to write scram packets to\n     (can't use both infile and outfile simultaneously)\n  -rotate: for output files, rotate every seconds seconds (default MAXINT)\n\n";
 
     bool dotest = false;
     bool dostdout = false;
@@ -74,6 +75,9 @@ int main(int argc, char ** argv) {
     bool nottl = false;
     bool useinfile = false;
     bool useoutfile = false;
+   
+    int rotatesecs = 2147483647;
+    time_t lastrotate;
 
     double RA, Dec, MJD, azfix, zafix; // PNT vars
     int mlasttck, Az, ZA, agctime; double Azdeg, ZAdeg, timesecs, Azerrdeg, ZAerrdeg; // AGC vars
@@ -106,6 +110,10 @@ int main(int argc, char ** argv) {
     char *fixedDecbuf[7];
     for (i = 0; i < 7; i++) { fixedRAbuf[i] = malloc(24); fixedDecbuf[i] = malloc(24); }
 
+    infilename = malloc(1024);
+    outfilename = malloc(1024);
+    rotatefilename = malloc(1024);
+
     for (i = 1; i < argc; i++) {
       if (strcmp(argv[i],"-test") == 0) { dotest = true; }
       else if (strcmp(argv[i],"-stdout") == 0) { dostdout = true; }
@@ -115,6 +123,7 @@ int main(int argc, char ** argv) {
       else if (strcmp(argv[i],"-port") == 0) { port = atoi(argv[++i]); }
       else if (strcmp(argv[i],"-infile") == 0) { useinfile = true; infilename = argv[++i]; }
       else if (strcmp(argv[i],"-outfile") == 0) { useoutfile = true; outfilename = argv[++i]; }
+      else if (strcmp(argv[i],"-rotate") == 0) { rotatesecs = atoi(argv[++i]); }
       else { fprintf(stderr,"%s",usage); exit (1); }
       }
 
@@ -128,6 +137,7 @@ int main(int argc, char ** argv) {
         }
       }
     if (useoutfile) {
+      lastrotate = time(NULL);
       if ((scramfp = fopen(outfilename,"wb")) == NULL) {
         fprintf(stderr,"cannot open file for writing: %s\n",outfilename); exit (1);
         }
@@ -174,6 +184,16 @@ int main(int argc, char ** argv) {
               fprintf(stderr,"problem writing to scram file\n");
               fclose(scramfp);
               exit(1);
+              }
+            if ((time(NULL)-lastrotate)>=rotatesecs) {
+              sprintf(rotatefilename,"%s.%d",outfilename,(int)time(NULL));
+              // fprintf(stderr,"rotating: %s to %s...\n",outfilename,rotatefilename);
+              fclose(scramfp);
+              rename(outfilename,rotatefilename);
+              if ((scramfp = fopen(outfilename,"wb")) == NULL) {
+                fprintf(stderr,"cannot open file for writing: %s\n",outfilename); exit (1);
+                }
+              lastrotate = time(NULL);
               }
             } 
           }
