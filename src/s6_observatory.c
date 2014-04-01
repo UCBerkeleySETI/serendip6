@@ -67,7 +67,7 @@ int main(int argc, char ** argv) {
     char *rotatefilename;
     FILE *scramfp;
    
-    const char *usage = "Usage: s6_observatory [-test] [-stdout] [-nodb] [-nottl] [-hostname hostname] [-port port]\n                      [-infile scram_input_file] [-output scram_output_file] [-rotate seconds]\n  -test: don't read scram, put in dummy values\n  -stdout: output packets to stdout (normally quiet)\n  -nodb: don't update redis db\n  -nottl: don't expire any of the scram keys in the redis db\n  hostname/port: for redis database (default 127.0.0.1:6379)\n  -infile: name of file to read scram packets from\n  -outfile: name of file to write scram packets to\n     (can't use both infile and outfile simultaneously)\n  -rotate: for output files, rotate every seconds seconds (default MAXINT)\n\n";
+    const char *usage = "Usage: s6_observatory [-test] [-stdout] [-nodb] [-nottl] [-hostname hostname] [-port port]\n                      [-infile scram_input_file] [-outfile scram_output_file] [-rotate seconds]\n  -test: don't read scram, put in dummy values\n  -stdout: output packets to stdout (normally quiet)\n  -nodb: don't update redis db\n  -nottl: don't expire any of the scram keys in the redis db\n  hostname/port: for redis database (default 127.0.0.1:6379)\n  -infile: name of file to read scram packets from\n  -outfile: name of file to write scram packets to\n     (can't use both infile and outfile simultaneously)\n  -rotate: for output files, rotate every seconds seconds (default MAXINT)\n\n";
 
     bool dotest = false;
     bool dostdout = false;
