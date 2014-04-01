@@ -53,9 +53,6 @@ static void *run(hashpipe_thread_args_t * args)
     extern const char *receiver[];
 
     int file_num_start = -1;
-    hashpipe_status_lock_safe(&st);
-    hgeti4(st.buf, "RUNALWYS", &run_always);
-    hashpipe_status_unlock_safe(&st);
     if(file_num_start == -1) file_num_start = 0;
     init_etfits(&etf, file_num_start+1);
 
@@ -70,6 +67,7 @@ static void *run(hashpipe_thread_args_t * args)
         hashpipe_status_lock_safe(&st);
         hputi4(st.buf, "OUTBLKIN", block_idx);
         hputs(st.buf, status_key, "waiting");
+        hgeti4(st.buf, "RUNALWYS", &run_always);
         hashpipe_status_unlock_safe(&st);
 
        // get new data
