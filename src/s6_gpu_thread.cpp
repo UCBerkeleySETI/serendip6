@@ -29,7 +29,7 @@ int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHand
 
     if(num_coarse_chan == 0) {  
         hashpipe_error(__FUNCTION__, "Cannot initialize GPU memory with 0 coarse channels");
-        pthread_exit(NULL);
+        return -1;
     }
 
     fprintf(stderr, "%sinitializing GPU structures for %ld coarse channels...", initial ? re[1] : re[0], num_coarse_chan);
@@ -166,36 +166,39 @@ static void *run(hashpipe_thread_args_t * args)
                &db_in->block[curblock_in].header.missed_pkts, 
                sizeof(uint64_t) * N_BEAM_SLOTS);
 
-        // do spectroscopy and hit detection on this block.
-        // spectroscopy() writes directly to the output buffer.
-        size_t total_hits = 0;
-        for(int beam_i = 0; beam_i < N_BEAMS; beam_i++) {
-            size_t nhits = 0; 
-            // TODO there is no real c error checking in spectroscopy()
-            //      Errors are handled via c++ exceptions
-            num_bytes_per_beam =  N_BYTES_PER_SAMPLE                               * 
-                                  N_FINE_CHAN                                      * 
-                                  db_in->block[curblock_in].header.num_coarse_chan * 
-                                  N_POLS_PER_BEAM;
-            nhits = spectroscopy(num_coarse_chan,
-                                 N_FINE_CHAN,
-                                 N_POLS_PER_BEAM,
-                                 beam_i,
-                                 maxhits,
-                                 MAXGPUHITS,
-                                 POWER_THRESH,
-                                 SMOOTH_SCALE,
-                                 &db_in->block[curblock_in].data[beam_i*num_bytes_per_beam/sizeof(uint64_t)],
-                                 num_bytes_per_beam,
-                                 &db_out->block[curblock_out],
-                                 dv_p,
-                                 fft_plan_p);
+        // only do spectroscopy if there are more than zero channels!
+        if(num_coarse_chan) {
+            // do spectroscopy and hit detection on this block.
+            // spectroscopy() writes directly to the output buffer.
+            size_t total_hits = 0;
+            for(int beam_i = 0; beam_i < N_BEAMS; beam_i++) {
+                size_t nhits = 0; 
+                // TODO there is no real c error checking in spectroscopy()
+                //      Errors are handled via c++ exceptions
+                num_bytes_per_beam =  N_BYTES_PER_SAMPLE                               * 
+                                      N_FINE_CHAN                                      * 
+                                      db_in->block[curblock_in].header.num_coarse_chan * 
+                                      N_POLS_PER_BEAM;
+                nhits = spectroscopy(num_coarse_chan,
+                                     N_FINE_CHAN,
+                                     N_POLS_PER_BEAM,
+                                     beam_i,
+                                     maxhits,
+                                     MAXGPUHITS,
+                                     POWER_THRESH,
+                                     SMOOTH_SCALE,
+                                     &db_in->block[curblock_in].data[beam_i*num_bytes_per_beam/sizeof(uint64_t)],
+                                     num_bytes_per_beam,
+                                     &db_out->block[curblock_out],
+                                     dv_p,
+                                     fft_plan_p);
 //fprintf(stderr, "spectroscopy() returned %ld for beam %d\n", nhits, beam_i);
-            total_hits += nhits;
-            clock_gettime(CLOCK_MONOTONIC, &stop);
-            elapsed_gpu_ns += ELAPSED_NS(start, stop);
-            gpu_block_count++;
-        }
+                total_hits += nhits;
+                clock_gettime(CLOCK_MONOTONIC, &stop);
+                elapsed_gpu_ns += ELAPSED_NS(start, stop);
+                gpu_block_count++;
+            }  //  for(int beam_i = 0; beam_i < N_BEAMS; beam_i++)
+        }  // if(num_coarse_chan)
 
         hashpipe_status_lock_safe(&st);
         hputr4(st.buf, "GPUMXERR", max_error);
