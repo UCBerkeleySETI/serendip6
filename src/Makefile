@@ -49,6 +49,8 @@ S6OBS_PROG_SOURCES  = s6_observatory.c \
 S6OBS_PROG_INCLUDES = s6_obsaux.h \
 		      s6_time.h
 
+S6_SCRIPT_TARGET = s6_init.sh
+
 all: $(S6GPU_LIB_TARGET) $(S6_LIB_TARGET) $(S6GPUTEST_PROG_TARGET) $(S6OBS_PROG_TARGET) 
 
 $(S6GPU_LIB_TARGET): $(S6GPU_LIB_SOURCES) $(S6GPU_LIB_INCLUDES)   ; $(NVCC) -o $(S6GPU_LIB_TARGET) $(S6GPU_LIB_SOURCES) $(NVCCFLAGS)
@@ -81,7 +83,11 @@ install-bin: $(S6OBS_PROG_TARGET)
 	mkdir -p "$(DESTDIR)$(BINDIR)"
 	install $^ "$(DESTDIR)$(BINDIR)"
 
-install: install-etc install-lib install-bin
+install-script: $(S6_SCRIPT_TARGET) 
+	mkdir -p "$(DESTDIR)$(BINDIR)"
+	install $^ "$(DESTDIR)$(BINDIR)"
+
+install: install-etc install-lib install-bin install-script
 
 .PHONY: all tags clean install install-lib install-etc install-bin
 # vi: set ts=8 noet :
