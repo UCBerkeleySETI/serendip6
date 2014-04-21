@@ -31,6 +31,7 @@ fi
 
 # Setup parameters for two instances.
 instance_i=("0" "1");
+log_timestamp=`date +%Y%m%d_%H%M%S`
 instances=(
   # 2 x E5-2630 (6-cores @ 2.3 GHz, 15 MB L3, 7.2 GT/s QPI, 1333 MHz DRAM)
   # Save core  0 for OS.
@@ -47,8 +48,8 @@ instances=(
   #
   #                               GPU NET GPU OUT
   # mask  bind_host               DEV CPU CPU CPU
-  "0x000e ${hostname}-2.tenge.pvt  0   1   2   3" # Instance 0, eth2
-  "0x0380 ${hostname}-4.tenge.pvt  1   7   8   9" # Instance 2, eth4
+  "0x000e ${hostname}-2.tenge.pvt  0   1   2   3 $log_timestamp" # Instance 0, eth2
+  "0x0380 ${hostname}-4.tenge.pvt  1   7   8   9 $log_timestamp" # Instance 2, eth4
 );
 
 function init() {
@@ -59,6 +60,7 @@ function init() {
   netcpu=$5
   gpucpu=$6
   outcpu=$7
+  log_timestamp=$8
 
   if [ -z "${mask}" ]
   then
@@ -96,8 +98,8 @@ function init() {
     -c $gpucpu s6_gpu_thread           \
     -c $outcpu s6_output_thread        \
      < /dev/null                       \
-    1> s6c${mys6cn}.out.$instance      \
-    2> s6c${mys6cn}.err.$instance &
+    1> s6c${mys6cn}.out.$log_timestamp.$instance \
+    2> s6c${mys6cn}.err.$log_timestamp.$instance &
 }
 
 # Start all instances
