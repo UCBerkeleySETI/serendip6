@@ -1,6 +1,5 @@
 #! /bin/csh -b
 
-
 set REMOTE_USER = aodata
 set REMOTE_HOST = khan.ssl.berkeley.edu
 set REMOTE_DIR = /setistor1/users/aodata/serendip6_data
@@ -73,7 +72,6 @@ while (1)
 
   # failing that, now try to pick a head node file to xfer:
 
-
   if (x == x$DO_THIS_FILE) then
     
     # currently only xferring scrampdump.*.gz
@@ -85,14 +83,55 @@ while (1)
           
   endif
 
-  # okay then, pick a fits file to xfer from one of the compute nodes:
+  # okay then, pick a fits file to xfer from one of the compute nodes
+  # or an *out*.[01] file, or an *err*.[01] file...
+
+  # echo $i $j | awk '{printf("%03d0",($1*2+$2)*2)}' ;
+  # serendip6_0000_20140312_154830.fits
 
   foreach i (0 1 2 3)
+    cd /mnt_data/s6c${i}/serendip6
+    # NOTE: for each compute node we have two subbands. Note the funky awk math
+    # to compute the 4-digit subband strings that appear in the filename.
+    foreach j (0 1)
+      set SUBBAND = `echo $i $j | awk '{printf("%03d0",($1*2+$2)*2)}'`
+      if (x == x$DO_THIS_FILE) then
+        set COUNT = `ls serendip6_${SUBBAND}_*.fits |& grep -v "No match" | wc -l | awk '{print $1}'`
+        if ($COUNT > 1) then
+          set THIS_FILE = `ls -1tr serendip6_${SUBBAND}_*.fits  | head -1` 
+          set DO_THIS_FILE = /mnt_data/s6c${i}/serendip6/${THIS_FILE}
+          set SEND_TO_SUBDIR = s6c${i}
+        endif
+      endif
+    end
     if (x == x$DO_THIS_FILE) then
-      cd /mnt_data/s6c${i}/serendip6
-      set COUNT = `ls *.fits |& grep -v "No match" | wc -l | awk '{print $1}'`
+      set COUNT = `ls *.out*.0 |& grep -v "No match" | wc -l | awk '{print $1}'`
       if ($COUNT > 1) then
-        set THIS_FILE = `ls -1tr *.fits  | head -1` 
+        set THIS_FILE = `ls -1tr *.out*.0 | head -1` 
+        set DO_THIS_FILE = /mnt_data/s6c${i}/serendip6/${THIS_FILE}
+        set SEND_TO_SUBDIR = s6c${i}
+      endif
+    endif
+    if (x == x$DO_THIS_FILE) then
+      set COUNT = `ls *.out*.1 |& grep -v "No match" | wc -l | awk '{print $1}'`
+      if ($COUNT > 1) then
+        set THIS_FILE = `ls -1tr *.out*.1 | head -1` 
+        set DO_THIS_FILE = /mnt_data/s6c${i}/serendip6/${THIS_FILE}
+        set SEND_TO_SUBDIR = s6c${i}
+      endif
+    endif
+    if (x == x$DO_THIS_FILE) then
+      set COUNT = `ls *.err*.0 |& grep -v "No match" | wc -l | awk '{print $1}'`
+      if ($COUNT > 1) then
+        set THIS_FILE = `ls -1tr *.err*.0 | head -1` 
+        set DO_THIS_FILE = /mnt_data/s6c${i}/serendip6/${THIS_FILE}
+        set SEND_TO_SUBDIR = s6c${i}
+      endif
+    endif
+    if (x == x$DO_THIS_FILE) then
+      set COUNT = `ls *.err*.1 |& grep -v "No match" | wc -l | awk '{print $1}'`
+      if ($COUNT > 1) then
+        set THIS_FILE = `ls -1tr *.err*.1 | head -1` 
         set DO_THIS_FILE = /mnt_data/s6c${i}/serendip6/${THIS_FILE}
         set SEND_TO_SUBDIR = s6c${i}
       endif
