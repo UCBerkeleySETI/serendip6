@@ -100,7 +100,7 @@ int main(int argc, char* argv[]) {
     int     odist     = nfft_;
     create_fft_plan_1d_c2c(&fft_plan, istride, idist, ostride, odist, nfft_, nbatch);
 
-    dv_p = init_device_vectors(NELEMENT, NINPUT);
+    dv_p = init_device_vectors(NELEMENT, NELEMENT,  NINPUT);
 
     for(int input_i=0; input_i<NINPUT; input_i++) {
         gen_sig(2, input_i, h_raw_timeseries_gen);

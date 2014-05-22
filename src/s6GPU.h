@@ -29,7 +29,7 @@ typedef struct {
                                                             //   hit_power[n]/hit_baseline[n] = normalized hit power, reported to caller
 } device_vectors_t;
 
-device_vectors_t * init_device_vectors(int n_element, int n_input);
+device_vectors_t * init_device_vectors(int n_element_physical, int n_element_utilized, int n_input);
 
 void delete_device_vectors( device_vectors_t * dv_p);
 

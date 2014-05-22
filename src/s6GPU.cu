@@ -34,20 +34,20 @@ using std::endl;
 
 
 //int init_device_vectors(int n_element, int n_input, device_vectors_t &dv) {
-device_vectors_t * init_device_vectors(int n_element, int n_input) {
+device_vectors_t * init_device_vectors(int n_element_physical, int n_element_utilized, int n_input) {
 
     device_vectors_t * dv_p  = new device_vectors_t;
 
-    dv_p->raw_timeseries_p   = new thrust::device_vector<char2>(n_element*n_input);
+    dv_p->raw_timeseries_p   = new thrust::device_vector<char2>(n_element_physical*n_input);
 #ifdef TRANSPOSE
-    dv_p->raw_timeseries_rowmaj_p   = new thrust::device_vector<char2>(n_element*n_input);
+    dv_p->raw_timeseries_rowmaj_p   = new thrust::device_vector<char2>(n_element_physical*n_input);
 #endif
-    dv_p->fft_data_p         = new thrust::device_vector<float2>(n_element*n_input);
-    dv_p->fft_data_out_p     = new thrust::device_vector<float2>(n_element);
-    dv_p->powspec_p          = new thrust::device_vector<float>(n_element);
-    dv_p->scanned_p          = new thrust::device_vector<float>(n_element);
-    dv_p->baseline_p         = new thrust::device_vector<float>(n_element);
-    dv_p->normalised_p       = new thrust::device_vector<float>(n_element);
+    dv_p->fft_data_p         = new thrust::device_vector<float2>(n_element_physical*n_input);
+    dv_p->fft_data_out_p     = new thrust::device_vector<float2>(n_element_utilized);
+    dv_p->powspec_p          = new thrust::device_vector<float>(n_element_utilized);
+    dv_p->scanned_p          = new thrust::device_vector<float>(n_element_utilized);
+    dv_p->baseline_p         = new thrust::device_vector<float>(n_element_utilized);
+    dv_p->normalised_p       = new thrust::device_vector<float>(n_element_utilized);
     dv_p->hit_indices_p      = new thrust::device_vector<int>();
     dv_p->hit_powers_p       = new thrust::device_vector<float>;
     dv_p->hit_baselines_p    = new thrust::device_vector<float>;

@@ -25,6 +25,8 @@
 
 int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHandle *fft_plan_p, int initial) {
     
+    int num_physical_channels, num_utilized_channels;
+
     const char * re[2] = {"re", ""};
 
     if(num_coarse_chan == 0) {  
@@ -39,17 +41,24 @@ int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHand
         cufftDestroy(*fft_plan_p);
     }
 
-    *dv_p = init_device_vectors(num_coarse_chan * N_FINE_CHAN, N_POLS_PER_BEAM);
+    // Configure GPU vectors...
+    // The number of physical coarse channels is one determining factor 
+    // of input data buffer size and is set at compile time. At run time 
+    // the number of coarse channels can change but this does not affect 
+    // the size of the input data buffer.  
+    num_physical_channels = N_COARSE_CHAN   * N_FINE_CHAN;
+    num_utilized_channels = num_coarse_chan * N_FINE_CHAN;
+    *dv_p = init_device_vectors(num_physical_channels, num_utilized_channels, N_POLS_PER_BEAM);
 
-    int     n_subband = num_coarse_chan;
-    int     n_chan    = N_FINE_CHAN;
-    int     n_input   = N_POLS_PER_BEAM;
-    size_t  nfft_     = n_chan;
-    size_t  nbatch    = n_subband;
-    int     istride   = n_subband*n_input;   // this effectively transposes the input data
-    int     ostride   = 1;
-    int     idist     = n_input;            // this takes care of the input interleave
-    int     odist     = nfft_;
+    // Configure cuFFT...
+    size_t  nfft_     = N_FINE_CHAN;                    // FFT length
+    size_t  nbatch    = num_coarse_chan;                // number of FFT batches to do 
+                                                        //    (only work on utilized coarse channels)
+    int     istride   = N_COARSE_CHAN*N_POLS_PER_BEAM;  // this effectively transposes the input data
+    int     ostride   = 1;                              // no transpose needed on the output
+    int     idist     = N_POLS_PER_BEAM;                // distance between 1st input elements of consecutive batches
+                                                        //    (this takes care of the input (pol) interleave)
+    int     odist     = nfft_;                          // distance between 1st output elements of consecutive batches
     create_fft_plan_1d_c2c(fft_plan_p, istride, idist, ostride, odist, nfft_, nbatch);
 
     fprintf(stderr, "done\n");
@@ -76,7 +85,6 @@ static void *run(hashpipe_thread_args_t * args)
     int curblock_out=0;
     int error_count = 0, max_error_count = 0;
     float error, max_error = 0.0;
-    size_t num_bytes_per_beam;
 
     struct timespec start, stop;
     uint64_t elapsed_gpu_ns  = 0;
@@ -175,10 +183,6 @@ static void *run(hashpipe_thread_args_t * args)
                 size_t nhits = 0; 
                 // TODO there is no real c error checking in spectroscopy()
                 //      Errors are handled via c++ exceptions
-                num_bytes_per_beam =  N_BYTES_PER_SAMPLE                               * 
-                                      N_FINE_CHAN                                      * 
-                                      db_in->block[curblock_in].header.num_coarse_chan * 
-                                      N_POLS_PER_BEAM;
                 nhits = spectroscopy(num_coarse_chan,
                                      N_FINE_CHAN,
                                      N_POLS_PER_BEAM,
@@ -187,8 +191,8 @@ static void *run(hashpipe_thread_args_t * args)
                                      MAXGPUHITS,
                                      POWER_THRESH,
                                      SMOOTH_SCALE,
-                                     &db_in->block[curblock_in].data[beam_i*num_bytes_per_beam/sizeof(uint64_t)],
-                                     num_bytes_per_beam,
+                                     &db_in->block[curblock_in].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)],
+                                     N_BYTES_PER_BEAM,
                                      &db_out->block[curblock_out],
                                      dv_p,
                                      fft_plan_p);
