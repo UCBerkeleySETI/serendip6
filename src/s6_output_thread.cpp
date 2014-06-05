@@ -94,7 +94,7 @@ static void *run(hashpipe_thread_args_t * args)
         // get scram, etc data
         rv = get_obs_info_from_redis(scram_p, (char *)"redishost", 6379);
         if(rv) {
-            hashpipe_error(__FUNCTION__, "error error returned from get_obs_info_from_redis()");
+            hashpipe_error(__FUNCTION__, "error returned from get_obs_info_from_redis()");
             pthread_exit(NULL);
         }
 
