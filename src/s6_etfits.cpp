@@ -371,8 +371,6 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
     firstrow  = 1;
     firstelem = 1;
 
-    int beampols_done[N_BEAMS*N_POLS_PER_BEAM] = {0};;
-
     for(int beam=0; beam < N_BEAMS; beam++) {
         for(int input=0; input < N_POLS_PER_BEAM; input++) {        
 

@@ -25,7 +25,7 @@
 
 int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHandle *fft_plan_p, int initial) {
     
-    int num_physical_channels, num_utilized_channels;
+    int num_channels_max, num_channels_utilized;
 
     const char * re[2] = {"re", ""};
 
@@ -42,13 +42,13 @@ int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHand
     }
 
     // Configure GPU vectors...
-    // The number of physical coarse channels is one determining factor 
+    // The maximum number of coarse channels is one determining factor 
     // of input data buffer size and is set at compile time. At run time 
     // the number of coarse channels can change but this does not affect 
     // the size of the input data buffer.  
-    num_physical_channels = N_COARSE_CHAN   * N_FINE_CHAN;
-    num_utilized_channels = num_coarse_chan * N_FINE_CHAN;
-    *dv_p = init_device_vectors(num_physical_channels, num_utilized_channels, N_POLS_PER_BEAM);
+    num_channels_max = N_COARSE_CHAN   * N_FINE_CHAN;
+    num_channels_utilized = num_coarse_chan * N_FINE_CHAN;
+    *dv_p = init_device_vectors(num_channels_max, num_channels_utilized, N_POLS_PER_BEAM);
 
     // Configure cuFFT...
     size_t  nfft_     = N_FINE_CHAN;                    // FFT length
