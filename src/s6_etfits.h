@@ -44,8 +44,9 @@ typedef struct etfits_hits {
 } etfits_hits_t;
     
 typedef struct etfits {
-    char basefilename[200]; // The base filename from which to build the true filename
-    char filename[200];     // Filename of the current ETFITs file
+    char basefilename[200];     // The base filename from which to build the true filename
+    char filename_working[200]; // Filename of the current ETFITs file
+    char filename_fits[200];    // We rename to mark the file as ready for post-processing or transfer
     char * s6_dir;
     long long N;            // Current number of spectra written TODO obsolete?
     double T;               // Current duration of the observation written TODO obsolete?

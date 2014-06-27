@@ -9,8 +9,8 @@
 #include "hashpipe.h"
 #include "s6_obs_data.h"
 
-//                          0       1       2
-const char *receiver[3] = {"none", "AO ALFA", "AO 327MHz"};
+//                          0           1          2
+const char *receiver[3] = {"AO_NOREC", "AO_ALFA", "AO_327MHz"};
 
 //----------------------------------------------------------
 int get_obs_info_from_redis(scram_t *scram,     
@@ -57,6 +57,7 @@ int get_obs_info_from_redis(scram_t *scram,
     // make sure redis is being updated!
     if(scram->AGCTIME == prior_agc_time) {
         no_time_change_count++;
+        hashpipe_warn(__FUNCTION__, "agctime in redis databse has not been updated over %d queries", no_time_change_count);
         if(no_time_change_count >= no_time_change_limit) {
             hashpipe_error(__FUNCTION__, "redis databse is static!");
             rv = 1;

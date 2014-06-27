@@ -46,7 +46,7 @@ static void *run(hashpipe_thread_args_t * args)
     scram_t * scram_p = &scram;
     
     int prior_receiver = 0;    
-    int run_always;                 // 1 = run even if no receiver
+    int run_always, prior_run_always=0;                 // 1 = run even if no receiver
 
     size_t num_coarse_chan = 0;
 
@@ -69,6 +69,18 @@ static void *run(hashpipe_thread_args_t * args)
         hputs(st.buf, status_key, "waiting");
         hgeti4(st.buf, "RUNALWYS", &run_always);
         hashpipe_status_unlock_safe(&st);
+
+        // The run always mechanism allows data taking
+        // even if there is no receiver in focus.
+        if(run_always == 0 && prior_run_always != 0) {        
+            // run over - close file
+            etfits_close(&etf);     
+        }
+        if(run_always == 1 && prior_run_always == 0) {        
+            // new run - open new file
+            etf.new_file = 1; 
+        }
+        prior_run_always = run_always;
 
        // get new data
        while ((rv=s6_output_databuf_wait_filled(db, block_idx))

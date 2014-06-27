@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <math.h>
 #include <vector>
@@ -41,7 +42,7 @@ int check_for_file_roll(etfits_t *etf) {
     int * status_p = &(etf->status);
     struct stat st;
     fits_flush_file(etf->fptr, status_p);   // flush to get true size
-    if(stat(etf->filename, &st) == -1) { 
+    if(stat(etf->filename_working, &st) == -1) { 
         hashpipe_error(__FUNCTION__, "Error getting etfits file size");
     } else {
         //fprintf(stderr, "size of %s is %ld\n", etf->filename, st.st_size);
@@ -76,13 +77,6 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
             etfits_close(etf);
             etf->integration_cnt = 0;
         }
-        etfits_create(etf);
-        if(*status_p) {
-            hashpipe_error(__FUNCTION__, "Error creating/initializing new etfits file");
-            //fprintf(stderr, "Error creating/initializing new etfits file.\n");
-            fits_report_error(stderr, *status_p);
-            exit(1);
-        }    
         // TODO update code versions
         etf->primary_hdr.n_subband = db->block[block_idx].header.num_coarse_chan;
         etf->primary_hdr.n_chan    = N_FINE_CHAN;
@@ -92,6 +86,13 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
         //etf->primary_hdr.bandwidth = ;
         //etf->primary_hdr.chan_bandwidth = ;
         //etf->primary_hdr.freq_res = ;
+        etfits_create(etf);
+        if(*status_p) {
+            hashpipe_error(__FUNCTION__, "Error creating/initializing new etfits file");
+            //fprintf(stderr, "Error creating/initializing new etfits file.\n");
+            fits_report_error(stderr, *status_p);
+            exit(1);
+        }    
         write_primary_header(etf);
         etf->file_cnt++;
     }
@@ -166,17 +167,19 @@ int etfits_create(etfits_t * etf) {
     // Form file name 
     time(&time_now);
     localtime_r(&time_now, &tm_now);
-    sprintf(file_name_str, "%04d_%04d%02d%02d_%02d%02d%02d", 
+    sprintf(file_name_str, "%s_%04d_%04d%02d%02d_%02d%02d%02d", 
+            etf->primary_hdr.receiver,
             etf->file_chan,
             1900+tm_now.tm_year, 1+tm_now.tm_mon, tm_now.tm_mday, 
             tm_now.tm_hour, tm_now.tm_min, tm_now.tm_sec); 
-    sprintf(etf->filename, "%s_%s.fits", etf->basefilename, file_name_str);  
+    sprintf(etf->filename_working, "%s_%s.working", etf->basefilename, file_name_str);  
+    sprintf(etf->filename_fits,    "%s_%s.fits",    etf->basefilename, file_name_str);  
 
     // Create basic FITS file from our template
     char template_file[1024];
     //printf("Opening file '%s'\n", etf->filename);
     sprintf(template_file, "%s/%s", etf->s6_dir, ETFITS_TEMPLATE);
-    if(! *status_p) fits_create_template(&(etf->fptr), etf->filename, template_file, status_p);
+    if(! *status_p) fits_create_template(&(etf->fptr), etf->filename_working, template_file, status_p);
 
     // Check to see if file was successfully created
     if (*status_p) {
@@ -193,15 +196,19 @@ int etfits_close(etfits_t *etf) {
 //----------------------------------------------------------
     int * status_p = &(etf->status);
     *status_p = 0;
+    int rv;
 
-//fprintf(stderr, "in close, status is %d\n", *status_p);
-    if (! *status_p) {
-        fits_close_file(etf->fptr, status_p);
-        //printf("Closing file '%s'\n", etf->filename);
+    fits_close_file(etf->fptr, status_p);
+
+    rv = rename((const char *)etf->filename_working, (const char *)etf->filename_fits);
+
+    if(rv) {
+        hashpipe_error(__FUNCTION__, "file rename error : %d %s", errno, strerror(errno));
+    } else {
+        hashpipe_info(__FUNCTION__, "Done.  %s %ld data rows into %s (status = %d).\n",
+                etf->mode=='r' ? "Read" : "Wrote", 
+                etf->tot_rows, etf->filename_fits, *status_p);
     }
-    printf("Done.  %s %ld data rows into %s (status = %d).\n",
-            etf->mode=='r' ? "Read" : "Wrote", 
-            etf->tot_rows, etf->filename, *status_p);
 
     return *status_p;
 }
