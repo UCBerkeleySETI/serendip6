@@ -81,19 +81,19 @@ BINDIR=$(prefix)/bin
 
 install-etc: obsPosition.dat utcToUt1.dat s6_ETFITS_template.txt
 	mkdir -p "$(DESTDIR)$(ETCDIR)"
-	install $^ "$(DESTDIR)$(ETCDIR)"
+	install -p $^ "$(DESTDIR)$(ETCDIR)"
 
 install-lib: $(S6GPU_LIB_TARGET) $(S6_LIB_TARGET)
 	mkdir -p "$(DESTDIR)$(LIBDIR)"
-	install $^ "$(DESTDIR)$(LIBDIR)"
+	install -p $^ "$(DESTDIR)$(LIBDIR)"
 
 install-bin: $(S6OBS_PROG_TARGET) 
 	mkdir -p "$(DESTDIR)$(BINDIR)"
-	install $^ "$(DESTDIR)$(BINDIR)"
+	install -p $^ "$(DESTDIR)$(BINDIR)"
 
 install-script: $(S6_SCRIPT_TARGET) 
 	mkdir -p "$(DESTDIR)$(BINDIR)"
-	install $^ "$(DESTDIR)$(BINDIR)"
+	install -p $^ "$(DESTDIR)$(BINDIR)"
 
 install: install-etc install-lib install-bin install-script
 
