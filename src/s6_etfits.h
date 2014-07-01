@@ -65,6 +65,7 @@ typedef struct etfits {
     int multifile;          // Write multiple output files TODO obsolete?
     int quiet;              // Be quiet about writing each subint
     char mode;              // Read (r) or write (w).
+    int file_open;          // boolean indicating file open or not      TODO can I use fitsfile * for this?
     etfits_primary_header_t     primary_hdr;
     etfits_integration_header_t integration_hdr;
     etfits_hits_header_t        hits_hdr[N_BEAMS*N_POLS_PER_BEAM];       // one hits HDU per beam/pol per integration

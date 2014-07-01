@@ -23,6 +23,7 @@ int init_etfits(etfits_t *etf, int start_file_num) {
     etf->file_cnt              = 0;
     etf->new_run               = 1;
     etf->new_file              = 1;
+    etf->file_open             = 0;
     etf->multifile             = 1;
     etf->integrations_per_file = 3;    // TODO place holder - should come from status shmem
     etf->integration_cnt       = 0;    
@@ -74,7 +75,9 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
     if (etf->new_run || etf->new_file) {
         etf->new_file = 0;
         if (!etf->new_run) {
-            etfits_close(etf);
+            if(etf->file_open) {
+                etfits_close(etf);
+            }
             etf->integration_cnt = 0;
         }
         // TODO update code versions
@@ -186,6 +189,8 @@ int etfits_create(etfits_t * etf) {
         hashpipe_error(__FUNCTION__, "Error creating sdfits file from template");
         //fprintf(stderr, "Error creating sdfits file from template.\n");
         fits_report_error(stderr, *status_p);
+    } else {
+        etf->file_open = 1;     // successful file open
     }
 
     return *status_p;
@@ -199,6 +204,8 @@ int etfits_close(etfits_t *etf) {
     int rv;
 
     fits_close_file(etf->fptr, status_p);
+    // TODO test for successful file close
+    etf->file_open = 0;
 
     rv = rename((const char *)etf->filename_working, (const char *)etf->filename_fits);
 

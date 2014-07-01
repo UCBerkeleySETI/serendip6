@@ -70,18 +70,6 @@ static void *run(hashpipe_thread_args_t * args)
         hgeti4(st.buf, "RUNALWYS", &run_always);
         hashpipe_status_unlock_safe(&st);
 
-        // The run always mechanism allows data taking
-        // even if there is no receiver in focus.
-        if(run_always == 0 && prior_run_always != 0) {        
-            // run over - close file
-            etfits_close(&etf);     
-        }
-        if(run_always == 1 && prior_run_always == 0) {        
-            // new run - open new file
-            etf.new_file = 1; 
-        }
-        prior_run_always = run_always;
-
        // get new data
        while ((rv=s6_output_databuf_wait_filled(db, block_idx))
                 != HASHPIPE_OK) {
@@ -131,26 +119,28 @@ static void *run(hashpipe_thread_args_t * args)
         hputi4(st.buf, "SCRALFFB", scram.IF1ALFFB);
         hputi4(st.buf, "SCRALFON", scram.IF2ALFON);
         hashpipe_status_unlock_safe(&st);
-    
-        // write hits and metadata to etFITS file only if alfa is enabled
-        // alfa_enabled might be a second or so out of sync with data
+
+        // test for and handle file change events
+        if(scram.receiver  != prior_receiver    ||
+           run_always      != prior_run_always  ||
+           num_coarse_chan != db->block[block_idx].header.num_coarse_chan)  {
+            hashpipe_info(__FUNCTION__, "Initializing output for %ld coarse channels, using receiver %s\n",
+                          num_coarse_chan, receiver[scram.receiver]);
+            // change files
+            if(etf.file_open) {
+                etfits_close(&etf);     
+            }
+            etf.new_file = 1; 
+            // re-init
+            prior_receiver   = scram.receiver;
+            num_coarse_chan  = db->block[block_idx].header.num_coarse_chan; 
+            prior_run_always = run_always;
+        }
+
+        // write hits and metadata to etFITS file only if there is a receiver
+        // in focus or the run_always flag in on
         if(scram.receiver || run_always) {
             etf.file_chan = scram.coarse_chan_id;
-            // start new file on important parameter change (incl startup)
-            if(num_coarse_chan != db->block[block_idx].header.num_coarse_chan ||
-               scram.receiver  != prior_receiver) {
-                etf.new_file = 1; 
-                num_coarse_chan = db->block[block_idx].header.num_coarse_chan; 
-                prior_receiver  = scram.receiver;
-                // TODO timestamped log messages should be functionalized
-                char timebuf[256];
-                time_t now;
-                time(&now);
-                ctime_r(&now, timebuf);
-                timebuf[strlen(timebuf)-1] = '\0';  // strip the newline
-                fprintf(stderr, "%s : Initializing output for %ld coarse channels, using receiver %s\n",
-                        timebuf, num_coarse_chan, receiver[scram.receiver]); 
-            }
             rv = write_etfits(db, block_idx, &etf, scram_p);
             if(rv) {
                 hashpipe_error(__FUNCTION__, "error error returned from write_etfits()");
@@ -178,7 +168,9 @@ static void *run(hashpipe_thread_args_t * args)
     }
 
     // Thread success!
-    etfits_close(&etf);     // final close
+    if(etf.file_open) {
+        etfits_close(&etf);     // final close
+    }
     return NULL;
 }
 
