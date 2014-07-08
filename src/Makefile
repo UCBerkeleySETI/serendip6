@@ -3,7 +3,7 @@ NVCCFLAGS   = -O3 --compiler-options '-fPIC' --shared -Xcompiler -Wall -arch=sm_
 CC          = gcc
 S6_LIB_CCFLAGS     = -g -fPIC -shared -lstdc++ \
 		     -I. -I$(CUDA_DIR)/include -I/usr/local/include \
-		     -L. -L/use/local/lib \
+		     -L. -L/usr/local/lib \
 		     -lhashpipe -lS6GPU -lrt -lhiredis -lcfitsio -lazzatoradec -laoscram -lm
 S6OBS_PROG_CCFLAGS = -g -lstdc++ \
 		     -I/usr/include/tcl \
