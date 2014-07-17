@@ -345,6 +345,14 @@ size_t find_hits(device_vectors_t *dv_p, int n_element, size_t maxhits, float po
     return nhits;
 }    
 
+// AO spectra order goes as pol0chan0 pol0chan1    pol1chan0 pol1chan1    pol0chan2 pol0chan3    pol1chan2 pol1chan3... 
+inline int ao_pol(long spectrum_index) {
+    return((long)floor((double)spectrum_index/2) % 2);
+}
+inline int ao_coarse_chan(long spectrum_index) {
+    return((long)floor((double)spectrum_index/4) * 2 + spectrum_index % 2);
+}
+    
 int spectroscopy(int n_subband,
                  int n_chan,
                  int n_input,
@@ -390,40 +398,46 @@ int spectroscopy(int n_subband,
     if(use_timer) cout << "Unpack time:\t" << timer.getTime() << endl;
     if(use_timer) timer.reset();
     
-    for(int input=0; input<n_input; input++) {
+    // input pointer varies with input
+    float2* fft_input_ptr  = thrust::raw_pointer_cast(&((*dv_p->fft_data_p)[0]));
+    // output pointer is constant - we reuse the output area for each input
+    float2* fft_output_ptr = thrust::raw_pointer_cast(&((*dv_p->fft_data_out_p)[0]));
+    //fprintf(stderr, "fft_input_ptr = %p  fft_output_ptr = %p\n", fft_input_ptr, fft_output_ptr);
 
-        // input pointer varies with input
-        float2* fft_input_ptr  = thrust::raw_pointer_cast(&((*dv_p->fft_data_p)[input]));
-        // output pointer is constant - we reuse the output area for each input
-        float2* fft_output_ptr = thrust::raw_pointer_cast(&((*dv_p->fft_data_out_p)[0]));
-        //fprintf(stderr, "fft_input_ptr = %p  fft_output_ptr = %p\n", fft_input_ptr, fft_output_ptr);
+    //fprintf(stderr, "n_chan %d n_element %d maxhits %d smooth_scale %f power_thresh %f\n", 
+    //        n_chan, n_element, maxhits, smooth_scale, power_thresh);
 
-        do_fft                      (fft_plan, fft_input_ptr, fft_output_ptr);
-        compute_power_spectrum      (dv_p);
-        compute_baseline            (dv_p, n_chan, n_element, smooth_scale);
-        normalize_power_spectrum    (dv_p);
-        nhits = find_hits           (dv_p, n_element, maxhits, power_thresh);
-        // TODO should probably report if nhits == maxgpuhits, ie overflow
+    do_fft                      (fft_plan, fft_input_ptr, fft_output_ptr);
+    compute_power_spectrum      (dv_p);
+    compute_baseline            (dv_p, n_chan, n_element, smooth_scale);
+    normalize_power_spectrum    (dv_p);
+    nhits = find_hits           (dv_p, n_element, maxhits, power_thresh);
+    // TODO should probably report if nhits == maxgpuhits, ie overflow
     
-        // copy to return vector
-        nhits = nhits > maxhits ? maxhits : nhits;
-        if(use_timer) timer.start();
+    // copy to return vector
+    nhits = nhits > maxhits ? maxhits : nhits;
+    if(use_timer) timer.start();
 
-        total_nhits += nhits;
-        s6_output_block->header.nhits[beam][input] = nhits;
-        thrust::copy(dv_p->hit_powers_p->begin(),    dv_p->hit_powers_p->end(),    &s6_output_block->power[beam][input][0]);
-        thrust::copy(dv_p->hit_baselines_p->begin(), dv_p->hit_baselines_p->end(), &s6_output_block->baseline[beam][input][0]);
-        thrust::copy(dv_p->hit_indices_p->begin(),   dv_p->hit_indices_p->end(),   &s6_output_block->hit_indices[beam][input][0]);
-        for(size_t i=0; i<nhits; ++i) {
-            s6_output_block->coarse_chan[beam][input][i] = s6_output_block->hit_indices[beam][input][i] / n_chan;
-            s6_output_block->fine_chan[beam][input][i]   = s6_output_block->hit_indices[beam][input][i] % n_chan;
-        }
+    total_nhits += nhits;
+    s6_output_block->header.nhits[beam] = nhits;
+    thrust::copy(dv_p->hit_powers_p->begin(),    dv_p->hit_powers_p->end(),    &s6_output_block->power[beam][0]);
+    thrust::copy(dv_p->hit_baselines_p->begin(), dv_p->hit_baselines_p->end(), &s6_output_block->baseline[beam][0]);
+    thrust::copy(dv_p->hit_indices_p->begin(),   dv_p->hit_indices_p->end(),   &s6_output_block->hit_indices[beam][0]);
+    for(size_t i=0; i<nhits; ++i) {
+        long hit_index                        = s6_output_block->hit_indices[beam][i]; 
+        long spectrum_index                   = (long)floor((double)hit_index/n_chan);
+        s6_output_block->pol[beam][i]         = ao_pol(spectrum_index);
+        s6_output_block->coarse_chan[beam][i] = ao_coarse_chan(spectrum_index);
+        s6_output_block->fine_chan[beam][i]   = hit_index % n_chan;
+        //fprintf(stderr, "hit_index %ld spectrum_index %ld pol %d cchan %d fchan %d power %f\n", 
+        //        hit_index, spectrum_index, s6_output_block->pol[beam][i], s6_output_block->coarse_chan[beam][i], 
+        //        s6_output_block->fine_chan[beam][i], s6_output_block->power[beam][i]);
+    }
         
        
-        if(use_timer) timer.stop();
-        if(use_timer) cout << "Copy to return vector time:\t" << timer.getTime() << endl;
-        if(use_timer) timer.reset();
-    }  // for each input
+    if(use_timer) timer.stop();
+    if(use_timer) cout << "Copy to return vector time:\t" << timer.getTime() << endl;
+    if(use_timer) timer.reset();
 
     if(use_total_gpu_timer) total_gpu_timer.stop();
     if(use_total_gpu_timer) cout << "Total GPU time:\t" << total_gpu_timer.getTime() << endl;

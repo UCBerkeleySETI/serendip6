@@ -56,8 +56,7 @@ int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHand
                                                         //    (only work on utilized coarse channels)
     int     istride   = N_COARSE_CHAN*N_POLS_PER_BEAM;  // this effectively transposes the input data
     int     ostride   = 1;                              // no transpose needed on the output
-    int     idist     = N_POLS_PER_BEAM;                // distance between 1st input elements of consecutive batches
-                                                        //    (this takes care of the input (pol) interleave)
+    int     idist     = 1;                              // distance between 1st input elements of consecutive batches
     int     odist     = nfft_;                          // distance between 1st output elements of consecutive batches
     create_fft_plan_1d_c2c(fft_plan_p, istride, idist, ostride, odist, nfft_, nbatch);
 

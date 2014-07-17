@@ -377,35 +377,45 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
 //fprintf(stderr, "writing hits\n");
     //std::vector<hits_t> hits;
 
-    float* det_pow_p;
-    float* mean_pow_p;
-    int* coarse_chan_p;
-    int* fine_chan_p;
+    float  det_pow[MAXHITS];
+    float  mean_pow[MAXHITS];
+    int    coarse_chan[MAXHITS];
+    int    fine_chan[MAXHITS];
 
     firstrow  = 1;
     firstelem = 1;
 
     for(int beam=0; beam < N_BEAMS; beam++) {
+        // TODO - this goes through the output block for each beam twice. We could cut
+        // this in half if we have a set of arrays for each pol (consuming twice the
+        // memory).
         for(int input=0; input < N_POLS_PER_BEAM; input++) {        
-
             int beampol = beam * N_POLS_PER_BEAM + input;
-            nhits_this_input = (size_t)db->block[block_idx].header.nhits[beam][input];
+            int hit_j=0;
+            nhits_this_input=0;
+            for(int hit_i=0; hit_i < (size_t)db->block[block_idx].header.nhits[beam]; hit_i++) {
+                if(db->block[block_idx].pol[beam][hit_i] == input) {
+                    nhits_this_input++;
+                    det_pow[hit_j]     = db->block[block_idx].power[beam][hit_i];
+                    mean_pow[hit_j]    = db->block[block_idx].baseline[beam][hit_i];
+                    coarse_chan[hit_j] = db->block[block_idx].coarse_chan[beam][hit_i];
+                    fine_chan[hit_j]   = db->block[block_idx].fine_chan[beam][hit_i];
+                    hit_j++;
+                }
+            }
+
             write_hits_header(etf, beampol, nhits_this_input);
             nhits += nhits_this_input;
 
             // write the hits for this input
-            det_pow_p        = &db->block[block_idx].power[beam][input][0];
-            mean_pow_p       = &db->block[block_idx].baseline[beam][input][0];
-            coarse_chan_p    = &db->block[block_idx].coarse_chan[beam][input][0];
-            fine_chan_p      = &db->block[block_idx].fine_chan[beam][input][0];
             colnum      = 1;
-            if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, det_pow_p, status_p);
+            if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, det_pow, status_p);
             colnum      = 2;
-            if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, mean_pow_p, status_p);
+            if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, mean_pow, status_p);
             colnum      = 3;
-            if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, coarse_chan_p, status_p);
+            if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, coarse_chan, status_p);
             colnum      = 4;
-            if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, fine_chan_p, status_p);
+            if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, fine_chan, status_p);
 
             etf->beampol_cnt++;
         } 
