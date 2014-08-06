@@ -16,6 +16,9 @@
 #include <sys/types.h>
 #include <errno.h>
 
+#include <smmintrin.h>
+#include <immintrin.h>
+
 #include "hashpipe.h"
 #include "s6_databuf.h"
 
@@ -134,10 +137,41 @@ void dump_mcnt_log(int pchan)
 }
 #endif
 
+static inline void * s6_memcpy(uint64_t * out, const uint64_t * const in, size_t n_bytes) {
+
+  __m128i lo128, hi128; 
+  __m256i out256         = _mm256_setzero_si256();
+  __m128i *p_in          = (__m128i *)in;
+  __m256i *p_out         = (__m256i *)out;
+  size_t n_256_bit_words = n_bytes/32;
+  size_t i;
+
+  for(i=0; i<n_256_bit_words; i++) {
+        // have to load 128, rather than 256, bits at a time
+        lo128 = _mm_stream_load_si128(p_in++);
+        hi128 = _mm_stream_load_si128(p_in++);
+
+        // Transfer lo128 to lower half of __m256i variable 'out256'
+        // Use pragmas to avoid "uninitialized use of out256" warning/error
+        out256 = _mm256_insertf128_si256(out256, lo128, 0);
+        // Transfer hi128 to upper half of __m256i variable 'out256'
+        out256 = _mm256_insertf128_si256(out256, hi128, 1);
+
+        // now stream to final destination 256 bits at a time
+        _mm256_stream_si256(p_out++, out256);
+
+        // both p_in and p_out have now been advanced by 256 bits (32 bytes)
+  }
+
+//fprintf(stderr, "In s6_memcpy : end   : p_in = %p p_out = %p\n", p_in, p_out);
+  return (void *)out;
+}
+
 static inline void get_header (struct hashpipe_udp_packet *p, packet_header_t * pkt_header)
 {
     uint64_t raw_header;
-    raw_header = be64toh(*(unsigned long long *)p->data);
+    //raw_header = be64toh(*(unsigned long long *)p->data);
+    raw_header = be64toh(*(unsigned long long *)(p->data+8));
     pkt_header->mcnt        =  raw_header >> 16;
     pkt_header->pchan       = (raw_header >>  4) & 0x0000000000000FFF;
     pkt_header->sid         =  raw_header        & 0x000000000000000F;
@@ -375,6 +409,8 @@ static inline uint64_t process_packet(s6_input_databuf_t *s6_input_databuf_p, st
     }
 #endif
 
+//fprintf(stderr, "cur_mcnt = %lx pkt_mcnt = %lx pkt_mcnt_dist = %lx Nm = %lx\n", cur_mcnt, pkt_mcnt, pkt_mcnt_dist, Nm);
+
     // We expect packets for the current block and the next block.
     if(0 <= pkt_mcnt_dist && pkt_mcnt_dist < 2*Nm) {
 	// If the packet is for the second half of the next block (i.e. current
@@ -383,7 +419,8 @@ static inline uint64_t process_packet(s6_input_databuf_t *s6_input_databuf_p, st
 
 	    for(i=0; i<N_BEAMS; i++) {
 		if(s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i] != 0)
-		    printf("missed %lu packets for beam %d\n",
+		    //printf("missed %lu packets for beam %d\n",
+		    hashpipe_warn(__FUNCTION__, "missed %lu packets for beam %d",
 			s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i], i);
 	    }
 
@@ -439,13 +476,18 @@ static inline uint64_t process_packet(s6_input_databuf_t *s6_input_databuf_p, st
 	s6_input_databuf_p->block[pkt_block_i].header.missed_pkts[pkt_header.sid]--;
 
 	// Calculate starting points for unpacking this packet into block's data buffer.
+    // Nm is the number of time samples (aka the number of fine channels)
+    // pkt_header.sid*Nm indicates which beam within a block
+    // pkt_mcnt%Nm indicates which time sample within a beam/Nm
 	dest_p = s6_input_databuf_p->block[pkt_block_i].data
 	    + (pkt_header.sid*Nm + (pkt_mcnt%Nm)) * N_COARSE_CHAN * N_BYTES_PER_CHAN / sizeof(uint64_t);
-	payload_p        = (uint64_t *)(p->data+8);
+    //payload_p        = (uint64_t *)(p->data+8);
+	payload_p        = (uint64_t *)(p->data+8+8);
 
 	// Copy data into buffer
 	// Use length from packet (minus CRC word)
-	memcpy(dest_p, payload_p, p->packet_size - 8);
+	//memcpy(dest_p, payload_p, p->packet_size - 8);
+	s6_memcpy(dest_p, payload_p, p->packet_size - 8 - 8);      
 	//memset(dest_p, 0, N_COARSE_CHAN*N_BYTES_PER_CHAN);
 	//dest_p[0] = be64toh(*(uint64_t *)(p->data));
 
@@ -652,7 +694,13 @@ static void *run(hashpipe_thread_args_t * args)
 	clock_gettime(CLOCK_MONOTONIC, &recv_start);
 	do {
 	    clock_gettime(CLOCK_MONOTONIC, &start);
-	    p.packet_size = recv(up.sock, p.data, HASHPIPE_MAX_PACKET_SIZE, 0);
+	    //p.packet_size = recv(up.sock, p.data, HASHPIPE_MAX_PACKET_SIZE, 0);
+        // Here we prep for SSE non-temporal memory copy.  p.data is 128 bit 
+        // aligned.  Here we receive the packet 8 bytes in so the packet data 
+        // are 64 bit but not 128 bit aligned.  The reason for this is because 
+        // the first 8 bytes are header, so now the payload data that will be 
+        // passed to the SSE code will be the required 128 bit aligned.
+	    p.packet_size = recv(up.sock, p.data+8, HASHPIPE_MAX_PACKET_SIZE-8, 0);
 	    clock_gettime(CLOCK_MONOTONIC, &recv_stop);
 	} while (p.packet_size == -1 && (errno == EAGAIN || errno == EWOULDBLOCK) && run_threads());
 	if(!run_threads()) break;

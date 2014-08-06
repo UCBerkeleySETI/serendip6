@@ -12,14 +12,17 @@
 // TODO
 // SMOOTH_SCALE, POWER_THRESH, MAXHITS, and MAXGPUHITS should be input parms
 // N_FINE_CHAN and N_COARSE_CHAN - should they be input parms?
+
+// N_COARSE_CHAN needs to be evenly divisible by 32 in order for each time sample
+// ("row" of coarse chans) to be 256 bit aligned.  256 bit alignment is required by
+// the "non-temporal" memory copy. 
+#define N_COARSE_CHAN           320 
 #define N_FINE_CHAN             (128*1024)               
-#define N_COARSE_CHAN           342
-//#define N_COARSE_CHAN           160      
 #define SMOOTH_SCALE            1024
 #define POWER_THRESH            20.0
 #define MIN_POWER_THRESH        10.0
 #define MAXGPUHITS              ((int)(1.0 / MIN_POWER_THRESH * N_FINE_CHAN))    
-#define MAXHITS                 8192
+#define MAXHITS                 4096
 
 #define N_BEAMS                 7
 #define N_BEAM_SLOTS            8
