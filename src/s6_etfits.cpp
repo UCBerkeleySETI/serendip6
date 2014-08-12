@@ -324,7 +324,7 @@ int write_integration_header(etfits_t * etf, scram_t *scram) {
 }
 
 //----------------------------------------------------------
-int write_hits_header(etfits_t * etf, int beampol, size_t nhits) {
+int write_hits_header(etfits_t * etf, int beampol, size_t nhits, size_t missed_pkts) {
 //----------------------------------------------------------
 
 #define TFIELDS 4
@@ -352,6 +352,7 @@ int write_hits_header(etfits_t * etf, int beampol, size_t nhits) {
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr[beampol].dec),     NULL, status_p);   
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "BEAMPOL", &(etf->hits_hdr[beampol].beampol), NULL, status_p);   
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "NHITS",   &nhits,                            NULL, status_p);   
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "MISSEDPK",&missed_pkts,                      NULL, status_p);   
 
     if (*status_p) {
         hashpipe_error(__FUNCTION__, "Error writing hits header");
@@ -404,7 +405,10 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
                 }
             }
 
-            write_hits_header(etf, beampol, nhits_this_input);
+            write_hits_header(etf, 
+                              beampol, 
+                              nhits_this_input, 
+                              (size_t)db->block[block_idx].header.missed_pkts[beam]);
             nhits += nhits_this_input;
 
             // write the hits for this input
