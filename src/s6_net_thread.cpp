@@ -65,6 +65,8 @@ typedef struct {
 
 static hashpipe_status_t *st_p;
 
+static uint32_t total_missed_pkts[N_BEAM_SLOTS];
+
 void print_pkt_header(packet_header_t * pkt_header) {
 
     static long long prior_mcnt;
@@ -259,6 +261,15 @@ static uint64_t set_block_filled(s6_input_databuf_t *s6_input_databuf_p, block_i
 	hgetu4(st_p->buf, "MISSEDPK", &missed_pkt_cnt);
 	missed_pkt_cnt += block_missed_mod_cnt;
 	hputu4(st_p->buf, "MISSEDPK", missed_pkt_cnt);
+    // Update per-beam missed packet counters in status buffer
+    char missed_key[9] = "MISSPKBX";
+    const char missed_beam[7] = {'0', '1', '2', '3', '4', '5', '6'};
+    for(int i=0; i < N_BEAMS; i++) {
+        missed_key[7] = missed_beam[i];
+        //hgetu4(st_p->buf, missed_key, &total_missed_pkts[i]);
+        hputu4(st_p->buf, missed_key, total_missed_pkts[i]);
+    }
+
     //  fprintf(stderr, "got %d packets instead of %d\n",
     //	    binfo->block_packet_counter[block_i], Nm);
     }
@@ -418,10 +429,17 @@ static inline uint64_t process_packet(s6_input_databuf_t *s6_input_databuf_p, st
 	if(pkt_mcnt_dist >= 3*(Nm/2)) {
 
 	    for(i=0; i<N_BEAMS; i++) {
-		if(s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i] != 0)
-		    //printf("missed %lu packets for beam %d\n",
-		    hashpipe_warn(__FUNCTION__, "missed %lu packets for beam %d",
-			s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i], i);
+		    if(s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i] != 0) {
+                // Keep running per beam total.
+		        total_missed_pkts[i] += s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i];
+		        //printf("missed %lu packets for beam %d\n",
+#if 1
+		        hashpipe_warn(__FUNCTION__, "missed packets for beam %d - this block : %lu total : %lu",
+			                    i,
+                                s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i], 
+                                total_missed_pkts[i]);
+#endif
+            }
 	    }
 
 	    // Mark the current block as filled
@@ -616,6 +634,17 @@ static void *run(hashpipe_thread_args_t * args)
     // Get info from status buffer if present (no change if not present)
     hgets(st.buf, "BINDHOST", 80, up.bindhost);
     hgeti4(st.buf, "BINDPORT", &up.bindport);
+
+    // Clear per-beam missed packet counters in status buffer
+    char missed_key[9] = "MISSPKBX";
+    const char missed_beam[7] = {'0', '1', '2', '3', '4', '5', '6'};
+    for(int i=0; i < N_BEAMS; i++) {
+        missed_key[7] = missed_beam[i];
+        //fprintf(stderr, "%s\n", missed_key);
+        //hgetu4(st.buf, missed_key, &total_missed_pkts[i]);
+        hputu4(st.buf, missed_key, 0);
+    }
+
     // Store bind host/port info etc in status buffer
     hputs(st.buf, "BINDHOST", up.bindhost);
     hputi4(st.buf, "BINDPORT", up.bindport);

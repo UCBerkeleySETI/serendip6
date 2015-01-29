@@ -92,7 +92,10 @@ static void *run(hashpipe_thread_args_t * args)
         // TODO check mcnt
 
         // get scram, etc data
+#if 1
         rv = get_obs_info_from_redis(scram_p, (char *)"redishost", 6379);
+#endif
+rv=0;
         if(rv) {
             hashpipe_error(__FUNCTION__, "error returned from get_obs_info_from_redis()");
             pthread_exit(NULL);
@@ -121,11 +124,29 @@ static void *run(hashpipe_thread_args_t * args)
         hashpipe_status_unlock_safe(&st);
 
         // test for and handle file change events
+        uint32_t total_missed_pkts[N_BEAM_SLOTS];
         if(scram.receiver  != prior_receiver    ||
-           run_always      != prior_run_always  ||
-           num_coarse_chan != db->block[block_idx].header.num_coarse_chan)  {
+            run_always      != prior_run_always  ||
+            num_coarse_chan != db->block[block_idx].header.num_coarse_chan)  {
+
+#if 0
+            char missed_key[9] = "MISSPKBX";
+            const char missed_beam[7] = {'0', '1', '2', '3', '4', '5', '6'};
+            for(int i=0; i < N_BEAMS; i++) {
+                missed_key[7] = missed_beam[i];
+                hgetu4(st.buf, missed_key, &total_missed_pkts[i]);
+                hputu4(st.buf, missed_key, 0);
+            }
+#endif
+
+            hashpipe_info(__FUNCTION__, "Missed packet totals : beam0 %lu beam1 %lu beam2 %lu beam3 %lu beam4 %lu beam5 %lu beam6 %lu \n",
+                         total_missed_pkts[0], total_missed_pkts[1], total_missed_pkts[2], total_missed_pkts[3], 
+                         total_missed_pkts[4], total_missed_pkts[5], total_missed_pkts[6]);
+
+
             hashpipe_info(__FUNCTION__, "Initializing output for %ld coarse channels, using receiver %s\n",
                           num_coarse_chan, receiver[scram.receiver]);
+
             // change files
             if(etf.file_open) {
                 etfits_close(&etf);     
