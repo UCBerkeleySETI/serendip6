@@ -724,8 +724,10 @@ static void *run(hashpipe_thread_args_t * args)
 #endif
 	packet_count++;
 
+#if 0
         // Copy packet into any blocks where it belongs.
         const uint64_t mcnt = process_packet((s6_input_databuf_t *)db, &p);
+#endif
 
 	clock_gettime(CLOCK_MONOTONIC, &stop);
 	wait_ns = ELAPSED_NS(recv_start, start);
@@ -742,7 +744,7 @@ static void *run(hashpipe_thread_args_t * args)
 	max_recv_ns = MAX(recv_ns, max_recv_ns);
 	max_proc_ns = MAX(proc_ns, max_proc_ns);
 
-        if(mcnt != -1) {
+        if(packet_count % 0x100000 == 0) {
             // Update status
             ns_per_wait = (float)elapsed_wait_ns / packet_count;
             ns_per_recv = (float)elapsed_recv_ns / packet_count;
@@ -750,7 +752,7 @@ static void *run(hashpipe_thread_args_t * args)
 
             hashpipe_status_lock_busywait_safe(&st);
 
-            hputu8(st.buf, "NETMCNT", mcnt);
+            hputu8(st.buf, "NETMCNT", packet_count);
 	    // Gbps = bits_per_packet / ns_per_packet
 	    // (N_BYTES_PER_PACKET excludes header, so +8 for the header)
             hputr4(st.buf, "NETGBPS", 8*(p.packet_size)/(ns_per_recv+ns_per_proc));
@@ -826,7 +828,7 @@ static void *run(hashpipe_thread_args_t * args)
 }
 
 static hashpipe_thread_desc_t net_thread = {
-    name: "s6_net_thread",
+    name: "s6_net_null_thread",
     skey: "NETSTAT",
     init: NULL,
     run:  run,
