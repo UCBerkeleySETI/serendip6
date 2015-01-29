@@ -37,14 +37,14 @@ void print_hits(int block_idx, int beam) {
     s6_output_databuf_t * db_p = &db;
 
     for(int input=0; input < N_POLS_PER_BEAM; input++) {
-        size_t nhits = (size_t)db_p->block[block_idx].header.nhits[beam][input];
+        size_t nhits = (size_t)db_p->block[block_idx].header.nhits[beam];
         cout << "#Found " << nhits << " hits" << endl;
         cout << "#coarse_chan\tfine_chan\tpower\t\tbaseline\tstrength\tinput\tbeam" << endl;
         for( size_t i=0; i<nhits; ++i ) {
-            cout << db_p->block[block_idx].coarse_chan[beam][input][i] << "\t\t"
-                 << db_p->block[block_idx].fine_chan[beam][input][i]   << "\t\t"
-                 << db_p->block[block_idx].power[beam][input][i]       << "\t"
-                 << db_p->block[block_idx].baseline[beam][input][i]    << "\t"
+            cout << db_p->block[block_idx].coarse_chan[beam][i] << "\t\t"
+                 << db_p->block[block_idx].fine_chan[beam][i]   << "\t\t"
+                 << db_p->block[block_idx].power[beam][i]       << "\t"
+                 << db_p->block[block_idx].baseline[beam][i]    << "\t"
                  << input << "\t"
                  << beam  << endl;
         }
