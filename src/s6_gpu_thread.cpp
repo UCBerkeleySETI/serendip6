@@ -51,13 +51,13 @@ int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHand
     *dv_p = init_device_vectors(num_channels_max, num_channels_utilized, N_POLS_PER_BEAM);
 
     // Configure cuFFT...
-    size_t  nfft_     = N_FINE_CHAN;                    // FFT length
-    size_t  nbatch    = num_coarse_chan;                // number of FFT batches to do 
-                                                        //    (only work on utilized coarse channels)
-    int     istride   = N_COARSE_CHAN*N_POLS_PER_BEAM;  // this effectively transposes the input data
-    int     ostride   = 1;                              // no transpose needed on the output
-    int     idist     = 1;                              // distance between 1st input elements of consecutive batches
-    int     odist     = nfft_;                          // distance between 1st output elements of consecutive batches
+    size_t  nfft_     = N_FINE_CHAN;                      // FFT length
+    size_t  nbatch    = num_coarse_chan*N_POLS_PER_BEAM;  // number of FFT batches to do 
+                                                          //    (only work on utilized coarse channels)
+    int     istride   = N_COARSE_CHAN*N_POLS_PER_BEAM;    // this effectively transposes the input data
+    int     ostride   = 1;                                // no transpose needed on the output
+    int     idist     = 1;                                // distance between 1st input elements of consecutive batches
+    int     odist     = nfft_;                            // distance between 1st output elements of consecutive batches
     create_fft_plan_1d_c2c(fft_plan_p, istride, idist, ostride, odist, nfft_, nbatch);
 
     fprintf(stderr, "done\n");

@@ -42,12 +42,6 @@ device_vectors_t * init_device_vectors(int n_element_max, int n_element_utilized
 #ifdef TRANSPOSE
     dv_p->raw_timeseries_rowmaj_p   = new thrust::device_vector<char2>(n_element_max*n_input);
 #endif
-    dv_p->fft_data_p         = new thrust::device_vector<float2>(n_element_max*n_input);
-    dv_p->fft_data_out_p     = new thrust::device_vector<float2>(n_element_utilized);
-    dv_p->powspec_p          = new thrust::device_vector<float>(n_element_utilized);
-    dv_p->scanned_p          = new thrust::device_vector<float>(n_element_utilized);
-    dv_p->baseline_p         = new thrust::device_vector<float>(n_element_utilized);
-    dv_p->normalised_p       = new thrust::device_vector<float>(n_element_utilized);
     dv_p->hit_indices_p      = new thrust::device_vector<int>();
     dv_p->hit_powers_p       = new thrust::device_vector<float>;
     dv_p->hit_baselines_p    = new thrust::device_vector<float>;
@@ -67,12 +61,6 @@ void delete_device_vectors( device_vectors_t * dv_p) {
 #ifdef TRANSPOSE
     delete(dv_p->raw_timeseries_rowmaj_p);
 #endif
-    delete(dv_p->fft_data_p);         
-    delete(dv_p->fft_data_out_p);     
-    delete(dv_p->powspec_p);          
-    delete(dv_p->scanned_p);          
-    delete(dv_p->baseline_p);         
-    delete(dv_p->normalised_p);       
     delete(dv_p->hit_indices_p);      
     delete(dv_p->hit_powers_p);       
     delete(dv_p->hit_baselines_p);    
@@ -367,9 +355,13 @@ int spectroscopy(int n_subband,
                  device_vectors_t    *dv_p,
                  cufftHandle *fft_plan) {
 
-    Stopwatch timer;
+// GPU memory allocation note.  Our total memory needs are larger than the
+// capcity of our current GPU (GeForce GTX 780 Ti with 3071MB). So we allocate 
+// as needed and delete memory as soon as it is no longer needed.
+
+    Stopwatch timer; 
     Stopwatch total_gpu_timer;
-    int n_element = n_subband*n_chan;
+    int n_element = n_subband*n_chan*n_input;
     size_t nhits;
     //size_t prior_nhits=0;
     size_t total_nhits=0;
@@ -386,6 +378,11 @@ int spectroscopy(int n_subband,
     if(use_timer) timer.stop();
     if(use_timer) cout << "H2D time:\t" << timer.getTime() << endl;
     if(use_timer) timer.reset();
+
+    // allocate GPU memory for the FFTs and power spectra
+    dv_p->fft_data_p         = new thrust::device_vector<float2>(n_element);
+    dv_p->fft_data_out_p     = new thrust::device_vector<float2>(n_element);
+    dv_p->powspec_p          = new thrust::device_vector<float>(n_element);
 
     if(use_timer) timer.start();
     // Unpack from 8-bit to floats
@@ -409,6 +406,15 @@ int spectroscopy(int n_subband,
 
     do_fft                      (fft_plan, fft_input_ptr, fft_output_ptr);
     compute_power_spectrum      (dv_p);
+
+    // done with the FFTs - delete the associated GPU memory
+    delete(dv_p->fft_data_p);         
+    delete(dv_p->fft_data_out_p);     
+    // and allocate GPU memory for power normalization
+    dv_p->scanned_p          = new thrust::device_vector<float>(n_element);
+    dv_p->baseline_p         = new thrust::device_vector<float>(n_element);
+    dv_p->normalised_p       = new thrust::device_vector<float>(n_element);
+
     compute_baseline            (dv_p, n_chan, n_element, smooth_scale);
     normalize_power_spectrum    (dv_p);
     nhits = find_hits           (dv_p, n_element, maxhits, power_thresh);
@@ -434,6 +440,11 @@ int spectroscopy(int n_subband,
         //        s6_output_block->fine_chan[beam][i], s6_output_block->power[beam][i]);
     }
         
+    // delete remaining GPU memory
+    delete(dv_p->powspec_p);          
+    delete(dv_p->scanned_p);          
+    delete(dv_p->baseline_p);         
+    delete(dv_p->normalised_p);       
        
     if(use_timer) timer.stop();
     if(use_timer) cout << "Copy to return vector time:\t" << timer.getTime() << endl;
