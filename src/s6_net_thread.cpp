@@ -16,6 +16,8 @@
 #include <sys/types.h>
 #include <errno.h>
 
+#include <sched.h>
+
 #include <smmintrin.h>
 #include <immintrin.h>
 
@@ -214,8 +216,10 @@ static void die(s6_input_databuf_t *s6_input_databuf_p, block_info_t *binfo)
 static uint64_t set_block_filled(s6_input_databuf_t *s6_input_databuf_p, block_info_t *binfo)
 {
     static int last_filled = -1;
+    static uint32_t missed_pkt_cnt=0;
 
-    uint32_t block_missed_pkt_cnt=N_PACKETS_PER_BLOCK, block_missed_mod_cnt, block_missed_beams, missed_pkt_cnt=0;
+    uint32_t block_missed_pkt_cnt=N_PACKETS_PER_BLOCK;
+    float    block_missed_percent;
 
     uint32_t block_i = block_for_mcnt(binfo->mcnt_start);
 
@@ -246,34 +250,31 @@ static uint64_t set_block_filled(s6_input_databuf_t *s6_input_databuf_p, block_i
 
     // Calculate missing packets.
     block_missed_pkt_cnt = N_PACKETS_PER_BLOCK - binfo->block_packet_counter[block_i];
+
     // If we missed more than Nm, then assume we are missing one or more beams.
-    // Any missed packets beyond an integer multiple of Nm will be considered
+    // All missing packets, from missing beams or not, are considered dropped.
+    // 
+    // Old logic : any missed packets beyond an integer multiple of Nm will be considered
     // as dropped packets.
-    block_missed_beams   = block_missed_pkt_cnt / Nm;
-    block_missed_mod_cnt = block_missed_pkt_cnt % Nm;
+    // New logic : count all missed packets as dropped.
+    block_missed_percent = ((float)block_missed_pkt_cnt / N_PACKETS_PER_BLOCK) * 100;  
+	missed_pkt_cnt      += block_missed_pkt_cnt;     //  running total
 
     // Update status buffer
+    float beam_missed_percent[7];
+    for(int i=0; i < N_BEAMS; i++) {
+        beam_missed_percent[i] = (float)total_missed_pkts[i]/(N_PACKETS_PER_BLOCK/7)*100;
+    }
     hashpipe_status_lock_busywait_safe(st_p);
     hputu4(st_p->buf, "NETBKOUT", block_i);
-    hputu4(st_p->buf, "MISSEDBM", block_missed_beams);
-    if(block_missed_mod_cnt) {
-	// Increment MISSEDPK by number of missed packets for this block
-	hgetu4(st_p->buf, "MISSEDPK", &missed_pkt_cnt);
-	missed_pkt_cnt += block_missed_mod_cnt;
-	hputu4(st_p->buf, "MISSEDPK", missed_pkt_cnt);
-    // Update per-beam missed packet counters in status buffer
-    char missed_key[9] = "MISSPKBX";
+	hputu4(st_p->buf, "MISSPKTL", missed_pkt_cnt);
+    hputr4(st_p->buf, "MISSPER ", block_missed_percent);
+    char missed_key[9] = "MISSPERx";    // 'x' is replaced by beam number
     const char missed_beam[7] = {'0', '1', '2', '3', '4', '5', '6'};
     for(int i=0; i < N_BEAMS; i++) {
         missed_key[7] = missed_beam[i];
-        //hgetu4(st_p->buf, missed_key, &total_missed_pkts[i]);
-        hputu4(st_p->buf, missed_key, total_missed_pkts[i]);
+        hputr4(st_p->buf, missed_key, beam_missed_percent[i]);      // per beam 
     }
-
-    //  fprintf(stderr, "got %d packets instead of %d\n",
-    //	    binfo->block_packet_counter[block_i], Nm);
-    }
-    // Update SCHAN and NCHAN in status buffer
     hputi4(st_p->buf, "SCHAN", (uint32_t)binfo->pchan);
     hputi4(st_p->buf, "NCHAN", (uint32_t)binfo->nchan);
     hashpipe_status_unlock_safe(st_p);
@@ -429,17 +430,7 @@ static inline uint64_t process_packet(s6_input_databuf_t *s6_input_databuf_p, st
 	if(pkt_mcnt_dist >= 3*(Nm/2)) {
 
 	    for(i=0; i<N_BEAMS; i++) {
-		    if(s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i] != 0) {
-                // Keep running per beam total.
-		        total_missed_pkts[i] += s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i];
-		        //printf("missed %lu packets for beam %d\n",
-#if 1
-		        hashpipe_warn(__FUNCTION__, "missed packets for beam %d - this block : %lu total : %lu",
-			                    i,
-                                s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i], 
-                                total_missed_pkts[i]);
-#endif
-            }
+		    total_missed_pkts[i] = s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i];
 	    }
 
 	    // Mark the current block as filled
@@ -594,6 +585,18 @@ static void *run(hashpipe_thread_args_t * args)
     // Flag that holds off the net thread
     int holdoff = 1;
 
+#if 0
+    // raise this thread to maximum scheduling priority
+    struct sched_param SchedParam;
+    int retval;
+    SchedParam.sched_priority = sched_get_priority_max(SCHED_FIFO);
+    hashpipe_info(__FUNCTION__, "Setting scheduling priority to %d\n", SchedParam.sched_priority);
+    retval = sched_setscheduler(0, SCHED_FIFO, &SchedParam);
+    if(retval) {
+        perror("sched_setscheduler :");
+    }
+#endif
+
     // Force ourself into the hold off state
     hashpipe_status_lock_safe(&st);
     hputi4(st.buf, "NETHOLD", 1);
@@ -636,20 +639,20 @@ static void *run(hashpipe_thread_args_t * args)
     hgeti4(st.buf, "BINDPORT", &up.bindport);
 
     // Clear per-beam missed packet counters in status buffer
-    char missed_key[9] = "MISSPKBX";
+    char missed_key[9] = "MISSPERX";
     const char missed_beam[7] = {'0', '1', '2', '3', '4', '5', '6'};
     for(int i=0; i < N_BEAMS; i++) {
         missed_key[7] = missed_beam[i];
         //fprintf(stderr, "%s\n", missed_key);
         //hgetu4(st.buf, missed_key, &total_missed_pkts[i]);
-        hputu4(st.buf, missed_key, 0);
+        hputr4(st.buf, missed_key, 0);
     }
 
     // Store bind host/port info etc in status buffer
     hputs(st.buf, "BINDHOST", up.bindhost);
     hputi4(st.buf, "BINDPORT", up.bindport);
-    hputu4(st.buf, "MISSEDBM", 0);
-    hputu4(st.buf, "MISSEDPK", 0);
+    //hputu4(st.buf, "MISSEDBM", 0);
+    //hputu4(st.buf, "MISSEDPK", 0);
     hputs(st.buf, status_key, "running");
     hashpipe_status_unlock_safe(&st);
 
@@ -777,6 +780,7 @@ static void *run(hashpipe_thread_args_t * args)
             ns_per_recv = (float)elapsed_recv_ns / packet_count;
             ns_per_proc = (float)elapsed_proc_ns / packet_count;
 
+#if 1
             hashpipe_status_lock_busywait_safe(&st);
 
             hputu8(st.buf, "NETMCNT", mcnt);
@@ -815,6 +819,7 @@ static void *run(hashpipe_thread_args_t * args)
 
 
             hashpipe_status_unlock_safe(&st);
+#endif
 
 	    // Start new average
 	    elapsed_wait_ns = 0;
