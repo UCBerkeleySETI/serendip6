@@ -119,11 +119,11 @@ do
   fi
 done
 
-# Zero out MISSEDPK counts
+# Zero out MISSPKTL counts
 for instidx in ${instance_i[@]}
 do
-  echo Resetting MISSEDPK counts for s6c$mys6cn/$instidx
-  hashpipe_check_status -I $instidx -k MISSEDPK -s 0
+  echo Resetting MISSPKTL count for s6c$mys6cn/$instidx
+  hashpipe_check_status -I $instidx -k MISSPKTL -s 0
 done
 
 # Release NETHOLD
