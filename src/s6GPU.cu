@@ -38,7 +38,6 @@ device_vectors_t * init_device_vectors(int n_element_max, int n_element_utilized
 
     device_vectors_t * dv_p  = new device_vectors_t;
 
-    dv_p->raw_timeseries_p   = new thrust::device_vector<char2>(n_element_max*n_input);
 #ifdef TRANSPOSE
     dv_p->raw_timeseries_rowmaj_p   = new thrust::device_vector<char2>(n_element_max*n_input);
 #endif
@@ -57,7 +56,6 @@ int init_device(int gpu_dev) {
 
 void delete_device_vectors( device_vectors_t * dv_p) {
 // TODO - is the right way to deallocate thrust vectors?
-    delete(dv_p->raw_timeseries_p);
 #ifdef TRANSPOSE
     delete(dv_p->raw_timeseries_rowmaj_p);
 #endif
@@ -370,6 +368,12 @@ int spectroscopy(int n_subband,
 
     if(use_total_gpu_timer) total_gpu_timer.start();
 
+    // allocate GPU memory for the timeseries, FFTs and power spectra
+    dv_p->fft_data_p         = new thrust::device_vector<float2>(n_element);
+    dv_p->fft_data_out_p     = new thrust::device_vector<float2>(n_element);
+    dv_p->powspec_p          = new thrust::device_vector<float>(n_element);
+    dv_p->raw_timeseries_p   = new thrust::device_vector<char2>(N_COARSE_CHAN * N_FINE_CHAN * N_POLS_PER_BEAM);
+
     // Copy to the device
     if(use_timer) timer.start();
     thrust::copy(h_raw_timeseries, h_raw_timeseries + n_input_data_bytes / sizeof(char2),
@@ -378,11 +382,6 @@ int spectroscopy(int n_subband,
     if(use_timer) timer.stop();
     if(use_timer) cout << "H2D time:\t" << timer.getTime() << endl;
     if(use_timer) timer.reset();
-
-    // allocate GPU memory for the FFTs and power spectra
-    dv_p->fft_data_p         = new thrust::device_vector<float2>(n_element);
-    dv_p->fft_data_out_p     = new thrust::device_vector<float2>(n_element);
-    dv_p->powspec_p          = new thrust::device_vector<float>(n_element);
 
     if(use_timer) timer.start();
     // Unpack from 8-bit to floats
@@ -395,19 +394,19 @@ int spectroscopy(int n_subband,
     if(use_timer) cout << "Unpack time:\t" << timer.getTime() << endl;
     if(use_timer) timer.reset();
     
-    // input pointer varies with input
+    // Input pointer varies with input.
+    // Output pointer is constant - we reuse the output area for each input.
+    // This is not true anymore - we analyze all inputs in one go. These
+    // comments and this way of asigning fft_input_ptr and fft_output_ptr
+    // are left as is in case we need to go back to one-input-at-a-time.
     float2* fft_input_ptr  = thrust::raw_pointer_cast(&((*dv_p->fft_data_p)[0]));
-    // output pointer is constant - we reuse the output area for each input
     float2* fft_output_ptr = thrust::raw_pointer_cast(&((*dv_p->fft_data_out_p)[0]));
-    //fprintf(stderr, "fft_input_ptr = %p  fft_output_ptr = %p\n", fft_input_ptr, fft_output_ptr);
-
-    //fprintf(stderr, "n_chan %d n_element %d maxhits %d smooth_scale %f power_thresh %f\n", 
-    //        n_chan, n_element, maxhits, smooth_scale, power_thresh);
 
     do_fft                      (fft_plan, fft_input_ptr, fft_output_ptr);
     compute_power_spectrum      (dv_p);
 
-    // done with the FFTs - delete the associated GPU memory
+    // done with the timeseries and FFTs - delete the associated GPU memory
+    delete(dv_p->raw_timeseries_p);         
     delete(dv_p->fft_data_p);         
     delete(dv_p->fft_data_out_p);     
     // and allocate GPU memory for power normalization
