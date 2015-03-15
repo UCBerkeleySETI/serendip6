@@ -308,6 +308,16 @@ int write_integration_header(etfits_t * etf, scram_t *scram) {
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "TTSTIME",  &(scram->TTSTIME),   NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "TTTURENC", &(scram->TTTURENC),  NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "TTTURDEG", &(scram->TTTURDEG),  NULL, status_p);
+
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "CLOCKTIM",  &(scram->CLOCKTIM),   NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "CLOCKFRQ",  &(scram->CLOCKFRQ),   NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "CLOCKDBM",  &(scram->CLOCKDBM),   NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "CLOCKLOC",  &(scram->CLOCKLOC),   NULL, status_p); 
+
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "BIRDITIM",  &(scram->BIRDITIM),   NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "BIRDIFRQ",  &(scram->BIRDIFRQ),   NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "BIRDIDBM",  &(scram->BIRDIDBM),   NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "BIRDILOC",  &(scram->BIRDILOC),   NULL, status_p); 
 #if 0
     fits_update_key(etf->fptr, TINT,    "MISSEDPK", &(scram.MISSEDPK),    NULL, status_p);    // missed packets per input per second 
 #endif

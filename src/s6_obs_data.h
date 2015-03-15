@@ -13,6 +13,8 @@
 #define RECEIVER_ALFA    1
 #define RECEIVER_327MHZ  2
 
+#define N_ADCS_PER_ROACH2 8     // should this be N_BEAM_SLOTS/2 ?
+
 typedef struct scram {
     int     PNTSTIME;
     double  PNTRA;   
@@ -48,6 +50,17 @@ typedef struct scram {
     int     rec_327_enabled;
     int     receiver;
     int     coarse_chan_id;     // not from scram
+    int     ADCSTIME;
+    double  FRB1RMS[N_ADCS_PER_ROACH2];
+    double  FRB2RMS[N_ADCS_PER_ROACH2];
+    int     CLOCKTIM;
+    double  CLOCKFRQ;
+    double  CLOCKDBM;
+    int     CLOCKLOC;       
+    int     BIRDITIM;
+    double  BIRDIFRQ;
+    double  BIRDIDBM;
+    int     BIRDILOC;       
 } scram_t;
 
 int get_obs_info_from_redis(scram_t *scram, char *hostname, int port);

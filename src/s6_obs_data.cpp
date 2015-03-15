@@ -172,6 +172,36 @@ int get_obs_info_from_redis(scram_t *scram,
       freeReplyObject(reply);
     }
 
+    // Sample clock rate parameters
+    if (!rv) {
+      reply = (redisReply *)redisCommand(c, "HMGET CLOCKSYN      CLOCKTIM CLOCKFRQ CLOCKDBM CLOCKLOC");
+      if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
+      else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
+      else if (!reply->element[0]->str) { fprintf(stderr,"CLOCKSYN not set yet!\n"); rv = 1; }
+      else {
+          scram->CLOCKTIM = atoi(reply->element[0]->str);
+          scram->CLOCKFRQ = atof(reply->element[1]->str);
+          scram->CLOCKDBM = atof(reply->element[2]->str);
+          scram->CLOCKLOC = atoi(reply->element[3]->str);
+      }
+      freeReplyObject(reply);
+    }
+
+    // Birdie frequency parameters
+    if (!rv) {
+      reply = (redisReply *)redisCommand(c, "HMGET BIRDISYN      BIRDITIM BIRDIFRQ BIRDIDBM BIRDILOC");
+      if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
+      else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
+      else if (!reply->element[0]->str) { fprintf(stderr,"BIRDISYN not set yet!\n"); rv = 1; }
+      else {
+          scram->BIRDITIM = atoi(reply->element[0]->str);
+          scram->BIRDIFRQ = atof(reply->element[1]->str);
+          scram->BIRDIDBM = atof(reply->element[2]->str);
+          scram->BIRDILOC = atoi(reply->element[3]->str);
+      }
+      freeReplyObject(reply);
+    }
+
     redisFree(c);       // TODO do I really want to free each time?
 
     if (!rv) {
