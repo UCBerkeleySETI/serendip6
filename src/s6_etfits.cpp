@@ -309,15 +309,35 @@ int write_integration_header(etfits_t * etf, scram_t *scram) {
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "TTTURENC", &(scram->TTTURENC),  NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "TTTURDEG", &(scram->TTTURDEG),  NULL, status_p);
 
-    if(! *status_p) fits_update_key(etf->fptr, TINT,    "CLOCKTIM",  &(scram->CLOCKTIM),   NULL, status_p); 
-    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "CLOCKFRQ",  &(scram->CLOCKFRQ),   NULL, status_p);
-    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "CLOCKDBM",  &(scram->CLOCKDBM),   NULL, status_p);
-    if(! *status_p) fits_update_key(etf->fptr, TINT,    "CLOCKLOC",  &(scram->CLOCKLOC),   NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "CLOCKTIM",  &(scram->CLOCKTIM), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "CLOCKFRQ",  &(scram->CLOCKFRQ), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "CLOCKDBM",  &(scram->CLOCKDBM), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "CLOCKLOC",  &(scram->CLOCKLOC), NULL, status_p); 
 
-    if(! *status_p) fits_update_key(etf->fptr, TINT,    "BIRDITIM",  &(scram->BIRDITIM),   NULL, status_p); 
-    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "BIRDIFRQ",  &(scram->BIRDIFRQ),   NULL, status_p);
-    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "BIRDIDBM",  &(scram->BIRDIDBM),   NULL, status_p);
-    if(! *status_p) fits_update_key(etf->fptr, TINT,    "BIRDILOC",  &(scram->BIRDILOC),   NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "BIRDITIM",  &(scram->BIRDITIM), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "BIRDIFRQ",  &(scram->BIRDIFRQ), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "BIRDIDBM",  &(scram->BIRDIDBM), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "BIRDILOC",  &(scram->BIRDILOC), NULL, status_p); 
+
+fprintf(stderr, "writing ADC\n");
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "ADCRMSTM",  &(scram->ADCRMSTM),   NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS01",  &(scram->ADC1RMS[0]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS02",  &(scram->ADC1RMS[1]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS03",  &(scram->ADC1RMS[2]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS04",  &(scram->ADC1RMS[3]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS05",  &(scram->ADC1RMS[4]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS06",  &(scram->ADC1RMS[5]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS07",  &(scram->ADC1RMS[6]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS08",  &(scram->ADC1RMS[7]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS09",  &(scram->ADC2RMS[0]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS10",  &(scram->ADC2RMS[1]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS11",  &(scram->ADC2RMS[2]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS12",  &(scram->ADC2RMS[3]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS13",  &(scram->ADC2RMS[4]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS14",  &(scram->ADC2RMS[5]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS15",  &(scram->ADC2RMS[6]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS16",  &(scram->ADC2RMS[7]), NULL, status_p);
+fprintf(stderr, "wrote ADC status is %d\n", *status_p);
 #if 0
     fits_update_key(etf->fptr, TINT,    "MISSEDPK", &(scram.MISSEDPK),    NULL, status_p);    // missed packets per input per second 
 #endif

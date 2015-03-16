@@ -121,7 +121,7 @@ TTTURENC=                    *  / TurretEncoder               (TINT)
 TTTURDEG=                    *  / TurretDegrees          (TDOUBLE)
 ### Sample clock synth fields ###
 CLOCKTIM=                    *  / unix time of this clock data (TINT)  
-CLOCKFRQ=                    *  / clock frequency (TDOUBLE)
+CLOCKFRQ=                    *  / clock frequency - the sample rate of the instrument (TDOUBLE)
 CLOCKDBM=                    *  / clock power level in dBm (TDOUBLE)
 CLOCKLOC=                    *  / 1 = synth is locked, 0 = synth is not locked (TINT)
 ### Birdie frequency synth fields ###
@@ -129,6 +129,24 @@ BIRDITIM=                    *  / unix time of this birdie data (TINT)
 BIRDIFRQ=                    *  / birdie frequency (TDOUBLE)
 BIRDIDBM=                    *  / birdie power level in dBm (TDOUBLE)
 BIRDILOC=                    *  / 1 = synth is locked, 0 = synth is not locked (TINT)
+### ADC RMS Values ###
+ADCRMSTM=                    *  / unix time of this ADC data (TINT)  
+ADCRMS01=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS02=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS03=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS04=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS05=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS06=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS07=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS08=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS09=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS10=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS11=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS12=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS13=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS14=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS15=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS16=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
 #
 END
 ##################################################################

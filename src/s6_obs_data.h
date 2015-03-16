@@ -49,10 +49,11 @@ typedef struct scram {
     int     rec_alfa_enabled;
     int     rec_327_enabled;
     int     receiver;
-    int     coarse_chan_id;     // not from scram
-    int     ADCSTIME;
-    double  FRB1RMS[N_ADCS_PER_ROACH2];
-    double  FRB2RMS[N_ADCS_PER_ROACH2];
+    // the fields below are not from scram
+    int     coarse_chan_id;     
+    int     ADCRMSTM;
+    double  ADC1RMS[N_ADCS_PER_ROACH2];
+    double  ADC2RMS[N_ADCS_PER_ROACH2];
     int     CLOCKTIM;
     double  CLOCKFRQ;
     double  CLOCKDBM;

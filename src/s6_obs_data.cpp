@@ -202,6 +202,43 @@ int get_obs_info_from_redis(scram_t *scram,
       freeReplyObject(reply);
     }
 
+    // ADC RMS values (we get the time from the first set only) 
+    if (!rv) {
+      reply = (redisReply *)redisCommand(c, "HMGET ADC1RMS      ADCRMSTM ADCRMS1 ADCRMS2 ADCRMS3 ADCRMS4 ADCRMS5 ADCRMS6 ADCRMS7 ADCRMS8");
+      if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
+      else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
+      else if (!reply->element[0]->str) { fprintf(stderr,"ADC1RMS not set yet!\n"); rv = 1; }
+      else {
+          scram->ADCRMSTM   = atof(reply->element[0]->str);
+          scram->ADC1RMS[0] = atof(reply->element[1]->str);
+          scram->ADC1RMS[1] = atof(reply->element[2]->str);
+          scram->ADC1RMS[2] = atof(reply->element[3]->str);
+          scram->ADC1RMS[3] = atof(reply->element[4]->str);
+          scram->ADC1RMS[4] = atof(reply->element[5]->str);
+          scram->ADC1RMS[5] = atof(reply->element[6]->str);
+          scram->ADC1RMS[6] = atof(reply->element[7]->str);
+          scram->ADC1RMS[7] = atof(reply->element[8]->str);
+      }
+      freeReplyObject(reply);
+    }
+    if (!rv) {
+      reply = (redisReply *)redisCommand(c, "HMGET ADC2RMS      ADCRMS1 ADCRMS2 ADCRMS3 ADCRMS4 ADCRMS5 ADCRMS6 ADCRMS7 ADCRMS8");
+      if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
+      else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
+      else if (!reply->element[0]->str) { fprintf(stderr,"ADC2RMS not set yet!\n"); rv = 1; }
+      else {
+          scram->ADC2RMS[0] = atof(reply->element[0]->str);
+          scram->ADC2RMS[1] = atof(reply->element[1]->str);
+          scram->ADC2RMS[2] = atof(reply->element[2]->str);
+          scram->ADC2RMS[3] = atof(reply->element[3]->str);
+          scram->ADC2RMS[4] = atof(reply->element[4]->str);
+          scram->ADC2RMS[5] = atof(reply->element[5]->str);
+          scram->ADC2RMS[6] = atof(reply->element[6]->str);
+          scram->ADC2RMS[7] = atof(reply->element[7]->str);
+      }
+      freeReplyObject(reply);
+    }
+
     redisFree(c);       // TODO do I really want to free each time?
 
     if (!rv) {
