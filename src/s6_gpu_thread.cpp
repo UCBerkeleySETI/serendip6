@@ -16,6 +16,8 @@
 #include <cuda.h>
 #include <cufft.h>
 
+#include <sched.h>
+
 #include <s6GPU.h>
 #include "hashpipe.h"
 #include "s6_databuf.h"
@@ -88,6 +90,18 @@ static void *run(hashpipe_thread_args_t * args)
     struct timespec start, stop;
     uint64_t elapsed_gpu_ns  = 0;
     uint64_t gpu_block_count = 0;
+
+#if 0
+    // raise this thread to maximum scheduling priority
+    struct sched_param SchedParam;
+    int retval;
+    SchedParam.sched_priority = sched_get_priority_max(SCHED_FIFO);
+    fprintf(stderr, "Setting scheduling priority to %d\n", SchedParam.sched_priority);
+    retval = sched_setscheduler(0, SCHED_FIFO, &SchedParam);
+    if(retval) {
+        perror("sched_setscheduler :");
+    }
+#endif
 
     // init s6GPU
     int gpu_dev=0;          // default to 0
