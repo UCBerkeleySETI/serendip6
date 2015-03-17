@@ -8,7 +8,8 @@
 //#include "s6GPU.h"
 
 #define PAGE_SIZE               (4096)
-#define CACHE_ALIGNMENT         (128)
+//#define CACHE_ALIGNMENT         (128)
+#define CACHE_ALIGNMENT         (256)
 // TODO
 // SMOOTH_SCALE, POWER_THRESH, MAXHITS, and MAXGPUHITS should be input parms
 // N_FINE_CHAN and N_COARSE_CHAN - should they be input parms?
