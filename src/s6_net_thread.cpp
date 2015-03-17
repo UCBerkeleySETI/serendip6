@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <errno.h>
 
+#include <fcntl.h>
 #include <sched.h>
 
 #include <smmintrin.h>
@@ -64,6 +65,12 @@ typedef struct {
     int f;
     int block_packet_counter[N_INPUT_BLOCKS];
 } block_info_t;
+
+struct timespec status_start, status_stop;
+uint64_t status_update_ns=0, min_status_update_ns=999999, max_status_update_ns=0;
+
+#define ELAPSED_NS(start,stop) \
+  (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
 
 static hashpipe_status_t *st_p;
 
@@ -265,6 +272,7 @@ static uint64_t set_block_filled(s6_input_databuf_t *s6_input_databuf_p, block_i
     for(int i=0; i < N_BEAMS; i++) {
         beam_missed_percent[i] = (float)total_missed_pkts[i]/(N_PACKETS_PER_BLOCK/7)*100;
     }
+	clock_gettime(CLOCK_MONOTONIC, &status_start);
     hashpipe_status_lock_busywait_safe(st_p);
     hputu4(st_p->buf, "NETBKOUT", block_i);
 	hputu4(st_p->buf, "MISSPKTL", missed_pkt_cnt);
@@ -278,6 +286,8 @@ static uint64_t set_block_filled(s6_input_databuf_t *s6_input_databuf_p, block_i
     hputi4(st_p->buf, "SCHAN", (uint32_t)binfo->pchan);
     hputi4(st_p->buf, "NCHAN", (uint32_t)binfo->nchan);
     hashpipe_status_unlock_safe(st_p);
+	clock_gettime(CLOCK_MONOTONIC, &status_stop);
+	status_update_ns += ELAPSED_NS(status_start, status_stop);
 
     return binfo->mcnt_start;
 }
@@ -368,6 +378,45 @@ static inline void initialize_block_info(block_info_t * binfo)
 
     binfo->out_of_seq_cnt = 0;
     binfo->initialized = 1;
+}
+
+int s6_memcpy_benchmark(s6_input_databuf_t *s6_input_databuf_p, struct hashpipe_udp_packet *p) 
+{
+#define NUM_BENCHMARKS 10
+    int             i, sid, pkt_mcnt, pkt_block_i;
+    uint64_t        pkt_count=0, bench_ns;
+    uint64_t        *dest_p;
+    const uint64_t  *payload_p;
+    uint64_t        packet_ns, min_packet_ns=999999, max_packet_ns=0;
+    struct timespec bench_start, bench_stop, packet_start, packet_stop;
+
+    p->packet_size = N_COARSE_CHAN * 2 * 2 + 16;
+
+    for(i=0; i<NUM_BENCHMARKS; i++) {
+        for(pkt_block_i=0; pkt_block_i<N_INPUT_BLOCKS; pkt_block_i++) {
+            pkt_count=0;
+            min_packet_ns=999999, max_packet_ns=0;
+	        clock_gettime(CLOCK_MONOTONIC, &bench_start);
+            for(sid=0; sid<N_BEAMS; sid++) {
+                for(pkt_mcnt=0; pkt_mcnt<N_FINE_CHAN; pkt_mcnt++) {
+                    dest_p      = s6_input_databuf_p->block[pkt_block_i].data + (sid*Nm + (pkt_mcnt%Nm)) * 
+                                  N_COARSE_CHAN * N_BYTES_PER_CHAN / sizeof(uint64_t);
+                    payload_p   = (uint64_t *)(p->data+8+8);
+	                clock_gettime(CLOCK_MONOTONIC, &packet_start);
+                    s6_memcpy(dest_p, payload_p, p->packet_size - 8 - 8);
+	                clock_gettime(CLOCK_MONOTONIC, &packet_stop);
+                    packet_ns = ELAPSED_NS(packet_start, packet_stop);
+                    min_packet_ns = MIN(min_packet_ns, packet_ns);
+                    max_packet_ns = MAX(min_packet_ns, packet_ns);
+                    pkt_count++;
+                } // end for each packet
+            } // end for each sid (beam)   
+	        clock_gettime(CLOCK_MONOTONIC, &bench_stop);
+            bench_ns = ELAPSED_NS(bench_start, bench_stop);
+            hashpipe_info(__FUNCTION__, "Wrote %lu packets to block %d in %lf seconds.  Per packet min: %lu ns  max: %lu ns.", 
+                        pkt_count, pkt_block_i, (float)bench_ns/(1000*1000*1000), min_packet_ns, max_packet_ns);
+        } // end for each block
+    } // end for each benchmark
 }
 
 // This function returns -1 unless the given packet causes a block to be marked
@@ -569,9 +618,6 @@ static inline uint64_t process_packet(s6_input_databuf_t *s6_input_databuf_p, st
     return netmcnt;
 }
 
-#define ELAPSED_NS(start,stop) \
-  (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
-
 static void *run(hashpipe_thread_args_t * args)
 {
     // Local aliases to shorten access to args fields
@@ -670,6 +716,11 @@ static void *run(hashpipe_thread_args_t * args)
         pthread_exit(NULL);
     }
     pthread_cleanup_push((void (*)(void *))hashpipe_udp_close, &up);
+#if 0
+    // try blocking recv()
+    int saved_flags = fcntl(up.sock, F_GETFL);
+    fcntl(up.sock, F_SETFL, saved_flags & ~O_NONBLOCK);
+#endif  // try blocking recv()
 #endif
 
     // Acquire first two blocks to start
@@ -697,6 +748,9 @@ static void *run(hashpipe_thread_args_t * args)
     // Initialize the newly acquired block
     initialize_block(db,  0, 0, 0);
     initialize_block(db, Nm, 0, 0);
+
+    // Perform a quick input buffer writing benchmark before going into the main loop
+    s6_memcpy_benchmark((s6_input_databuf_t *)db, &p);
 
     /* Main loop */
     uint64_t packet_count = 0;
@@ -781,6 +835,11 @@ static void *run(hashpipe_thread_args_t * args)
             ns_per_proc = (float)elapsed_proc_ns / packet_count;
 
 #if 1
+	        min_status_update_ns = MIN(status_update_ns, min_status_update_ns);
+	        max_status_update_ns = MAX(status_update_ns, max_status_update_ns);
+            status_update_ns = 0;
+
+	        clock_gettime(CLOCK_MONOTONIC, &status_start);
             hashpipe_status_lock_busywait_safe(&st);
 
             hputu8(st.buf, "NETMCNT", mcnt);
@@ -817,8 +876,18 @@ static void *run(hashpipe_thread_args_t * args)
 	    status_ns = MAX(max_proc_ns, status_ns);
             hputi8(st.buf, "NETPRCMX", status_ns);
 
+            hgeti8(st.buf, "NETSTAMN", (long long *)&status_ns);
+	        status_ns = MIN(min_status_update_ns, status_ns);
+            hputi8(st.buf, "NETSTAMN", status_ns);
+
+            hgeti8(st.buf, "NETSTAMX", (long long *)&status_ns);
+	        status_ns = MAX(max_status_update_ns, status_ns);
+            hputi8(st.buf, "NETSTAMX", status_ns);
+
 
             hashpipe_status_unlock_safe(&st);
+	        clock_gettime(CLOCK_MONOTONIC, &status_stop);
+	        status_update_ns += ELAPSED_NS(status_start, status_stop);
 #endif
 
 	    // Start new average
