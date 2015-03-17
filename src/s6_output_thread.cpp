@@ -13,6 +13,8 @@
 #include <cufft.h>
 #include <s6GPU.h>
 
+#include <sched.h>
+
 #include "hashpipe.h"
 #include "s6_databuf.h"
 #include "s6_obs_data.h"
@@ -52,6 +54,25 @@ static void *run(hashpipe_thread_args_t * args)
 
     extern const char *receiver[];
 
+    char hostname[200];
+
+#if 0
+    // raise this thread to maximum scheduling priority
+    struct sched_param SchedParam;
+    int retval;
+    SchedParam.sched_priority = sched_get_priority_max(SCHED_FIFO);
+    fprintf(stderr, "Setting scheduling priority to %d\n", SchedParam.sched_priority);
+    retval = sched_setscheduler(0, SCHED_FIFO, &SchedParam);
+    if(retval) {
+        perror("sched_setscheduler :");
+    }
+#endif
+
+    // Initialization for etfits file output.
+    hashpipe_status_lock_safe(&st);
+    hgets(st.buf, "BINDHOST", 80, hostname);
+    hashpipe_status_unlock_safe(&st);
+    strcpy(etf.hostname, strtok(hostname, "."));    // just use the host portion
     int file_num_start = -1;
     if(file_num_start == -1) file_num_start = 0;
     init_etfits(&etf, file_num_start+1);
@@ -124,12 +145,12 @@ rv=0;
         hashpipe_status_unlock_safe(&st);
 
         // test for and handle file change events
-        uint32_t total_missed_pkts[N_BEAM_SLOTS];
         if(scram.receiver  != prior_receiver    ||
             run_always      != prior_run_always  ||
             num_coarse_chan != db->block[block_idx].header.num_coarse_chan)  {
 
 #if 0
+            uint32_t total_missed_pkts[N_BEAM_SLOTS];
             char missed_key[9] = "MISSPKBX";
             const char missed_beam[7] = {'0', '1', '2', '3', '4', '5', '6'};
             for(int i=0; i < N_BEAMS; i++) {
@@ -137,12 +158,11 @@ rv=0;
                 hgetu4(st.buf, missed_key, &total_missed_pkts[i]);
                 hputu4(st.buf, missed_key, 0);
             }
-#endif
 
             hashpipe_info(__FUNCTION__, "Missed packet totals : beam0 %lu beam1 %lu beam2 %lu beam3 %lu beam4 %lu beam5 %lu beam6 %lu \n",
                          total_missed_pkts[0], total_missed_pkts[1], total_missed_pkts[2], total_missed_pkts[3], 
                          total_missed_pkts[4], total_missed_pkts[5], total_missed_pkts[6]);
-
+#endif
 
             hashpipe_info(__FUNCTION__, "Initializing output for %ld coarse channels, using receiver %s\n",
                           num_coarse_chan, receiver[scram.receiver]);

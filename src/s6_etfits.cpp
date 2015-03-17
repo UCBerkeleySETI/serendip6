@@ -175,8 +175,8 @@ int etfits_create(etfits_t * etf) {
             etf->file_chan,
             1900+tm_now.tm_year, 1+tm_now.tm_mon, tm_now.tm_mday, 
             tm_now.tm_hour, tm_now.tm_min, tm_now.tm_sec); 
-    sprintf(etf->filename_working, "%s_%s.working", etf->basefilename, file_name_str);  
-    sprintf(etf->filename_fits,    "%s_%s.fits",    etf->basefilename, file_name_str);  
+    sprintf(etf->filename_working, "%s_%s_%s.working", etf->basefilename, etf->hostname, file_name_str);  
+    sprintf(etf->filename_fits,    "%s_%s_%s.fits",    etf->basefilename, etf->hostname, file_name_str);  
 
     // Create basic FITS file from our template
     char template_file[1024];

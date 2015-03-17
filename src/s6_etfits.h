@@ -44,6 +44,7 @@ typedef struct etfits_hits {
 } etfits_hits_t;
     
 typedef struct etfits {
+    char hostname[200];         // The hostname becomes part of the filename
     char basefilename[200];     // The base filename from which to build the true filename
     char filename_working[200]; // Filename of the current ETFITs file
     char filename_fits[200];    // We rename to mark the file as ready for post-processing or transfer
