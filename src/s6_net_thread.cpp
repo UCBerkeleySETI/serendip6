@@ -226,7 +226,8 @@ static uint64_t set_block_filled(s6_input_databuf_t *s6_input_databuf_p, block_i
     static uint32_t missed_pkt_cnt=0;
 
     uint32_t block_missed_pkt_cnt=N_PACKETS_PER_BLOCK;
-    float    block_missed_percent;
+    float    block_missed_percent=0;
+    float    beam_missed_percent[7];
 
     uint32_t block_i = block_for_mcnt(binfo->mcnt_start);
 
@@ -264,13 +265,13 @@ static uint64_t set_block_filled(s6_input_databuf_t *s6_input_databuf_p, block_i
     // Old logic : any missed packets beyond an integer multiple of Nm will be considered
     // as dropped packets.
     // New logic : count all missed packets as dropped.
-    block_missed_percent = ((float)block_missed_pkt_cnt / N_PACKETS_PER_BLOCK) * 100;  
+    //block_missed_percent = ((float)block_missed_pkt_cnt / N_PACKETS_PER_BLOCK) * 100;  
 	missed_pkt_cnt      += block_missed_pkt_cnt;     //  running total
 
     // Update status buffer
-    float beam_missed_percent[7];
     for(int i=0; i < N_BEAMS; i++) {
         beam_missed_percent[i] = (float)total_missed_pkts[i]/(N_PACKETS_PER_BLOCK/7)*100;
+        block_missed_percent  += beam_missed_percent[i]/7;
     }
 	clock_gettime(CLOCK_MONOTONIC, &status_start);
     hashpipe_status_lock_busywait_safe(st_p);
@@ -390,14 +391,14 @@ int s6_memcpy_benchmark(s6_input_databuf_t *s6_input_databuf_p, struct hashpipe_
     uint64_t        packet_ns, min_packet_ns=999999, max_packet_ns=0;
     struct timespec bench_start, bench_stop, packet_start, packet_stop;
 
-    p->packet_size = N_COARSE_CHAN * 2 * 2 + 16;
+    p->packet_size = N_COARSE_CHAN * 2 * 2 + 16;    // use maximum packet size
 
-    for(i=0; i<NUM_BENCHMARKS; i++) {
-        for(pkt_block_i=0; pkt_block_i<N_INPUT_BLOCKS; pkt_block_i++) {
+    for(i=0; i<NUM_BENCHMARKS; i++) {                                   // for each benchmark
+        for(pkt_block_i=0; pkt_block_i<N_INPUT_BLOCKS; pkt_block_i++) { // for each block
             pkt_count=0;
             min_packet_ns=999999, max_packet_ns=0;
 	        clock_gettime(CLOCK_MONOTONIC, &bench_start);
-            for(sid=0; sid<N_BEAMS; sid++) {
+            for(sid=0; sid<N_BEAMS; sid++) {                            // for each beam
                 for(pkt_mcnt=0; pkt_mcnt<N_FINE_CHAN; pkt_mcnt++) {
                     dest_p      = s6_input_databuf_p->block[pkt_block_i].data + (sid*Nm + (pkt_mcnt%Nm)) * 
                                   N_COARSE_CHAN * N_BYTES_PER_CHAN / sizeof(uint64_t);
@@ -779,7 +780,7 @@ static void *run(hashpipe_thread_args_t * args)
         /* Read packet */
 	clock_gettime(CLOCK_MONOTONIC, &recv_start);
 	do {
-	    clock_gettime(CLOCK_MONOTONIC, &start);
+	    clock_gettime(CLOCK_MONOTONIC, &start);         // this will keep its value upon receiving a good packet   
 	    //p.packet_size = recv(up.sock, p.data, HASHPIPE_MAX_PACKET_SIZE, 0);
         // Here we prep for SSE non-temporal memory copy.  p.data is 128 bit 
         // aligned.  Here we receive the packet 8 bytes in so the packet data 
@@ -787,107 +788,118 @@ static void *run(hashpipe_thread_args_t * args)
         // the first 8 bytes are header, so now the payload data that will be 
         // passed to the SSE code will be the required 128 bit aligned.
 	    p.packet_size = recv(up.sock, p.data+8, HASHPIPE_MAX_PACKET_SIZE-8, 0);
-	    clock_gettime(CLOCK_MONOTONIC, &recv_stop);
+	    clock_gettime(CLOCK_MONOTONIC, &recv_stop);     // this will keep its value upon receiving a good packet
 	} while (p.packet_size == -1 && (errno == EAGAIN || errno == EWOULDBLOCK) && run_threads());
+
 	if(!run_threads()) break;
+
 	// Handle variable packet size!
-        if (p.packet_size < 16 || up.packet_size < p.packet_size || p.packet_size % 8 != 0) {
+    if (p.packet_size < 16 || up.packet_size < p.packet_size || p.packet_size % 8 != 0) {
 	    // If an error was returned instead of a valid packet size
-            if (p.packet_size == -1) {
-		// Log error and exit
-                hashpipe_error("s6_net_thread",
+        if (p.packet_size == -1) {
+		    // Log error and exit
+            hashpipe_error("s6_net_thread",
                         "hashpipe_udp_recv returned error");
-                perror("hashpipe_udp_recv");
-                pthread_exit(NULL);
-            } else {
-		// Log warning and ignore wrongly sized packet
-                #ifdef DEBUG_NET
-                hashpipe_warn("s6_net_thread", "Invalid pkt size (%d)", p.packet_size);
-                #endif
-                continue;
-            }
-	}
+            perror("hashpipe_udp_recv");
+            pthread_exit(NULL);
+        } else {
+		    // Log warning and ignore wrongly sized packet
+            #ifdef DEBUG_NET
+            hashpipe_warn("s6_net_thread", "Invalid pkt size (%d)", p.packet_size);
+            #endif
+            continue;
+        }
+	} // end Handle variable packet size
 #endif
 	packet_count++;
 
-        // Copy packet into any blocks where it belongs.
-        const uint64_t mcnt = process_packet((s6_input_databuf_t *)db, &p);
+    // Copy packet into any blocks where it belongs.
+    const uint64_t mcnt = process_packet((s6_input_databuf_t *)db, &p);
 
 	clock_gettime(CLOCK_MONOTONIC, &stop);
-	wait_ns = ELAPSED_NS(recv_start, start);
-	recv_ns = ELAPSED_NS(start, recv_stop);
-	proc_ns = ELAPSED_NS(recv_stop, stop);
-	elapsed_wait_ns += wait_ns;
-	elapsed_recv_ns += recv_ns;
-	elapsed_proc_ns += proc_ns;
-	// Update min max values
-	min_wait_ns = MIN(wait_ns, min_wait_ns);
+
+    // update per packet statistics
+	wait_ns = ELAPSED_NS(recv_start, start);    // ns spent waiting for this packet
+	recv_ns = ELAPSED_NS(start, recv_stop);     // ns spent in recv() for this packet
+	proc_ns = ELAPSED_NS(recv_stop, stop);      // ns spent processing this packet
+	min_wait_ns = MIN(wait_ns, min_wait_ns);   
 	min_recv_ns = MIN(recv_ns, min_recv_ns);
 	min_proc_ns = MIN(proc_ns, min_proc_ns);
 	max_wait_ns = MAX(wait_ns, max_wait_ns);
 	max_recv_ns = MAX(recv_ns, max_recv_ns);
 	max_proc_ns = MAX(proc_ns, max_proc_ns);
 
-        if(mcnt != -1) {
-            // Update status
-            ns_per_wait = (float)elapsed_wait_ns / packet_count;
-            ns_per_recv = (float)elapsed_recv_ns / packet_count;
-            ns_per_proc = (float)elapsed_proc_ns / packet_count;
+    // keep running per block statistics
+	elapsed_wait_ns += wait_ns;                
+	elapsed_recv_ns += recv_ns;
+	elapsed_proc_ns += proc_ns;
+
+    if(mcnt != -1) {    
+        // we have finished a block - update per block statistics and status
+
+        ns_per_wait = (float)elapsed_wait_ns / packet_count;    
+        ns_per_recv = (float)elapsed_recv_ns / packet_count;
+        ns_per_proc = (float)elapsed_proc_ns / packet_count;
 
 #if 1
-	        min_status_update_ns = MIN(status_update_ns, min_status_update_ns);
-	        max_status_update_ns = MAX(status_update_ns, max_status_update_ns);
-            status_update_ns = 0;
+        min_status_update_ns = MIN(status_update_ns, min_status_update_ns);
+        max_status_update_ns = MAX(status_update_ns, max_status_update_ns);
+        status_update_ns = 0;
 
-	        clock_gettime(CLOCK_MONOTONIC, &status_start);
-            hashpipe_status_lock_busywait_safe(&st);
+	    clock_gettime(CLOCK_MONOTONIC, &status_start);
+        hashpipe_status_lock_busywait_safe(&st);
 
-            hputu8(st.buf, "NETMCNT", mcnt);
+        hputu8(st.buf, "NETMCNT", mcnt);
 	    // Gbps = bits_per_packet / ns_per_packet
 	    // (N_BYTES_PER_PACKET excludes header, so +8 for the header)
-            hputr4(st.buf, "NETGBPS", 8*(p.packet_size)/(ns_per_recv+ns_per_proc));
-            hputr4(st.buf, "NETWATNS", ns_per_wait);
-            hputr4(st.buf, "NETRECNS", ns_per_recv);
-            hputr4(st.buf, "NETPRCNS", ns_per_proc);
+        hputr4(st.buf, "NETGBPS", 8*(p.packet_size)/(ns_per_recv+ns_per_proc));
 
+        // All of the timing numbers, below, are *per packet*.
+
+        // Average times.
+        hputr4(st.buf, "NETWATNS", ns_per_wait);    
+        hputr4(st.buf, "NETRECNS", ns_per_recv);
+        hputr4(st.buf, "NETPRCNS", ns_per_proc);
+
+        // Min and max times.
 	    // Get and put min and max values.  The "get-then-put" allows the
 	    // user to reset the min max values in the status buffer.
-	    hgeti8(st.buf, "NETWATMN", (long long *)&status_ns);
+	    hgeti8(st.buf, "NETWATMN", (long long *)&status_ns);   
 	    status_ns = MIN(min_wait_ns, status_ns);
-            hputi8(st.buf, "NETWATMN", status_ns);
+        hputi8(st.buf, "NETWATMN", status_ns);
 
-            hgeti8(st.buf, "NETRECMN", (long long *)&status_ns);
+        hgeti8(st.buf, "NETRECMN", (long long *)&status_ns);
 	    status_ns = MIN(min_recv_ns, status_ns);
-            hputi8(st.buf, "NETRECMN", status_ns);
+        hputi8(st.buf, "NETRECMN", status_ns);
 
-            hgeti8(st.buf, "NETPRCMN", (long long *)&status_ns);
+        hgeti8(st.buf, "NETPRCMN", (long long *)&status_ns);
 	    status_ns = MIN(min_proc_ns, status_ns);
-            hputi8(st.buf, "NETPRCMN", status_ns);
+        hputi8(st.buf, "NETPRCMN", status_ns);
 
-            hgeti8(st.buf, "NETWATMX", (long long *)&status_ns);
+        hgeti8(st.buf, "NETWATMX", (long long *)&status_ns);
 	    status_ns = MAX(max_wait_ns, status_ns);
-            hputi8(st.buf, "NETWATMX", status_ns);
+        hputi8(st.buf, "NETWATMX", status_ns);
 
-            hgeti8(st.buf, "NETRECMX", (long long *)&status_ns);
+        hgeti8(st.buf, "NETRECMX", (long long *)&status_ns);
 	    status_ns = MAX(max_recv_ns, status_ns);
-            hputi8(st.buf, "NETRECMX", status_ns);
+        hputi8(st.buf, "NETRECMX", status_ns);
 
-            hgeti8(st.buf, "NETPRCMX", (long long *)&status_ns);
+        hgeti8(st.buf, "NETPRCMX", (long long *)&status_ns);
 	    status_ns = MAX(max_proc_ns, status_ns);
-            hputi8(st.buf, "NETPRCMX", status_ns);
+        hputi8(st.buf, "NETPRCMX", status_ns);
 
-            hgeti8(st.buf, "NETSTAMN", (long long *)&status_ns);
-	        status_ns = MIN(min_status_update_ns, status_ns);
-            hputi8(st.buf, "NETSTAMN", status_ns);
+        hgeti8(st.buf, "NETSTAMN", (long long *)&status_ns);
+	    status_ns = MIN(min_status_update_ns, status_ns);
+        hputi8(st.buf, "NETSTAMN", status_ns);
 
-            hgeti8(st.buf, "NETSTAMX", (long long *)&status_ns);
-	        status_ns = MAX(max_status_update_ns, status_ns);
-            hputi8(st.buf, "NETSTAMX", status_ns);
+        hgeti8(st.buf, "NETSTAMX", (long long *)&status_ns);
+	    status_ns = MAX(max_status_update_ns, status_ns);
+        hputi8(st.buf, "NETSTAMX", status_ns);
 
 
-            hashpipe_status_unlock_safe(&st);
-	        clock_gettime(CLOCK_MONOTONIC, &status_stop);
-	        status_update_ns += ELAPSED_NS(status_start, status_stop);
+        hashpipe_status_unlock_safe(&st);
+	    clock_gettime(CLOCK_MONOTONIC, &status_stop);
+	    status_update_ns += ELAPSED_NS(status_start, status_stop);
 #endif
 
 	    // Start new average
@@ -895,7 +907,7 @@ static void *run(hashpipe_thread_args_t * args)
 	    elapsed_recv_ns = 0;
 	    elapsed_proc_ns = 0;
 	    packet_count = 0;
-        }
+    }  // end if(mcnt != -1)
 
 #if defined TIMING_TEST || defined NET_TIMING_TEST
 
@@ -918,7 +930,7 @@ static void *run(hashpipe_thread_args_t * args)
 
         /* Will exit if thread has been cancelled */
         pthread_testcancel();
-    }
+    }  // end  while (run_threads()), ie the main loop   
 
 #ifndef TIMING_TEST
     /* Have to close all push's */
