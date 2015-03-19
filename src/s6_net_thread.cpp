@@ -76,6 +76,28 @@ static hashpipe_status_t *st_p;
 
 static uint32_t total_missed_pkts[N_BEAM_SLOTS];
 
+static inline int logger(uint64_t x, uint64_t y, uint64_t z) {
+// Keep an in-memory log that gets written out every so often.
+// This is currently used to keep track of packet wait, recv,
+// and process times.
+    char log[1024*1024];
+    static char * log_p = log;
+    static int num_lines;
+    int retval = 0;
+
+    sprintf(log_p, "%d %lu %lu %lu %lu\n", num_lines, x, y, z, x+y+z);
+    log_p += strlen(log_p);
+    num_lines++;
+
+    if(num_lines >= 5000) {
+	    hashpipe_info(__FUNCTION__, "%s\n", log);
+        log_p = log;
+        num_lines = 0;
+        retval = 1;
+    }
+    return retval;
+}
+    
 static void print_pkt_header(packet_header_t * pkt_header) {
 
     static long long prior_mcnt;
@@ -833,6 +855,12 @@ static void *run(hashpipe_thread_args_t * args)
 	elapsed_wait_ns += wait_ns;                
 	elapsed_recv_ns += recv_ns;
 	elapsed_proc_ns += proc_ns;
+
+#if 0
+    if(logger(wait_ns, recv_ns, proc_ns)) {
+	    pthread_exit(NULL);
+    }       
+#endif
 
     if(mcnt != -1) {    
         // we have finished a block - update per block statistics and status
