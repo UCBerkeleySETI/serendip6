@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <math.h>
 #include <vector>
@@ -22,6 +23,7 @@ int init_etfits(etfits_t *etf, int start_file_num) {
     etf->file_cnt              = 0;
     etf->new_run               = 1;
     etf->new_file              = 1;
+    etf->file_open             = 0;
     etf->multifile             = 1;
     etf->integrations_per_file = 3;    // TODO place holder - should come from status shmem
     etf->integration_cnt       = 0;    
@@ -41,7 +43,7 @@ int check_for_file_roll(etfits_t *etf) {
     int * status_p = &(etf->status);
     struct stat st;
     fits_flush_file(etf->fptr, status_p);   // flush to get true size
-    if(stat(etf->filename, &st) == -1) { 
+    if(stat(etf->filename_working, &st) == -1) { 
         hashpipe_error(__FUNCTION__, "Error getting etfits file size");
     } else {
         //fprintf(stderr, "size of %s is %ld\n", etf->filename, st.st_size);
@@ -73,16 +75,11 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
     if (etf->new_run || etf->new_file) {
         etf->new_file = 0;
         if (!etf->new_run) {
-            etfits_close(etf);
+            if(etf->file_open) {
+                etfits_close(etf);
+            }
             etf->integration_cnt = 0;
         }
-        etfits_create(etf);
-        if(*status_p) {
-            hashpipe_error(__FUNCTION__, "Error creating/initializing new etfits file");
-            //fprintf(stderr, "Error creating/initializing new etfits file.\n");
-            fits_report_error(stderr, *status_p);
-            exit(1);
-        }    
         // TODO update code versions
         etf->primary_hdr.n_subband = db->block[block_idx].header.num_coarse_chan;
         etf->primary_hdr.n_chan    = N_FINE_CHAN;
@@ -92,6 +89,13 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
         //etf->primary_hdr.bandwidth = ;
         //etf->primary_hdr.chan_bandwidth = ;
         //etf->primary_hdr.freq_res = ;
+        etfits_create(etf);
+        if(*status_p) {
+            hashpipe_error(__FUNCTION__, "Error creating/initializing new etfits file");
+            //fprintf(stderr, "Error creating/initializing new etfits file.\n");
+            fits_report_error(stderr, *status_p);
+            exit(1);
+        }    
         write_primary_header(etf);
         etf->file_cnt++;
     }
@@ -166,23 +170,27 @@ int etfits_create(etfits_t * etf) {
     // Form file name 
     time(&time_now);
     localtime_r(&time_now, &tm_now);
-    sprintf(file_name_str, "%04d_%04d%02d%02d_%02d%02d%02d", 
+    sprintf(file_name_str, "%s_%04d_%04d%02d%02d_%02d%02d%02d", 
+            etf->primary_hdr.receiver,
             etf->file_chan,
             1900+tm_now.tm_year, 1+tm_now.tm_mon, tm_now.tm_mday, 
             tm_now.tm_hour, tm_now.tm_min, tm_now.tm_sec); 
-    sprintf(etf->filename, "%s_%s.fits", etf->basefilename, file_name_str);  
+    sprintf(etf->filename_working, "%s_%s_%s.working", etf->basefilename, etf->hostname, file_name_str);  
+    sprintf(etf->filename_fits,    "%s_%s_%s.fits",    etf->basefilename, etf->hostname, file_name_str);  
 
     // Create basic FITS file from our template
     char template_file[1024];
     //printf("Opening file '%s'\n", etf->filename);
     sprintf(template_file, "%s/%s", etf->s6_dir, ETFITS_TEMPLATE);
-    if(! *status_p) fits_create_template(&(etf->fptr), etf->filename, template_file, status_p);
+    if(! *status_p) fits_create_template(&(etf->fptr), etf->filename_working, template_file, status_p);
 
     // Check to see if file was successfully created
     if (*status_p) {
         hashpipe_error(__FUNCTION__, "Error creating sdfits file from template");
         //fprintf(stderr, "Error creating sdfits file from template.\n");
         fits_report_error(stderr, *status_p);
+    } else {
+        etf->file_open = 1;     // successful file open
     }
 
     return *status_p;
@@ -193,15 +201,21 @@ int etfits_close(etfits_t *etf) {
 //----------------------------------------------------------
     int * status_p = &(etf->status);
     *status_p = 0;
+    int rv;
 
-//fprintf(stderr, "in close, status is %d\n", *status_p);
-    if (! *status_p) {
-        fits_close_file(etf->fptr, status_p);
-        //printf("Closing file '%s'\n", etf->filename);
+    fits_close_file(etf->fptr, status_p);
+    // TODO test for successful file close
+    etf->file_open = 0;
+
+    rv = rename((const char *)etf->filename_working, (const char *)etf->filename_fits);
+
+    if(rv) {
+        hashpipe_error(__FUNCTION__, "file rename error : %d %s", errno, strerror(errno));
+    } else {
+        hashpipe_info(__FUNCTION__, "Done.  %s %ld data rows into %s (status = %d).\n",
+                etf->mode=='r' ? "Read" : "Wrote", 
+                etf->tot_rows, etf->filename_fits, *status_p);
     }
-    printf("Done.  %s %ld data rows into %s (status = %d).\n",
-            etf->mode=='r' ? "Read" : "Wrote", 
-            etf->tot_rows, etf->filename, *status_p);
 
     return *status_p;
 }
@@ -294,6 +308,36 @@ int write_integration_header(etfits_t * etf, scram_t *scram) {
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "TTSTIME",  &(scram->TTSTIME),   NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "TTTURENC", &(scram->TTTURENC),  NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "TTTURDEG", &(scram->TTTURDEG),  NULL, status_p);
+
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "CLOCKTIM",  &(scram->CLOCKTIM), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "CLOCKFRQ",  &(scram->CLOCKFRQ), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "CLOCKDBM",  &(scram->CLOCKDBM), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "CLOCKLOC",  &(scram->CLOCKLOC), NULL, status_p); 
+
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "BIRDITIM",  &(scram->BIRDITIM), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "BIRDIFRQ",  &(scram->BIRDIFRQ), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "BIRDIDBM",  &(scram->BIRDIDBM), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "BIRDILOC",  &(scram->BIRDILOC), NULL, status_p); 
+
+fprintf(stderr, "writing ADC\n");
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "ADCRMSTM",  &(scram->ADCRMSTM),   NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS01",  &(scram->ADC1RMS[0]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS02",  &(scram->ADC1RMS[1]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS03",  &(scram->ADC1RMS[2]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS04",  &(scram->ADC1RMS[3]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS05",  &(scram->ADC1RMS[4]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS06",  &(scram->ADC1RMS[5]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS07",  &(scram->ADC1RMS[6]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS08",  &(scram->ADC1RMS[7]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS09",  &(scram->ADC2RMS[0]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS10",  &(scram->ADC2RMS[1]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS11",  &(scram->ADC2RMS[2]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS12",  &(scram->ADC2RMS[3]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS13",  &(scram->ADC2RMS[4]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS14",  &(scram->ADC2RMS[5]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS15",  &(scram->ADC2RMS[6]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS16",  &(scram->ADC2RMS[7]), NULL, status_p);
+fprintf(stderr, "wrote ADC status is %d\n", *status_p);
 #if 0
     fits_update_key(etf->fptr, TINT,    "MISSEDPK", &(scram.MISSEDPK),    NULL, status_p);    // missed packets per input per second 
 #endif
@@ -310,7 +354,7 @@ int write_integration_header(etfits_t * etf, scram_t *scram) {
 }
 
 //----------------------------------------------------------
-int write_hits_header(etfits_t * etf, int beampol, size_t nhits) {
+int write_hits_header(etfits_t * etf, int beampol, size_t nhits, size_t missed_pkts) {
 //----------------------------------------------------------
 
 #define TFIELDS 4
@@ -338,6 +382,7 @@ int write_hits_header(etfits_t * etf, int beampol, size_t nhits) {
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr[beampol].dec),     NULL, status_p);   
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "BEAMPOL", &(etf->hits_hdr[beampol].beampol), NULL, status_p);   
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "NHITS",   &nhits,                            NULL, status_p);   
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "MISSEDPK",&missed_pkts,                      NULL, status_p);   
 
     if (*status_p) {
         hashpipe_error(__FUNCTION__, "Error writing hits header");
@@ -363,37 +408,48 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
 //fprintf(stderr, "writing hits\n");
     //std::vector<hits_t> hits;
 
-    float* det_pow_p;
-    float* mean_pow_p;
-    int* coarse_chan_p;
-    int* fine_chan_p;
+    float  det_pow[MAXHITS];
+    float  mean_pow[MAXHITS];
+    int    coarse_chan[MAXHITS];
+    int    fine_chan[MAXHITS];
 
     firstrow  = 1;
     firstelem = 1;
 
-    int beampols_done[N_BEAMS*N_POLS_PER_BEAM] = {0};;
-
     for(int beam=0; beam < N_BEAMS; beam++) {
+        // TODO - this goes through the output block for each beam twice. We could cut
+        // this in half if we have a set of arrays for each pol (consuming twice the
+        // memory).
         for(int input=0; input < N_POLS_PER_BEAM; input++) {        
-
             int beampol = beam * N_POLS_PER_BEAM + input;
-            nhits_this_input = (size_t)db->block[block_idx].header.nhits[beam][input];
-            write_hits_header(etf, beampol, nhits_this_input);
+            int hit_j=0;
+            nhits_this_input=0;
+            for(int hit_i=0; hit_i < (size_t)db->block[block_idx].header.nhits[beam]; hit_i++) {
+                if(db->block[block_idx].pol[beam][hit_i] == input) {
+                    nhits_this_input++;
+                    det_pow[hit_j]     = db->block[block_idx].power[beam][hit_i];
+                    mean_pow[hit_j]    = db->block[block_idx].baseline[beam][hit_i];
+                    coarse_chan[hit_j] = db->block[block_idx].coarse_chan[beam][hit_i];
+                    fine_chan[hit_j]   = db->block[block_idx].fine_chan[beam][hit_i];
+                    hit_j++;
+                }
+            }
+
+            write_hits_header(etf, 
+                              beampol, 
+                              nhits_this_input, 
+                              (size_t)db->block[block_idx].header.missed_pkts[beam]);
             nhits += nhits_this_input;
 
             // write the hits for this input
-            det_pow_p        = &db->block[block_idx].power[beam][input][0];
-            mean_pow_p       = &db->block[block_idx].baseline[beam][input][0];
-            coarse_chan_p    = &db->block[block_idx].coarse_chan[beam][input][0];
-            fine_chan_p      = &db->block[block_idx].fine_chan[beam][input][0];
             colnum      = 1;
-            if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, det_pow_p, status_p);
+            if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, det_pow, status_p);
             colnum      = 2;
-            if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, mean_pow_p, status_p);
+            if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, nhits_this_input, mean_pow, status_p);
             colnum      = 3;
-            if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, coarse_chan_p, status_p);
+            if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, coarse_chan, status_p);
             colnum      = 4;
-            if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, fine_chan_p, status_p);
+            if(! *status_p) fits_write_col(etf->fptr, TINT, colnum, firstrow, firstelem, nhits_this_input, fine_chan, status_p);
 
             etf->beampol_cnt++;
         } 

@@ -9,8 +9,8 @@
 #include "hashpipe.h"
 #include "s6_obs_data.h"
 
-//                          0       1       2
-const char *receiver[3] = {"none", "AO ALFA", "AO 327MHz"};
+//                          0           1          2
+const char *receiver[3] = {"AO_NOREC", "AO_ALFA", "AO_327MHz"};
 
 //----------------------------------------------------------
 int get_obs_info_from_redis(scram_t *scram,     
@@ -21,6 +21,10 @@ int get_obs_info_from_redis(scram_t *scram,
     redisContext *c;
     redisReply *reply;
     int rv = 0;
+
+    static int prior_agc_time=0;
+    static int no_time_change_count=0;
+    int no_time_change_limit=2;
 
     struct timeval timeout = { 1, 500000 }; // 1.5 seconds
 
@@ -38,41 +42,53 @@ int get_obs_info_from_redis(scram_t *scram,
 
     // TODO factor out all the redis error checking (use hashpipe_error())
 
-    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:PNT        PNTSTIME PNTRA PNTDEC PNTMJD PNTAZCOR PNTZACOR");
+    reply = (redisReply *)redisCommand(c, "HMGET SCRAM:AGC       AGCSTIME AGCTIME AGCAZ AGCZA AGCLST");
     if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
     else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
-    else if (!reply->element[0]->str) { fprintf(stderr,"SCRAM:PNT not set yet!\n"); rv = 1; }
+    else if (!reply->element[0]->str) { fprintf(stderr,"SCRAM:AGC not set yet!\n"); rv = 1; }
     else {
-        scram->PNTSTIME  = atoi(reply->element[0]->str);
-        scram->PNTRA     = atof(reply->element[1]->str);
-        scram->PNTDEC    = atof(reply->element[2]->str);
-        scram->PNTMJD    = atof(reply->element[3]->str);
-        scram->PNTAZCOR  = atof(reply->element[4]->str);
-        scram->PNTZACOR  = atof(reply->element[5]->str);
+        scram->AGCSTIME  = atoi(reply->element[0]->str);
+        scram->AGCTIME   = atoi(reply->element[1]->str);
+        scram->AGCAZ     = atof(reply->element[2]->str);
+        scram->AGCZA     = atof(reply->element[3]->str);
+        scram->AGCLST    = atof(reply->element[4]->str);
     }
     freeReplyObject(reply);
-#if 0
-    fprintf(stderr, "GET SCRAM:PNTSTIME %d\n", scram->PNTSTIME);
-    fprintf(stderr, "GET SCRAM:PNTRA %lf\n", scram->PNTRA);   
-    fprintf(stderr, "GET SCRAM:PNTDEC %lf\n", scram->PNTDEC);  
-    fprintf(stderr, "GET SCRAM:PNTMJD %lf\n", scram->PNTMJD);  
-    fprintf(stderr, "GET SCRAM:PNTAZCOR %lf\n", scram->PNTAZCOR);  
-    fprintf(stderr, "GET SCRAM:PNTZACOR %lf\n", scram->PNTZACOR);  
-#endif
+    // make sure redis is being updated!
+    if(scram->AGCTIME == prior_agc_time) {
+        no_time_change_count++;
+        hashpipe_warn(__FUNCTION__, "agctime in redis databse has not been updated over %d queries", no_time_change_count);
+        if(no_time_change_count >= no_time_change_limit) {
+            hashpipe_error(__FUNCTION__, "redis databse is static!");
+            rv = 1;
+        }
+    } else {
+        no_time_change_count = 0;
+        prior_agc_time = scram->AGCTIME;
+    } 
 
     if (!rv) {
-      reply = (redisReply *)redisCommand(c, "HMGET SCRAM:AGC       AGCSTIME AGCTIME AGCAZ AGCZA AGCLST");
-      if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
-      else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
-      else if (!reply->element[0]->str) { fprintf(stderr,"SCRAM:AGC not set yet!\n"); rv = 1; }
-      else {
-          scram->AGCSTIME  = atoi(reply->element[0]->str);
-          scram->AGCTIME   = atoi(reply->element[1]->str);
-          scram->AGCAZ     = atof(reply->element[2]->str);
-          scram->AGCZA     = atof(reply->element[3]->str);
-          scram->AGCLST    = atof(reply->element[4]->str);
-      }
-      freeReplyObject(reply);
+        reply = (redisReply *)redisCommand(c, "HMGET SCRAM:PNT        PNTSTIME PNTRA PNTDEC PNTMJD PNTAZCOR PNTZACOR");
+        if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
+        else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
+        else if (!reply->element[0]->str) { fprintf(stderr,"SCRAM:PNT not set yet!\n"); rv = 1; }
+        else {
+            scram->PNTSTIME  = atoi(reply->element[0]->str);
+            scram->PNTRA     = atof(reply->element[1]->str);
+            scram->PNTDEC    = atof(reply->element[2]->str);
+            scram->PNTMJD    = atof(reply->element[3]->str);
+            scram->PNTAZCOR  = atof(reply->element[4]->str);
+            scram->PNTZACOR  = atof(reply->element[5]->str);
+        }
+        freeReplyObject(reply);
+#if 0
+        fprintf(stderr, "GET SCRAM:PNTSTIME %d\n", scram->PNTSTIME);
+        fprintf(stderr, "GET SCRAM:PNTRA %lf\n", scram->PNTRA);   
+        fprintf(stderr, "GET SCRAM:PNTDEC %lf\n", scram->PNTDEC);  
+        fprintf(stderr, "GET SCRAM:PNTMJD %lf\n", scram->PNTMJD);  
+        fprintf(stderr, "GET SCRAM:PNTAZCOR %lf\n", scram->PNTAZCOR);  
+        fprintf(stderr, "GET SCRAM:PNTZACOR %lf\n", scram->PNTZACOR);  
+#endif
     }
 
     if (!rv) {
@@ -152,6 +168,73 @@ int get_obs_info_from_redis(scram_t *scram,
           scram->dec_by_beam[5] = atof(reply->element[12]->str);
           scram->ra_by_beam[6]  = atof(reply->element[13]->str);
           scram->dec_by_beam[6] = atof(reply->element[14]->str);
+      }
+      freeReplyObject(reply);
+    }
+
+    // Sample clock rate parameters
+    if (!rv) {
+      reply = (redisReply *)redisCommand(c, "HMGET CLOCKSYN      CLOCKTIM CLOCKFRQ CLOCKDBM CLOCKLOC");
+      if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
+      else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
+      else if (!reply->element[0]->str) { fprintf(stderr,"CLOCKSYN not set yet!\n"); rv = 1; }
+      else {
+          scram->CLOCKTIM = atoi(reply->element[0]->str);
+          scram->CLOCKFRQ = atof(reply->element[1]->str);
+          scram->CLOCKDBM = atof(reply->element[2]->str);
+          scram->CLOCKLOC = atoi(reply->element[3]->str);
+      }
+      freeReplyObject(reply);
+    }
+
+    // Birdie frequency parameters
+    if (!rv) {
+      reply = (redisReply *)redisCommand(c, "HMGET BIRDISYN      BIRDITIM BIRDIFRQ BIRDIDBM BIRDILOC");
+      if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
+      else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
+      else if (!reply->element[0]->str) { fprintf(stderr,"BIRDISYN not set yet!\n"); rv = 1; }
+      else {
+          scram->BIRDITIM = atoi(reply->element[0]->str);
+          scram->BIRDIFRQ = atof(reply->element[1]->str);
+          scram->BIRDIDBM = atof(reply->element[2]->str);
+          scram->BIRDILOC = atoi(reply->element[3]->str);
+      }
+      freeReplyObject(reply);
+    }
+
+    // ADC RMS values (we get the time from the first set only) 
+    if (!rv) {
+      reply = (redisReply *)redisCommand(c, "HMGET ADC1RMS      ADCRMSTM ADCRMS1 ADCRMS2 ADCRMS3 ADCRMS4 ADCRMS5 ADCRMS6 ADCRMS7 ADCRMS8");
+      if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
+      else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
+      else if (!reply->element[0]->str) { fprintf(stderr,"ADC1RMS not set yet!\n"); rv = 1; }
+      else {
+          scram->ADCRMSTM   = atof(reply->element[0]->str);
+          scram->ADC1RMS[0] = atof(reply->element[1]->str);
+          scram->ADC1RMS[1] = atof(reply->element[2]->str);
+          scram->ADC1RMS[2] = atof(reply->element[3]->str);
+          scram->ADC1RMS[3] = atof(reply->element[4]->str);
+          scram->ADC1RMS[4] = atof(reply->element[5]->str);
+          scram->ADC1RMS[5] = atof(reply->element[6]->str);
+          scram->ADC1RMS[6] = atof(reply->element[7]->str);
+          scram->ADC1RMS[7] = atof(reply->element[8]->str);
+      }
+      freeReplyObject(reply);
+    }
+    if (!rv) {
+      reply = (redisReply *)redisCommand(c, "HMGET ADC2RMS      ADCRMS1 ADCRMS2 ADCRMS3 ADCRMS4 ADCRMS5 ADCRMS6 ADCRMS7 ADCRMS8");
+      if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
+      else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
+      else if (!reply->element[0]->str) { fprintf(stderr,"ADC2RMS not set yet!\n"); rv = 1; }
+      else {
+          scram->ADC2RMS[0] = atof(reply->element[0]->str);
+          scram->ADC2RMS[1] = atof(reply->element[1]->str);
+          scram->ADC2RMS[2] = atof(reply->element[2]->str);
+          scram->ADC2RMS[3] = atof(reply->element[3]->str);
+          scram->ADC2RMS[4] = atof(reply->element[4]->str);
+          scram->ADC2RMS[5] = atof(reply->element[5]->str);
+          scram->ADC2RMS[6] = atof(reply->element[6]->str);
+          scram->ADC2RMS[7] = atof(reply->element[7]->str);
       }
       freeReplyObject(reply);
     }

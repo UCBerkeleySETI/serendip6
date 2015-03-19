@@ -44,8 +44,10 @@ typedef struct etfits_hits {
 } etfits_hits_t;
     
 typedef struct etfits {
-    char basefilename[200]; // The base filename from which to build the true filename
-    char filename[200];     // Filename of the current ETFITs file
+    char hostname[200];         // The hostname becomes part of the filename
+    char basefilename[200];     // The base filename from which to build the true filename
+    char filename_working[200]; // Filename of the current ETFITs file
+    char filename_fits[200];    // We rename to mark the file as ready for post-processing or transfer
     char * s6_dir;
     long long N;            // Current number of spectra written TODO obsolete?
     double T;               // Current duration of the observation written TODO obsolete?
@@ -64,6 +66,7 @@ typedef struct etfits {
     int multifile;          // Write multiple output files TODO obsolete?
     int quiet;              // Be quiet about writing each subint
     char mode;              // Read (r) or write (w).
+    int file_open;          // boolean indicating file open or not      TODO can I use fitsfile * for this?
     etfits_primary_header_t     primary_hdr;
     etfits_integration_header_t integration_hdr;
     etfits_hits_header_t        hits_hdr[N_BEAMS*N_POLS_PER_BEAM];       // one hits HDU per beam/pol per integration

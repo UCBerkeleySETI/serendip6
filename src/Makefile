@@ -1,9 +1,9 @@
 NVCC        = nvcc
 NVCCFLAGS   = -O3 --compiler-options '-fPIC' --shared -Xcompiler -Wall -arch=sm_35 -lrt -lcudart -lcufft
 CC          = gcc
-S6_LIB_CCFLAGS     = -g -fPIC -shared -lstdc++ \
+S6_LIB_CCFLAGS     = -g -O3 -fPIC -shared -lstdc++ -mavx -msse4 \
 		     -I. -I$(CUDA_DIR)/include -I/usr/local/include \
-		     -L. -L/use/local/lib \
+		     -L. -L/usr/local/lib \
 		     -lhashpipe -lS6GPU -lrt -lhiredis -lcfitsio -lazzatoradec -laoscram -lm
 S6OBS_PROG_CCFLAGS = -g -lstdc++ \
 		     -I/usr/include/tcl \
@@ -16,6 +16,8 @@ S6GPUTEST_CCFLAGS  = -g \
 		     -L. -L/usr/local/cuda/lib64 \
 		     -lcudart -lrt -lcufft -lS6GPU  \
 		     -lcfitsio serendip6.so
+S6EXTRACT_PROG_CCFLAGS  = -g \
+		     -I. -I/usr/local/cuda/include
 
 S6GPU_LIB_TARGET    = libS6GPU.so
 S6GPU_LIB_SOURCES   = s6GPU.cu
@@ -28,12 +30,17 @@ S6GPUTEST_PROG_SOURCES  = s6GPU_test.cpp \
 S6GPUTEST_PROG_INCLUDES = s6GPU.h \
 			  s6GPU_test.h
 
+S6EXTRACT_PROG_TARGET   = s6_extract_coarse_chan
+S6EXTRACT_PROG_SOURCES  = s6_extract_coarse_chan.cpp
+S6EXTRACT_PROG_INCLUDES = s6_databuf.h
+
 S6_LIB_TARGET   = serendip6.so
 S6_LIB_SOURCES  = s6_databuf.cpp \
 		  s6_gen_fake_data.cpp \
 		  s6_fake_net_thread.cpp \
 		  s6_fake_data.cpp \
 		  s6_net_thread.cpp \
+		  s6_net_null_thread.cpp \
 		  s6_gpu_thread.cpp \
 		  s6_output_thread.cpp \
 		  s6_obs_data.cpp \
@@ -49,7 +56,9 @@ S6OBS_PROG_SOURCES  = s6_observatory.c \
 S6OBS_PROG_INCLUDES = s6_obsaux.h \
 		      s6_time.h
 
-all: $(S6GPU_LIB_TARGET) $(S6_LIB_TARGET) $(S6GPUTEST_PROG_TARGET) $(S6OBS_PROG_TARGET) 
+S6_SCRIPT_TARGET = s6_init.sh
+
+all: $(S6GPU_LIB_TARGET) $(S6_LIB_TARGET) $(S6GPUTEST_PROG_TARGET) $(S6OBS_PROG_TARGET) $(S6EXTRACT_PROG_TARGET)
 
 $(S6GPU_LIB_TARGET): $(S6GPU_LIB_SOURCES) $(S6GPU_LIB_INCLUDES)   ; $(NVCC) -o $(S6GPU_LIB_TARGET) $(S6GPU_LIB_SOURCES) $(NVCCFLAGS)
 
@@ -59,10 +68,12 @@ $(S6_LIB_TARGET): $(S6_LIB_SOURCES) $(S6_LIB_INCLUDES) ; $(CC) -o $(S6_LIB_TARGE
 
 $(S6OBS_PROG_TARGET): $(S6OBS_PROG_SOURCES) $(S6OBS_PROG_INCLUDES) ; $(CC) -o $(S6OBS_PROG_TARGET) $(S6OBS_PROG_SOURCES) $(S6OBS_PROG_CCFLAGS)
 
+$(S6EXTRACT_PROG_TARGET): $(S6EXTRACT_PROG_SOURCES) $(S6EXTRACT_PROG_INCLUDES) ; $(CC) -o $(S6EXTRACT_PROG_TARGET) $(S6EXTRACT_PROG_SOURCES) $(S6EXTRACT_PROG_CCFLAGS)
+
 tags:
 	ctags -R .
 
-clean: ; rm -f $(S6GPU_LIB_TARGET) $(S6_LIB_TARGET) $(S6OBS_PROG_TARGET) $(S6GPUTEST_PROG_TARGET) tags
+clean: ; rm -f $(S6GPU_LIB_TARGET) $(S6_LIB_TARGET) $(S6OBS_PROG_TARGET) $(S6GPUTEST_PROG_TARGET) $(S6EXTRACT_PROG_TARGET) tags
 
 prefix=/usr/local
 ETCDIR=$(prefix)/etc
@@ -71,17 +82,21 @@ BINDIR=$(prefix)/bin
 
 install-etc: obsPosition.dat utcToUt1.dat s6_ETFITS_template.txt
 	mkdir -p "$(DESTDIR)$(ETCDIR)"
-	install $^ "$(DESTDIR)$(ETCDIR)"
+	install -p $^ "$(DESTDIR)$(ETCDIR)"
 
 install-lib: $(S6GPU_LIB_TARGET) $(S6_LIB_TARGET)
 	mkdir -p "$(DESTDIR)$(LIBDIR)"
-	install $^ "$(DESTDIR)$(LIBDIR)"
+	install -p $^ "$(DESTDIR)$(LIBDIR)"
 
 install-bin: $(S6OBS_PROG_TARGET) 
 	mkdir -p "$(DESTDIR)$(BINDIR)"
-	install $^ "$(DESTDIR)$(BINDIR)"
+	install -p $^ "$(DESTDIR)$(BINDIR)"
 
-install: install-etc install-lib install-bin
+install-script: $(S6_SCRIPT_TARGET) 
+	mkdir -p "$(DESTDIR)$(BINDIR)"
+	install -p $^ "$(DESTDIR)$(BINDIR)"
+
+install: install-etc install-lib install-bin install-script
 
 .PHONY: all tags clean install install-lib install-etc install-bin
 # vi: set ts=8 noet :

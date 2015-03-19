@@ -1,6 +1,7 @@
 *.fits
 libS6GPU.so
 s6GPU_test
+s6_extract_coarse_chan
 s6_observatory
 serendip6.so
 tags

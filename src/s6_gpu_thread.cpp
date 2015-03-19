@@ -16,6 +16,8 @@
 #include <cuda.h>
 #include <cufft.h>
 
+#include <sched.h>
+
 #include <s6GPU.h>
 #include "hashpipe.h"
 #include "s6_databuf.h"
@@ -25,7 +27,14 @@
 
 int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHandle *fft_plan_p, int initial) {
     
+    int num_channels_max, num_channels_utilized;
+
     const char * re[2] = {"re", ""};
+
+    if(num_coarse_chan == 0) {  
+        hashpipe_error(__FUNCTION__, "Cannot initialize GPU memory with 0 coarse channels");
+        return -1;
+    }
 
     fprintf(stderr, "%sinitializing GPU structures for %ld coarse channels...", initial ? re[1] : re[0], num_coarse_chan);
 
@@ -34,20 +43,28 @@ int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHand
         cufftDestroy(*fft_plan_p);
     }
 
-    *dv_p = init_device_vectors(num_coarse_chan * N_FINE_CHAN, N_POLS_PER_BEAM);
+    // Configure GPU vectors...
+    // The maximum number of coarse channels is one determining factor 
+    // of input data buffer size and is set at compile time. At run time 
+    // the number of coarse channels can change but this does not affect 
+    // the size of the input data buffer.  
+    num_channels_max = N_COARSE_CHAN   * N_FINE_CHAN;
+    num_channels_utilized = num_coarse_chan * N_FINE_CHAN;
+    *dv_p = init_device_vectors(num_channels_max, num_channels_utilized, N_POLS_PER_BEAM);
 
-    int     n_subband = num_coarse_chan;
-    int     n_chan    = N_FINE_CHAN;
-    int     n_input   = N_POLS_PER_BEAM;
-    size_t  nfft_     = n_chan;
-    size_t  nbatch    = n_subband;
-    int     istride   = n_subband*n_input;   // this effectively transposes the input data
-    int     ostride   = 1;
-    int     idist     = n_input;            // this takes care of the input interleave
-    int     odist     = nfft_;
+    // Configure cuFFT...
+    size_t  nfft_     = N_FINE_CHAN;                      // FFT length
+    size_t  nbatch    = num_coarse_chan*N_POLS_PER_BEAM;  // number of FFT batches to do 
+                                                          //    (only work on utilized coarse channels)
+    int     istride   = N_COARSE_CHAN*N_POLS_PER_BEAM;    // this effectively transposes the input data
+    int     ostride   = 1;                                // no transpose needed on the output
+    int     idist     = 1;                                // distance between 1st input elements of consecutive batches
+    int     odist     = nfft_;                            // distance between 1st output elements of consecutive batches
     create_fft_plan_1d_c2c(fft_plan_p, istride, idist, ostride, odist, nfft_, nbatch);
 
     fprintf(stderr, "done\n");
+
+    return 0;
 }
 
 static void *run(hashpipe_thread_args_t * args)
@@ -69,11 +86,22 @@ static void *run(hashpipe_thread_args_t * args)
     int curblock_out=0;
     int error_count = 0, max_error_count = 0;
     float error, max_error = 0.0;
-    size_t num_bytes_per_beam;
 
     struct timespec start, stop;
     uint64_t elapsed_gpu_ns  = 0;
     uint64_t gpu_block_count = 0;
+
+#if 0
+    // raise this thread to maximum scheduling priority
+    struct sched_param SchedParam;
+    int retval;
+    SchedParam.sched_priority = sched_get_priority_max(SCHED_FIFO);
+    fprintf(stderr, "Setting scheduling priority to %d\n", SchedParam.sched_priority);
+    retval = sched_setscheduler(0, SCHED_FIFO, &SchedParam);
+    if(retval) {
+        perror("sched_setscheduler :");
+    }
+#endif
 
     // init s6GPU
     int gpu_dev=0;          // default to 0
@@ -159,36 +187,35 @@ static void *run(hashpipe_thread_args_t * args)
                &db_in->block[curblock_in].header.missed_pkts, 
                sizeof(uint64_t) * N_BEAM_SLOTS);
 
-        // do spectroscopy and hit detection on this block.
-        // spectroscopy() writes directly to the output buffer.
-        size_t total_hits = 0;
-        for(int beam_i = 0; beam_i < N_BEAMS; beam_i++) {
-            size_t nhits = 0; 
-            // TODO there is no real c error checking in spectroscopy()
-            //      Errors are handled via c++ exceptions
-            num_bytes_per_beam =  N_BYTES_PER_SAMPLE                               * 
-                                  N_FINE_CHAN                                      * 
-                                  db_in->block[curblock_in].header.num_coarse_chan * 
-                                  N_POLS_PER_BEAM;
-            nhits = spectroscopy(num_coarse_chan,
-                                 N_FINE_CHAN,
-                                 N_POLS_PER_BEAM,
-                                 beam_i,
-                                 maxhits,
-                                 MAXGPUHITS,
-                                 POWER_THRESH,
-                                 SMOOTH_SCALE,
-                                 &db_in->block[curblock_in].data[beam_i*num_bytes_per_beam/sizeof(uint64_t)],
-                                 num_bytes_per_beam,
-                                 &db_out->block[curblock_out],
-                                 dv_p,
-                                 fft_plan_p);
+        // only do spectroscopy if there are more than zero channels!
+        if(num_coarse_chan) {
+            // do spectroscopy and hit detection on this block.
+            // spectroscopy() writes directly to the output buffer.
+            size_t total_hits = 0;
+            for(int beam_i = 0; beam_i < N_BEAMS; beam_i++) {
+                size_t nhits = 0; 
+                // TODO there is no real c error checking in spectroscopy()
+                //      Errors are handled via c++ exceptions
+                nhits = spectroscopy(num_coarse_chan,
+                                     N_FINE_CHAN,
+                                     N_POLS_PER_BEAM,
+                                     beam_i,
+                                     maxhits,
+                                     MAXGPUHITS,
+                                     POWER_THRESH,
+                                     SMOOTH_SCALE,
+                                     &db_in->block[curblock_in].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)],
+                                     N_BYTES_PER_BEAM,
+                                     &db_out->block[curblock_out],
+                                     dv_p,
+                                     fft_plan_p);
 //fprintf(stderr, "spectroscopy() returned %ld for beam %d\n", nhits, beam_i);
-            total_hits += nhits;
-            clock_gettime(CLOCK_MONOTONIC, &stop);
-            elapsed_gpu_ns += ELAPSED_NS(start, stop);
-            gpu_block_count++;
-        }
+                total_hits += nhits;
+                clock_gettime(CLOCK_MONOTONIC, &stop);
+                elapsed_gpu_ns += ELAPSED_NS(start, stop);
+                gpu_block_count++;
+            }  //  for(int beam_i = 0; beam_i < N_BEAMS; beam_i++)
+        }  // if(num_coarse_chan)
 
         hashpipe_status_lock_safe(&st);
         hputr4(st.buf, "GPUMXERR", max_error);

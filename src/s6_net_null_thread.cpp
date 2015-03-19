@@ -16,9 +16,6 @@
 #include <sys/types.h>
 #include <errno.h>
 
-#include <fcntl.h>
-#include <sched.h>
-
 #include <smmintrin.h>
 #include <immintrin.h>
 
@@ -66,15 +63,7 @@ typedef struct {
     int block_packet_counter[N_INPUT_BLOCKS];
 } block_info_t;
 
-struct timespec status_start, status_stop;
-uint64_t status_update_ns=0, min_status_update_ns=999999, max_status_update_ns=0;
-
-#define ELAPSED_NS(start,stop) \
-  (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
-
 static hashpipe_status_t *st_p;
-
-static uint32_t total_missed_pkts[N_BEAM_SLOTS];
 
 static void print_pkt_header(packet_header_t * pkt_header) {
 
@@ -223,10 +212,8 @@ static void die(s6_input_databuf_t *s6_input_databuf_p, block_info_t *binfo)
 static uint64_t set_block_filled(s6_input_databuf_t *s6_input_databuf_p, block_info_t *binfo)
 {
     static int last_filled = -1;
-    static uint32_t missed_pkt_cnt=0;
 
-    uint32_t block_missed_pkt_cnt=N_PACKETS_PER_BLOCK;
-    float    block_missed_percent;
+    uint32_t block_missed_pkt_cnt=N_PACKETS_PER_BLOCK, block_missed_mod_cnt, block_missed_beams, missed_pkt_cnt=0;
 
     uint32_t block_i = block_for_mcnt(binfo->mcnt_start);
 
@@ -257,37 +244,28 @@ static uint64_t set_block_filled(s6_input_databuf_t *s6_input_databuf_p, block_i
 
     // Calculate missing packets.
     block_missed_pkt_cnt = N_PACKETS_PER_BLOCK - binfo->block_packet_counter[block_i];
-
     // If we missed more than Nm, then assume we are missing one or more beams.
-    // All missing packets, from missing beams or not, are considered dropped.
-    // 
-    // Old logic : any missed packets beyond an integer multiple of Nm will be considered
+    // Any missed packets beyond an integer multiple of Nm will be considered
     // as dropped packets.
-    // New logic : count all missed packets as dropped.
-    block_missed_percent = ((float)block_missed_pkt_cnt / N_PACKETS_PER_BLOCK) * 100;  
-	missed_pkt_cnt      += block_missed_pkt_cnt;     //  running total
+    block_missed_beams   = block_missed_pkt_cnt / Nm;
+    block_missed_mod_cnt = block_missed_pkt_cnt % Nm;
 
     // Update status buffer
-    float beam_missed_percent[7];
-    for(int i=0; i < N_BEAMS; i++) {
-        beam_missed_percent[i] = (float)total_missed_pkts[i]/(N_PACKETS_PER_BLOCK/7)*100;
-    }
-	clock_gettime(CLOCK_MONOTONIC, &status_start);
     hashpipe_status_lock_busywait_safe(st_p);
     hputu4(st_p->buf, "NETBKOUT", block_i);
-	hputu4(st_p->buf, "MISSPKTL", missed_pkt_cnt);
-    hputr4(st_p->buf, "MISSPER ", block_missed_percent);
-    char missed_key[9] = "MISSPERx";    // 'x' is replaced by beam number
-    const char missed_beam[7] = {'0', '1', '2', '3', '4', '5', '6'};
-    for(int i=0; i < N_BEAMS; i++) {
-        missed_key[7] = missed_beam[i];
-        hputr4(st_p->buf, missed_key, beam_missed_percent[i]);      // per beam 
+    hputu4(st_p->buf, "MISSEDBM", block_missed_beams);
+    if(block_missed_mod_cnt) {
+	// Increment MISSEDPK by number of missed packets for this block
+	hgetu4(st_p->buf, "MISSEDPK", &missed_pkt_cnt);
+	missed_pkt_cnt += block_missed_mod_cnt;
+	hputu4(st_p->buf, "MISSEDPK", missed_pkt_cnt);
+    //  fprintf(stderr, "got %d packets instead of %d\n",
+    //	    binfo->block_packet_counter[block_i], Nm);
     }
+    // Update SCHAN and NCHAN in status buffer
     hputi4(st_p->buf, "SCHAN", (uint32_t)binfo->pchan);
     hputi4(st_p->buf, "NCHAN", (uint32_t)binfo->nchan);
     hashpipe_status_unlock_safe(st_p);
-	clock_gettime(CLOCK_MONOTONIC, &status_stop);
-	status_update_ns += ELAPSED_NS(status_start, status_stop);
 
     return binfo->mcnt_start;
 }
@@ -380,45 +358,6 @@ static inline void initialize_block_info(block_info_t * binfo)
     binfo->initialized = 1;
 }
 
-int s6_memcpy_benchmark(s6_input_databuf_t *s6_input_databuf_p, struct hashpipe_udp_packet *p) 
-{
-#define NUM_BENCHMARKS 10
-    int             i, sid, pkt_mcnt, pkt_block_i;
-    uint64_t        pkt_count=0, bench_ns;
-    uint64_t        *dest_p;
-    const uint64_t  *payload_p;
-    uint64_t        packet_ns, min_packet_ns=999999, max_packet_ns=0;
-    struct timespec bench_start, bench_stop, packet_start, packet_stop;
-
-    p->packet_size = N_COARSE_CHAN * 2 * 2 + 16;
-
-    for(i=0; i<NUM_BENCHMARKS; i++) {
-        for(pkt_block_i=0; pkt_block_i<N_INPUT_BLOCKS; pkt_block_i++) {
-            pkt_count=0;
-            min_packet_ns=999999, max_packet_ns=0;
-	        clock_gettime(CLOCK_MONOTONIC, &bench_start);
-            for(sid=0; sid<N_BEAMS; sid++) {
-                for(pkt_mcnt=0; pkt_mcnt<N_FINE_CHAN; pkt_mcnt++) {
-                    dest_p      = s6_input_databuf_p->block[pkt_block_i].data + (sid*Nm + (pkt_mcnt%Nm)) * 
-                                  N_COARSE_CHAN * N_BYTES_PER_CHAN / sizeof(uint64_t);
-                    payload_p   = (uint64_t *)(p->data+8+8);
-	                clock_gettime(CLOCK_MONOTONIC, &packet_start);
-                    s6_memcpy(dest_p, payload_p, p->packet_size - 8 - 8);
-	                clock_gettime(CLOCK_MONOTONIC, &packet_stop);
-                    packet_ns = ELAPSED_NS(packet_start, packet_stop);
-                    min_packet_ns = MIN(min_packet_ns, packet_ns);
-                    max_packet_ns = MAX(min_packet_ns, packet_ns);
-                    pkt_count++;
-                } // end for each packet
-            } // end for each sid (beam)   
-	        clock_gettime(CLOCK_MONOTONIC, &bench_stop);
-            bench_ns = ELAPSED_NS(bench_start, bench_stop);
-            hashpipe_info(__FUNCTION__, "Wrote %lu packets to block %d in %lf seconds.  Per packet min: %lu ns  max: %lu ns.", 
-                        pkt_count, pkt_block_i, (float)bench_ns/(1000*1000*1000), min_packet_ns, max_packet_ns);
-        } // end for each block
-    } // end for each benchmark
-}
-
 // This function returns -1 unless the given packet causes a block to be marked
 // as filled in which case this function returns the marked block's first mcnt.
 // Any return value other than -1 will be stored in the status memory as
@@ -479,7 +418,10 @@ static inline uint64_t process_packet(s6_input_databuf_t *s6_input_databuf_p, st
 	if(pkt_mcnt_dist >= 3*(Nm/2)) {
 
 	    for(i=0; i<N_BEAMS; i++) {
-		    total_missed_pkts[i] = s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i];
+		if(s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i] != 0)
+		    //printf("missed %lu packets for beam %d\n",
+		    hashpipe_warn(__FUNCTION__, "missed %lu packets for beam %d",
+			s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i], i);
 	    }
 
 	    // Mark the current block as filled
@@ -618,6 +560,9 @@ static inline uint64_t process_packet(s6_input_databuf_t *s6_input_databuf_p, st
     return netmcnt;
 }
 
+#define ELAPSED_NS(start,stop) \
+  (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
+
 static void *run(hashpipe_thread_args_t * args)
 {
     // Local aliases to shorten access to args fields
@@ -630,18 +575,6 @@ static void *run(hashpipe_thread_args_t * args)
 
     // Flag that holds off the net thread
     int holdoff = 1;
-
-#if 0
-    // raise this thread to maximum scheduling priority
-    struct sched_param SchedParam;
-    int retval;
-    SchedParam.sched_priority = sched_get_priority_max(SCHED_FIFO);
-    hashpipe_info(__FUNCTION__, "Setting scheduling priority to %d\n", SchedParam.sched_priority);
-    retval = sched_setscheduler(0, SCHED_FIFO, &SchedParam);
-    if(retval) {
-        perror("sched_setscheduler :");
-    }
-#endif
 
     // Force ourself into the hold off state
     hashpipe_status_lock_safe(&st);
@@ -683,22 +616,11 @@ static void *run(hashpipe_thread_args_t * args)
     // Get info from status buffer if present (no change if not present)
     hgets(st.buf, "BINDHOST", 80, up.bindhost);
     hgeti4(st.buf, "BINDPORT", &up.bindport);
-
-    // Clear per-beam missed packet counters in status buffer
-    char missed_key[9] = "MISSPERX";
-    const char missed_beam[7] = {'0', '1', '2', '3', '4', '5', '6'};
-    for(int i=0; i < N_BEAMS; i++) {
-        missed_key[7] = missed_beam[i];
-        //fprintf(stderr, "%s\n", missed_key);
-        //hgetu4(st.buf, missed_key, &total_missed_pkts[i]);
-        hputr4(st.buf, missed_key, 0);
-    }
-
     // Store bind host/port info etc in status buffer
     hputs(st.buf, "BINDHOST", up.bindhost);
     hputi4(st.buf, "BINDPORT", up.bindport);
-    //hputu4(st.buf, "MISSEDBM", 0);
-    //hputu4(st.buf, "MISSEDPK", 0);
+    hputu4(st.buf, "MISSEDBM", 0);
+    hputu4(st.buf, "MISSEDPK", 0);
     hputs(st.buf, status_key, "running");
     hashpipe_status_unlock_safe(&st);
 
@@ -716,11 +638,6 @@ static void *run(hashpipe_thread_args_t * args)
         pthread_exit(NULL);
     }
     pthread_cleanup_push((void (*)(void *))hashpipe_udp_close, &up);
-#if 0
-    // try blocking recv()
-    int saved_flags = fcntl(up.sock, F_GETFL);
-    fcntl(up.sock, F_SETFL, saved_flags & ~O_NONBLOCK);
-#endif  // try blocking recv()
 #endif
 
     // Acquire first two blocks to start
@@ -748,9 +665,6 @@ static void *run(hashpipe_thread_args_t * args)
     // Initialize the newly acquired block
     initialize_block(db,  0, 0, 0);
     initialize_block(db, Nm, 0, 0);
-
-    // Perform a quick input buffer writing benchmark before going into the main loop
-    s6_memcpy_benchmark((s6_input_databuf_t *)db, &p);
 
     /* Main loop */
     uint64_t packet_count = 0;
@@ -810,8 +724,10 @@ static void *run(hashpipe_thread_args_t * args)
 #endif
 	packet_count++;
 
+#if 0
         // Copy packet into any blocks where it belongs.
         const uint64_t mcnt = process_packet((s6_input_databuf_t *)db, &p);
+#endif
 
 	clock_gettime(CLOCK_MONOTONIC, &stop);
 	wait_ns = ELAPSED_NS(recv_start, start);
@@ -828,21 +744,15 @@ static void *run(hashpipe_thread_args_t * args)
 	max_recv_ns = MAX(recv_ns, max_recv_ns);
 	max_proc_ns = MAX(proc_ns, max_proc_ns);
 
-        if(mcnt != -1) {
+        if(packet_count % 0x100000 == 0) {
             // Update status
             ns_per_wait = (float)elapsed_wait_ns / packet_count;
             ns_per_recv = (float)elapsed_recv_ns / packet_count;
             ns_per_proc = (float)elapsed_proc_ns / packet_count;
 
-#if 1
-	        min_status_update_ns = MIN(status_update_ns, min_status_update_ns);
-	        max_status_update_ns = MAX(status_update_ns, max_status_update_ns);
-            status_update_ns = 0;
-
-	        clock_gettime(CLOCK_MONOTONIC, &status_start);
             hashpipe_status_lock_busywait_safe(&st);
 
-            hputu8(st.buf, "NETMCNT", mcnt);
+            hputu8(st.buf, "NETMCNT", packet_count);
 	    // Gbps = bits_per_packet / ns_per_packet
 	    // (N_BYTES_PER_PACKET excludes header, so +8 for the header)
             hputr4(st.buf, "NETGBPS", 8*(p.packet_size)/(ns_per_recv+ns_per_proc));
@@ -876,19 +786,8 @@ static void *run(hashpipe_thread_args_t * args)
 	    status_ns = MAX(max_proc_ns, status_ns);
             hputi8(st.buf, "NETPRCMX", status_ns);
 
-            hgeti8(st.buf, "NETSTAMN", (long long *)&status_ns);
-	        status_ns = MIN(min_status_update_ns, status_ns);
-            hputi8(st.buf, "NETSTAMN", status_ns);
-
-            hgeti8(st.buf, "NETSTAMX", (long long *)&status_ns);
-	        status_ns = MAX(max_status_update_ns, status_ns);
-            hputi8(st.buf, "NETSTAMX", status_ns);
-
 
             hashpipe_status_unlock_safe(&st);
-	        clock_gettime(CLOCK_MONOTONIC, &status_stop);
-	        status_update_ns += ELAPSED_NS(status_start, status_stop);
-#endif
 
 	    // Start new average
 	    elapsed_wait_ns = 0;
@@ -929,7 +828,7 @@ static void *run(hashpipe_thread_args_t * args)
 }
 
 static hashpipe_thread_desc_t net_thread = {
-    name: "s6_net_thread",
+    name: "s6_net_null_thread",
     skey: "NETSTAT",
     init: NULL,
     run:  run,

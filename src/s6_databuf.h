@@ -8,13 +8,17 @@
 //#include "s6GPU.h"
 
 #define PAGE_SIZE               (4096)
-#define CACHE_ALIGNMENT         (128)
+//#define CACHE_ALIGNMENT         (128)
+#define CACHE_ALIGNMENT         (256)
 // TODO
 // SMOOTH_SCALE, POWER_THRESH, MAXHITS, and MAXGPUHITS should be input parms
 // N_FINE_CHAN and N_COARSE_CHAN - should they be input parms?
+
+// N_COARSE_CHAN needs to be evenly divisible by 32 in order for each time sample
+// ("row" of coarse chans) to be 256 bit aligned.  256 bit alignment is required by
+// the "non-temporal" memory copy. 
+#define N_COARSE_CHAN           320 
 #define N_FINE_CHAN             (128*1024)               
-#define N_COARSE_CHAN           342      
-//#define N_COARSE_CHAN           160      
 #define SMOOTH_SCALE            1024
 #define POWER_THRESH            20.0
 #define MIN_POWER_THRESH        10.0
@@ -76,7 +80,7 @@ typedef struct s6_output_block_header {
   uint64_t coarse_chan_id;          // coarse channel number of lowest channel in this block
   uint64_t num_coarse_chan;         // number of actual coarse channels (<= N_COARSE_CHAN)
   uint64_t missed_pkts[N_BEAM_SLOTS];    // missed per beam - this block or this run? TODO
-  uint64_t nhits[N_BEAM_SLOTS][N_POLS_PER_BEAM];
+  uint64_t nhits[N_BEAM_SLOTS];
 } s6_output_block_header_t;
 
 typedef uint8_t s6_output_header_cache_alignment[
@@ -86,11 +90,12 @@ typedef uint8_t s6_output_header_cache_alignment[
 typedef struct s6_output_block {
   s6_output_block_header_t header;
   s6_output_header_cache_alignment padding; // Maintain cache alignment
-  float power       [N_BEAM_SLOTS][N_POLS_PER_BEAM][MAXGPUHITS];
-  float baseline    [N_BEAM_SLOTS][N_POLS_PER_BEAM][MAXGPUHITS];
-  int   hit_indices [N_BEAM_SLOTS][N_POLS_PER_BEAM][MAXGPUHITS];    // TODO is int big enough?
-  int   coarse_chan [N_BEAM_SLOTS][N_POLS_PER_BEAM][MAXGPUHITS];
-  int   fine_chan   [N_BEAM_SLOTS][N_POLS_PER_BEAM][MAXGPUHITS];
+  float power       [N_BEAM_SLOTS][MAXGPUHITS];
+  float baseline    [N_BEAM_SLOTS][MAXGPUHITS];
+  long  hit_indices [N_BEAM_SLOTS][MAXGPUHITS];    
+  int   pol         [N_BEAM_SLOTS][MAXGPUHITS];
+  int   coarse_chan [N_BEAM_SLOTS][MAXGPUHITS];
+  int   fine_chan   [N_BEAM_SLOTS][MAXGPUHITS];
 } s6_output_block_t;
 
 typedef struct s6_output_databuf {

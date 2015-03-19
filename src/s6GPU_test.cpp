@@ -37,14 +37,14 @@ void print_hits(int block_idx, int beam) {
     s6_output_databuf_t * db_p = &db;
 
     for(int input=0; input < N_POLS_PER_BEAM; input++) {
-        size_t nhits = (size_t)db_p->block[block_idx].header.nhits[beam][input];
+        size_t nhits = (size_t)db_p->block[block_idx].header.nhits[beam];
         cout << "#Found " << nhits << " hits" << endl;
         cout << "#coarse_chan\tfine_chan\tpower\t\tbaseline\tstrength\tinput\tbeam" << endl;
         for( size_t i=0; i<nhits; ++i ) {
-            cout << db_p->block[block_idx].coarse_chan[beam][input][i] << "\t\t"
-                 << db_p->block[block_idx].fine_chan[beam][input][i]   << "\t\t"
-                 << db_p->block[block_idx].power[beam][input][i]       << "\t"
-                 << db_p->block[block_idx].baseline[beam][input][i]    << "\t"
+            cout << db_p->block[block_idx].coarse_chan[beam][i] << "\t\t"
+                 << db_p->block[block_idx].fine_chan[beam][i]   << "\t\t"
+                 << db_p->block[block_idx].power[beam][i]       << "\t"
+                 << db_p->block[block_idx].baseline[beam][i]    << "\t"
                  << input << "\t"
                  << beam  << endl;
         }
@@ -100,7 +100,7 @@ int main(int argc, char* argv[]) {
     int     odist     = nfft_;
     create_fft_plan_1d_c2c(&fft_plan, istride, idist, ostride, odist, nfft_, nbatch);
 
-    dv_p = init_device_vectors(NELEMENT, NINPUT);
+    dv_p = init_device_vectors(NELEMENT, NELEMENT,  NINPUT);
 
     for(int input_i=0; input_i<NINPUT; input_i++) {
         gen_sig(2, input_i, h_raw_timeseries_gen);
