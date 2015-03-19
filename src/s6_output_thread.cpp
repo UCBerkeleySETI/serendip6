@@ -127,6 +127,7 @@ rv=0;
         hashpipe_status_lock_safe(&st);
         hputs(st.buf,  "TELESCOP", receiver[scram.receiver]);
         hputi4(st.buf, "COARCHID", scram.coarse_chan_id);
+        hputi4(st.buf, "CLOCKFRQ", scram.CLOCKFRQ);
         hputi4(st.buf, "SCRALFON", scram.IF2ALFON);
         hputr4(st.buf, "SCRAGCAZ", scram.AGCAZ);
         hputr4(st.buf, "SCRAGCZA", scram.AGCZA);
