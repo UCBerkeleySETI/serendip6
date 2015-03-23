@@ -76,24 +76,27 @@ static hashpipe_status_t *st_p;
 
 static uint32_t total_missed_pkts[N_BEAM_SLOTS];
 
-static inline int logger(uint64_t x, uint64_t y, uint64_t z) {
+//static inline int logger(uint64_t x, uint64_t y, uint64_t z) {
+static inline int logger(char * log_message, int line_limit) {
 // Keep an in-memory log that gets written out every so often.
 // This is currently used to keep track of packet wait, recv,
 // and process times.
     char log[1024*1024];
     static char * log_p = log;
     static int num_lines;
-    int retval = 0;
+    int retval;
 
-    sprintf(log_p, "%d %lu %lu %lu %lu\n", num_lines, x, y, z, x+y+z);
-    log_p += strlen(log_p);
+    //sprintf(log_p, "%d %lu %lu %lu %lu\n", num_lines, x, y, z, x+y+z);
     num_lines++;
+    sprintf(log_p, "%05d %s\n", num_lines, log_message);
+    log_p += strlen(log_p);
+    retval = num_lines;
 
-    if(num_lines >= 5000) {
-	    hashpipe_info(__FUNCTION__, "%s\n", log);
+    if(num_lines >= line_limit) {
+	    hashpipe_info(__FUNCTION__, "\n%s", log);
         log_p = log;
-        num_lines = 0;
-        retval = 1;
+        num_lines = 1;
+        //retval = line_limit;
     }
     return retval;
 }
@@ -654,6 +657,8 @@ static void *run(hashpipe_thread_args_t * args)
     // Flag that holds off the net thread
     int holdoff = 1;
 
+    int    log_net_ns = 0;
+
 #if 0
     // raise this thread to maximum scheduling priority
     struct sched_param SchedParam;
@@ -723,6 +728,7 @@ static void *run(hashpipe_thread_args_t * args)
     //hputu4(st.buf, "MISSEDBM", 0);
     //hputu4(st.buf, "MISSEDPK", 0);
     hputs(st.buf, status_key, "running");
+    hputi4(st.buf, "LOGNETNS", log_net_ns);
     hashpipe_status_unlock_safe(&st);
 
     struct hashpipe_udp_packet p;
@@ -856,11 +862,14 @@ static void *run(hashpipe_thread_args_t * args)
 	elapsed_recv_ns += recv_ns;
 	elapsed_proc_ns += proc_ns;
 
-#if 0
-    if(logger(wait_ns, recv_ns, proc_ns)) {
-	    pthread_exit(NULL);
+    if(log_net_ns) {
+        char log_message[200];
+        int line_limit=5000;
+        sprintf(log_message, "%5lu %5lu %5lu %5lu", wait_ns, recv_ns, proc_ns, wait_ns+recv_ns+proc_ns);
+        if(logger(log_message, line_limit) == line_limit) {
+	        pthread_exit(NULL);
+        }       
     }       
-#endif
 
     if(mcnt != -1) {    
         // we have finished a block - update per block statistics and status
@@ -924,6 +933,7 @@ static void *run(hashpipe_thread_args_t * args)
 	    status_ns = MAX(max_status_update_ns, status_ns);
         hputi8(st.buf, "NETSTAMX", status_ns);
 
+        hgeti4(st.buf, "LOGNETNS", &log_net_ns);
 
         hashpipe_status_unlock_safe(&st);
 	    clock_gettime(CLOCK_MONOTONIC, &status_stop);
