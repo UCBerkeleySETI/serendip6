@@ -319,7 +319,6 @@ int write_integration_header(etfits_t * etf, scram_t *scram) {
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "BIRDIDBM",  &(scram->BIRDIDBM), NULL, status_p);
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "BIRDILOC",  &(scram->BIRDILOC), NULL, status_p); 
 
-fprintf(stderr, "writing ADC\n");
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "ADCRMSTM",  &(scram->ADCRMSTM),   NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS01",  &(scram->ADC1RMS[0]), NULL, status_p);
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS02",  &(scram->ADC1RMS[1]), NULL, status_p);
@@ -337,7 +336,6 @@ fprintf(stderr, "writing ADC\n");
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS14",  &(scram->ADC2RMS[5]), NULL, status_p);
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS15",  &(scram->ADC2RMS[6]), NULL, status_p);
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS16",  &(scram->ADC2RMS[7]), NULL, status_p);
-fprintf(stderr, "wrote ADC status is %d\n", *status_p);
 #if 0
     fits_update_key(etf->fptr, TINT,    "MISSEDPK", &(scram.MISSEDPK),    NULL, status_p);    // missed packets per input per second 
 #endif
