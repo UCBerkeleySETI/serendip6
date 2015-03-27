@@ -76,27 +76,27 @@ static hashpipe_status_t *st_p;
 
 static uint32_t total_missed_pkts[N_BEAM_SLOTS];
 
-//static inline int logger(uint64_t x, uint64_t y, uint64_t z) {
-static inline int logger(char * log_message, int line_limit) {
+inline int logger(char * log_message, uint64_t timestamp, int line_limit) {
 // Keep an in-memory log that gets written out every so often.
 // This is currently used to keep track of packet wait, recv,
 // and process times.
-    char log[1024*1024];
-    static char * log_p = log;
+    static char log[1024*1024];
+    static int log_size  = sizeof(log);
+    static int log_limit = int(log_size*0.9); // don't exceed 90% of log size
+    static char * log_p  = log;
     static int num_lines;
     int retval;
 
-    //sprintf(log_p, "%d %lu %lu %lu %lu\n", num_lines, x, y, z, x+y+z);
     num_lines++;
-    sprintf(log_p, "%05d %s\n", num_lines, log_message);
+    sprintf(log_p, "%04lu  %05d  %s\n", timestamp, num_lines, log_message);
     log_p += strlen(log_p);
     retval = num_lines;
 
-    if(num_lines >= line_limit) {
-	    hashpipe_info(__FUNCTION__, "\n%s", log);
-        log_p = log;
-        num_lines = 1;
-        //retval = line_limit;
+    if(num_lines >= line_limit || log_p - log >= log_limit) {
+	    hashpipe_info(__FUNCTION__, "\n%s", log);   // write out current log
+        log_p  = log;                               // start a new one
+        retval = line_limit;                        // in case we are at log_limit
+        num_lines = 0;
     }
     return retval;
 }
@@ -174,15 +174,23 @@ void dump_mcnt_log(int pchan)
 #endif
 
 static inline void * s6_memcpy(uint64_t * out, const uint64_t * const in, size_t n_bytes) {
-
+//#define bitload256
   __m128i lo128, hi128; 
   __m256i out256         = _mm256_setzero_si256();
+#ifdef bitload256
+  __m256i *p_in          = (__m256i *)in;
+#else
   __m128i *p_in          = (__m128i *)in;
+#endif
   __m256i *p_out         = (__m256i *)out;
   size_t n_256_bit_words = n_bytes/32;
   size_t i;
 
   for(i=0; i<n_256_bit_words; i++) {
+#ifdef bitload256
+        //out256 = _mm256_stream_load_si256(p_in++);  // Program terminated with signal 4, Illegal instruction.
+        out256 = _mm256_load_si256(p_in++);
+#else
         // have to load 128, rather than 256, bits at a time
         lo128 = _mm_stream_load_si128(p_in++);
         hi128 = _mm_stream_load_si128(p_in++);
@@ -192,7 +200,7 @@ static inline void * s6_memcpy(uint64_t * out, const uint64_t * const in, size_t
         out256 = _mm256_insertf128_si256(out256, lo128, 0);
         // Transfer hi128 to upper half of __m256i variable 'out256'
         out256 = _mm256_insertf128_si256(out256, hi128, 1);
-
+#endif
         // now stream to final destination 256 bits at a time
         _mm256_stream_si256(p_out++, out256);
 
@@ -661,6 +669,7 @@ static void *run(hashpipe_thread_args_t * args)
 
 #if 0
     // raise this thread to maximum scheduling priority
+    // This was found not to help with peformance.
     struct sched_param SchedParam;
     int retval;
     SchedParam.sched_priority = sched_get_priority_max(SCHED_FIFO);
@@ -782,10 +791,11 @@ static void *run(hashpipe_thread_args_t * args)
     s6_memcpy_benchmark((s6_input_databuf_t *)db, &p);
 
     /* Main loop */
+    int      wait_loop_cnt;
     uint64_t packet_count = 0;
-    uint64_t wait_ns = 0; // ns for most recent wait
-    uint64_t recv_ns = 0; // ns for most recent recv
-    uint64_t proc_ns = 0; // ns for most recent proc
+    uint64_t wait_ns    = 0; // ns for most recent wait
+    uint64_t recv_ns    = 0; // ns for most recent recv
+    uint64_t proc_ns    = 0; // ns for most recent proc
     uint64_t min_wait_ns = 99999; // min ns per single wait
     uint64_t min_recv_ns = 99999; // min ns per single recv
     uint64_t min_proc_ns = 99999; // min ns per single proc
@@ -802,12 +812,20 @@ static void *run(hashpipe_thread_args_t * args)
     struct timespec start, stop;
     struct timespec recv_start, recv_stop;
 
+    // in-memory logger items
+    struct timespec runtime_start, runtime_now;
+    uint64_t runtime_ns = 0;
+    int first_log_line = 1;
+
     while (run_threads()) {
+
 
 #ifndef TIMING_TEST
         /* Read packet */
+    wait_loop_cnt = -1;     // we want go to 0 on entry into the loop
 	clock_gettime(CLOCK_MONOTONIC, &recv_start);
 	do {
+        wait_loop_cnt++;
 	    clock_gettime(CLOCK_MONOTONIC, &start);         // this will keep its value upon receiving a good packet   
 	    //p.packet_size = recv(up.sock, p.data, HASHPIPE_MAX_PACKET_SIZE, 0);
         // Here we prep for SSE non-temporal memory copy.  p.data is 128 bit 
@@ -861,15 +879,31 @@ static void *run(hashpipe_thread_args_t * args)
 	elapsed_wait_ns += wait_ns;                
 	elapsed_recv_ns += recv_ns;
 	elapsed_proc_ns += proc_ns;
-
+   
     if(log_net_ns) {
         char log_message[200];
-        int line_limit=5000;
-        sprintf(log_message, "%5lu %5lu %5lu %5lu", wait_ns, recv_ns, proc_ns, wait_ns+recv_ns+proc_ns);
-        if(logger(log_message, line_limit) == line_limit) {
-	        pthread_exit(NULL);
+        int line_limit=5000;    // log this many lines before writing out the log
+
+        if(first_log_line) {
+            first_log_line = 0;    
+            runtime_ns     = 0;                                     // timestamp
+        } else {
+	        clock_gettime(CLOCK_MONOTONIC, &runtime_now);
+	        runtime_ns = ELAPSED_NS(runtime_start, runtime_now);    // timestamp  
+        }
+
+        sprintf(log_message, "%d %5lu %5lu %5lu %5lu", wait_loop_cnt, wait_ns, recv_ns, proc_ns, wait_ns+recv_ns+proc_ns);
+        
+        if(logger(log_message, runtime_ns, line_limit) == line_limit) {
+            log_net_ns     = 0;     // stop logging after writing out the current log
+            first_log_line = 1;     // re-init for next log run
+            hashpipe_status_lock_safe(&st);
+            hputi4(st.buf, "LOGNETNS", log_net_ns);
+            hashpipe_status_unlock_safe(&st);
         }       
-    }       
+
+	    clock_gettime(CLOCK_MONOTONIC, &runtime_start);     // time from one log line to the next
+    }  // end if(log_net_ns)       
 
     if(mcnt != -1) {    
         // we have finished a block - update per block statistics and status
@@ -925,6 +959,7 @@ static void *run(hashpipe_thread_args_t * args)
 	    status_ns = MAX(max_proc_ns, status_ns);
         hputi8(st.buf, "NETPRCMX", status_ns);
 
+#if 0
         hgeti8(st.buf, "NETSTAMN", (long long *)&status_ns);
 	    status_ns = MIN(min_status_update_ns, status_ns);
         hputi8(st.buf, "NETSTAMN", status_ns);
@@ -932,6 +967,7 @@ static void *run(hashpipe_thread_args_t * args)
         hgeti8(st.buf, "NETSTAMX", (long long *)&status_ns);
 	    status_ns = MAX(max_status_update_ns, status_ns);
         hputi8(st.buf, "NETSTAMX", status_ns);
+#endif
 
         hgeti4(st.buf, "LOGNETNS", &log_net_ns);
 
