@@ -80,11 +80,7 @@ TFIELDS =                    *  / Number of fields per row
 EXTNAME = 'AOSCRAM'             / name of this binary table extension
 NMATRIX =                    1  / 1 dataset per row
 #
-### NON-SCRAM fields ###
-#
 COARCHID=                    *  / coarse channel ID
-#
-### SCRAM fields ###
 #
 ### PNT SCRAM fields ###
 PNTSTIME=                    *  / unix time of this PNT data (TINT)
