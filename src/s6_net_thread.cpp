@@ -76,7 +76,7 @@ static hashpipe_status_t *st_p;
 
 static uint32_t total_missed_pkts[N_BEAM_SLOTS];
 
-inline int logger(char * log_message, uint64_t timestamp, int line_limit) {
+inline int logger(char * log_message, int line_limit) {
 // Keep an in-memory log that gets written out every so often.
 // This is currently used to keep track of packet wait, recv,
 // and process times.
@@ -88,7 +88,7 @@ inline int logger(char * log_message, uint64_t timestamp, int line_limit) {
     int retval;
 
     num_lines++;
-    sprintf(log_p, "%04lu  %05d  %s\n", timestamp, num_lines, log_message);
+    sprintf(log_p, "%05d  %s\n", num_lines, log_message);
     log_p += strlen(log_p);
     retval = num_lines;
 
@@ -665,7 +665,7 @@ static void *run(hashpipe_thread_args_t * args)
     // Flag that holds off the net thread
     int holdoff = 1;
 
-    int    log_net_ns = 0;
+    int    net_log_lines = 0;
 
 #if 0
     // raise this thread to maximum scheduling priority
@@ -737,7 +737,7 @@ static void *run(hashpipe_thread_args_t * args)
     //hputu4(st.buf, "MISSEDBM", 0);
     //hputu4(st.buf, "MISSEDPK", 0);
     hputs(st.buf, status_key, "running");
-    hputi4(st.buf, "LOGNETNS", log_net_ns);
+    hputi4(st.buf, "NETLOGLN", net_log_lines);
     hashpipe_status_unlock_safe(&st);
 
     struct hashpipe_udp_packet p;
@@ -880,9 +880,9 @@ static void *run(hashpipe_thread_args_t * args)
 	elapsed_recv_ns += recv_ns;
 	elapsed_proc_ns += proc_ns;
    
-    if(log_net_ns) {
+    if(net_log_lines) {
         char log_message[200];
-        int line_limit=5000;    // log this many lines before writing out the log
+        //int line_limit=5000;    // log this many lines before writing out the log
 
         if(first_log_line) {
             first_log_line = 0;    
@@ -892,18 +892,19 @@ static void *run(hashpipe_thread_args_t * args)
 	        runtime_ns = ELAPSED_NS(runtime_start, runtime_now);    // timestamp  
         }
 
-        sprintf(log_message, "%d %5lu %5lu %5lu %5lu", wait_loop_cnt, wait_ns, recv_ns, proc_ns, wait_ns+recv_ns+proc_ns);
+        sprintf(log_message, "%d %5lu %5lu %5lu %5lu %5lu", 
+                wait_loop_cnt, wait_ns, recv_ns, proc_ns, wait_ns+recv_ns+proc_ns, runtime_ns);
         
-        if(logger(log_message, runtime_ns, line_limit) == line_limit) {
-            log_net_ns     = 0;     // stop logging after writing out the current log
+        if(logger(log_message, net_log_lines) == net_log_lines) {
+            net_log_lines  = 0;     // stop logging after writing out the current log
             first_log_line = 1;     // re-init for next log run
             hashpipe_status_lock_safe(&st);
-            hputi4(st.buf, "LOGNETNS", log_net_ns);
+            hputi4(st.buf, "NETLOGLN", net_log_lines);
             hashpipe_status_unlock_safe(&st);
         }       
 
 	    clock_gettime(CLOCK_MONOTONIC, &runtime_start);     // time from one log line to the next
-    }  // end if(log_net_ns)       
+    }  // end if(net_log_lines)       
 
     if(mcnt != -1) {    
         // we have finished a block - update per block statistics and status
@@ -969,7 +970,7 @@ static void *run(hashpipe_thread_args_t * args)
         hputi8(st.buf, "NETSTAMX", status_ns);
 #endif
 
-        hgeti4(st.buf, "LOGNETNS", &log_net_ns);
+        hgeti4(st.buf, "NETLOGLN", &net_log_lines);
 
         hashpipe_status_unlock_safe(&st);
 	    clock_gettime(CLOCK_MONOTONIC, &status_stop);
