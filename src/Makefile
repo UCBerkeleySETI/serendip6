@@ -41,6 +41,7 @@ S6_LIB_SOURCES  = s6_databuf.cpp \
 		  s6_fake_data.cpp \
 		  s6_net_thread.cpp \
 		  s6_net_null_thread.cpp \
+		  s6_pktsock_thread.cpp \
 		  s6_gpu_thread.cpp \
 		  s6_output_thread.cpp \
 		  s6_obs_data.cpp \
