@@ -4,6 +4,7 @@
 PATH="$(dirname $0):${PATH}"
 
 hostname=`hostname -s`
+net_thread=${1:-s6_net_thread}
 
 function getip() {
   out=$(host $1) && echo $out | awk '{print $NF}'
@@ -30,7 +31,7 @@ then
 fi
 
 # Setup parameters for two instances.
-instance_i=("0" "1");
+instance_i=("0") # "1")
 log_timestamp=`date +%Y%m%d_%H%M%S`
 instances=(
   # 2 x E5-2630 (6-cores @ 2.3 GHz, 15 MB L3, 7.2 GT/s QPI, 1333 MHz DRAM)
@@ -74,6 +75,12 @@ function init() {
     return 1
   fi
 
+  if [ $net_thread == 's6_pktsock_thread' ]
+  then
+    bindhost="eth$((2+2*instance))"
+    echo "binding $net_thread to $bindhost"
+  fi
+
   echo taskset $mask                   \
   hashpipe -p serendip6 -I $instance   \
     -o VERS6SW=0.5.0                   \
@@ -82,7 +89,7 @@ function init() {
     -o MAXHITS=2048                    \
     -o BINDHOST=$bindhost              \
     -o GPUDEV=$gpudev                  \
-    -c $netcpu s6_net_thread           \
+    -c $netcpu $net_thread             \
     -c $gpucpu s6_gpu_thread           \
     -c $outcpu s6_output_thread    
 
@@ -94,7 +101,7 @@ function init() {
     -o MAXHITS=2048                    \
     -o BINDHOST=$bindhost              \
     -o GPUDEV=$gpudev                  \
-    -c $netcpu s6_net_thread           \
+    -c $netcpu $net_thread             \
     -c $gpucpu s6_gpu_thread           \
     -c $outcpu s6_output_thread        \
      < /dev/null                       \
