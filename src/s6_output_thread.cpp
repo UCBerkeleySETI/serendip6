@@ -143,6 +143,7 @@ rv=0;
         hputi4(st.buf, "SCRBIAS2", scram.ALFBIAS2);
         hputi4(st.buf, "SCRALFFB", scram.IF1ALFFB);
         hputi4(st.buf, "SCRALFON", scram.IF2ALFON);
+        hputi4(st.buf, "SCRIF2SR", scram.IF2SIGSR);
         hashpipe_status_unlock_safe(&st);
 
         // test for and handle file change events

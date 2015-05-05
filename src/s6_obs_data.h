@@ -40,6 +40,7 @@ typedef struct scram {
     int     IF2STIME;
     double  IF2SYNHZ;   
     int     IF2ALFON;
+    int     IF2SIGSR;
     int     TTSTIME; 
     int     TTTURENC;   
     double  TTTURDEG;  

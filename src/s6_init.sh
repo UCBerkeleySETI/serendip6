@@ -76,7 +76,7 @@ function init() {
 
   echo taskset $mask                   \
   hashpipe -p serendip6 -I $instance   \
-    -o VERS6SW=0.4.0                   \
+    -o VERS6SW=0.5.0                   \
     -o VERS6GW=0.1.0                   \
     -o RUNALWYS=0                      \
     -o MAXHITS=2048                    \
@@ -88,7 +88,7 @@ function init() {
 
   taskset $mask                        \
   hashpipe -p serendip6 -I $instance   \
-    -o VERS6SW=0.4.0                   \
+    -o VERS6SW=0.5.0                   \
     -o VERS6GW=0.1.0                   \
     -o RUNALWYS=0                      \
     -o MAXHITS=2048                    \

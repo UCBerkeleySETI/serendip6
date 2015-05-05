@@ -304,6 +304,7 @@ int write_integration_header(etfits_t * etf, scram_t *scram) {
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "IF2STIME", &(scram->IF2STIME),  NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "IF2ALFON", &(scram->IF2ALFON),  NULL, status_p);
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "IF2SYNHZ", &(scram->IF2SYNHZ),  NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "IF2SIGSR", &(scram->IF2SIGSR),  NULL, status_p); 
 
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "TTSTIME",  &(scram->TTSTIME),   NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "TTTURENC", &(scram->TTTURENC),  NULL, status_p); 
