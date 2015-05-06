@@ -16,6 +16,8 @@
 #include <sys/types.h>
 #include <errno.h>
 
+#include <sched.h>
+
 #include <smmintrin.h>
 #include <immintrin.h>
 
@@ -589,6 +591,19 @@ static void *run(hashpipe_thread_args_t * args)
 
     // Flag that holds off the net thread
     int holdoff = 1;
+
+#if 0
+    // raise this thread to maximum scheduling priority
+    // This was found not to help with peformance, but try it again anyway...
+    struct sched_param SchedParam;
+    int retval;
+    SchedParam.sched_priority = sched_get_priority_max(SCHED_FIFO);
+    hashpipe_info(__FUNCTION__, "Setting scheduling priority to %d\n", SchedParam.sched_priority);
+    retval = sched_setscheduler(0, SCHED_FIFO, &SchedParam);
+    if(retval) {
+        perror("sched_setscheduler :");
+    }
+#endif
 
     // Force ourself into the hold off state
     hashpipe_status_lock_safe(&st);
