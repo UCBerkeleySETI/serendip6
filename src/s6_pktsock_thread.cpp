@@ -582,6 +582,59 @@ static inline uint64_t process_packet(
 #define ELAPSED_NS(start,stop) \
   (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
 
+static int init(hashpipe_thread_args_t *args)
+{
+    /* Read network params */
+    char bindhost[80];
+    int bindport = 21302;
+
+    strcpy(bindhost, "eth2");
+
+    hashpipe_status_t st = args->st;
+
+    hashpipe_status_lock_safe(&st);
+    // Get info from status buffer if present (no change if not present)
+    hgets(st.buf, "BINDHOST", 80, bindhost);
+    hgeti4(st.buf, "BINDPORT", &bindport);
+    // Store bind host/port info etc in status buffer
+    hputs(st.buf, "BINDHOST", bindhost);
+    hputi4(st.buf, "BINDPORT", bindport);
+    hashpipe_status_unlock_safe(&st);
+
+#ifndef TIMING_TEST
+    /* Set up pktsock */
+    struct hashpipe_pktsock *p_ps = (struct hashpipe_pktsock *)
+	malloc(sizeof(struct hashpipe_pktsock));
+
+    if(!p_ps) {
+        perror(__FUNCTION__);
+        return -1;
+    }
+
+    // Make frame_size be a divisor of block size so that frames will be
+    // contiguous in mapped mempory.  block_size must also be a multiple of
+    // page_size.  Easiest way is to oversize the frames to be 16384 bytes, which
+    // is bigger than we need, but keeps things easy.
+    p_ps->frame_size = PKTSOCK_BYTES_PER_FRAME;
+    // total number of frames
+    p_ps->nframes = PKTSOCK_NFRAMES;
+    // number of blocks
+    p_ps->nblocks = PKTSOCK_NBLOCKS;
+
+    int rv = hashpipe_pktsock_open(p_ps, bindhost, PACKET_RX_RING);
+    if (rv!=HASHPIPE_OK) {
+        hashpipe_error("s6_pktsock_thread", "Error opening pktsock.");
+        pthread_exit(NULL);
+    }
+
+    // Store packet socket pointer in args
+    args->user_data = p_ps;
+#endif
+
+    // Success!
+    return 0;
+}
+
 static void *run(hashpipe_thread_args_t * args)
 {
     // Local aliases to shorten access to args fields
@@ -591,9 +644,6 @@ static void *run(hashpipe_thread_args_t * args)
     const char * status_key = args->thread_desc->skey;
 
     st_p = &st;	// allow global (this source file) access to the status buffer
-
-    // Flag that holds off the net thread
-    int holdoff = 1;
 
 #if 0
     // raise this thread to maximum scheduling priority
@@ -608,24 +658,6 @@ static void *run(hashpipe_thread_args_t * args)
     }
 #endif
 
-    // Force ourself into the hold off state
-    hashpipe_status_lock_safe(&st);
-    hputi4(st.buf, "NETHOLD", 1);
-    hashpipe_status_unlock_safe(&st);
-
-    while(holdoff) {
-	// We're not in any hurry to startup
-	sleep(1);
-	hashpipe_status_lock_safe(&st);
-	// Look for NETHOLD value
-	hgeti4(st.buf, "NETHOLD", &holdoff);
-	if(!holdoff) {
-	    // Done holding, so delete the key
-	    hdel(st.buf, "NETHOLD");
-	}
-	hashpipe_status_unlock_safe(&st);
-    }
-
 #ifdef DEBUG_SEMS
     fprintf(stderr, "s/tid %lu/NET/' <<.\n", pthread_self());
 #endif
@@ -636,51 +668,6 @@ static void *run(hashpipe_thread_args_t * args)
     hashpipe_status_lock_busywait_safe(st_p);
     memcpy(status_buf, st_p->buf, HASHPIPE_STATUS_SIZE);
     hashpipe_status_unlock_safe(st_p);
-#endif
-
-    /* Read network params */
-    struct hashpipe_udp_params up;
-    strcpy(up.bindhost, "eth2");
-    up.bindport = 21302;
-    up.packet_size = 8 + (N_COARSE_CHAN * N_BYTES_PER_CHAN) + 8;
-
-    hashpipe_status_lock_safe(&st);
-    // Get info from status buffer if present (no change if not present)
-    hgets(st.buf, "BINDHOST", 80, up.bindhost);
-    hgeti4(st.buf, "BINDPORT", &up.bindport);
-    // Store bind host/port info etc in status buffer
-    hputs(st.buf, "BINDHOST", up.bindhost);
-    hputi4(st.buf, "BINDPORT", up.bindport);
-    hputu4(st.buf, "MISSEDBM", 0);
-    hputu4(st.buf, "MISSEDPK", 0);
-    hputs(st.buf, status_key, "running");
-    hashpipe_status_unlock_safe(&st);
-
-    unsigned char *p_frame;
-
-    /* Give all the threads a chance to start before opening network socket */
-    sleep(1);
-
-#ifndef TIMING_TEST
-    /* Set up pktsock */
-    struct hashpipe_pktsock s_ps;
-    // Make frame_size be a divisor of block size so that frames will be
-    // contiguous in mapped mempory.  block_size must also be a multiple of
-    // page_size.  Easiest way is to oversize the frames to be 16384 bytes, which
-    // is bigger than we need, but keeps things easy.
-    s_ps.frame_size = PKTSOCK_BYTES_PER_FRAME;
-    // total number of frames
-    s_ps.nframes = PKTSOCK_NFRAMES;
-    // number of blocks
-    s_ps.nblocks = PKTSOCK_NBLOCKS;
-
-    int rv = hashpipe_pktsock_open(&s_ps, up.bindhost, PACKET_RX_RING);
-    if (rv!=HASHPIPE_OK) {
-        hashpipe_error("s6_pktsock_thread",
-                "Error opening pktsock.");
-        pthread_exit(NULL);
-    }
-    pthread_cleanup_push((void (*)(void *))hashpipe_pktsock_close, &s_ps);
 #endif
 
     // Acquire first two blocks to start
@@ -708,6 +695,31 @@ static void *run(hashpipe_thread_args_t * args)
     // Initialize the newly acquired block
     initialize_block(db,  0, 0, 0);
     initialize_block(db, Nm, 0, 0);
+
+    /* Read network params */
+    int bindport = 21302;
+    size_t max_packet_size = 8 + (N_COARSE_CHAN * N_BYTES_PER_CHAN) + 8;
+
+#ifndef TIMING_TEST
+    /* Get pktsock from args*/
+    struct hashpipe_pktsock * p_ps = (struct hashpipe_pktsock*)args->user_data;
+    pthread_cleanup_push(free, p_ps);
+    pthread_cleanup_push((void (*)(void *))hashpipe_pktsock_close, p_ps);
+
+    // Drop all packets to date
+    unsigned char *p_frame;
+    while(p_frame=hashpipe_pktsock_recv_frame_nonblock(p_ps)) {
+	hashpipe_pktsock_release_frame(p_frame);
+    }
+
+    hashpipe_status_lock_safe(&st);
+    // Get info from status buffer
+    hgeti4(st.buf, "BINDPORT", &bindport);
+    hputu4(st.buf, "MISSEDBM", 0);
+    hputu4(st.buf, "MISSEDPK", 0);
+    hputs(st.buf, status_key, "running");
+    hashpipe_status_unlock_safe(&st);
+#endif
 
     /* Main loop */
     uint64_t packet_count = 0;
@@ -739,14 +751,14 @@ static void *run(hashpipe_thread_args_t * args)
 	clock_gettime(CLOCK_MONOTONIC, &recv_start);
 	do {
 	    clock_gettime(CLOCK_MONOTONIC, &start);
-	    //p_frame = hashpipe_pktsock_recv_udp_frame(&s_ps, up.bindport, 10);
-	    p_frame = hashpipe_pktsock_recv_udp_frame_nonblock(&s_ps, up.bindport);
+	    //p_frame = hashpipe_pktsock_recv_udp_frame(p_ps, bindport, 10);
+	    p_frame = hashpipe_pktsock_recv_udp_frame_nonblock(p_ps, bindport);
 	    clock_gettime(CLOCK_MONOTONIC, &recv_stop);
 	} while (!p_frame && run_threads());
 	if(!run_threads()) break;
 	// Handle variable packet size!
         int packet_size = PKT_UDP_SIZE(p_frame) - 8;
-        if (packet_size < 16 || up.packet_size < packet_size || packet_size % 8 != 0) {
+        if (packet_size < 16 || max_packet_size < packet_size || packet_size % 8 != 0) {
 	    // Log warning and ignore wrongly sized packet
 	    #ifdef DEBUG_NET
 	    hashpipe_warn("s6_pktsock_thread", "Invalid pkt size (%d)", packet_size);
@@ -783,7 +795,7 @@ static void *run(hashpipe_thread_args_t * args)
             ns_per_proc = (float)elapsed_proc_ns / packet_count;
 
 	    // Get stats from packet socket
-	    hashpipe_pktsock_stats(&s_ps, &pktsock_pkts, &pktsock_drops);
+	    hashpipe_pktsock_stats(p_ps, &pktsock_pkts, &pktsock_drops);
 
             hashpipe_status_lock_busywait_safe(&st);
 
@@ -849,6 +861,7 @@ static void *run(hashpipe_thread_args_t * args)
 #ifndef TIMING_TEST
     /* Have to close all push's */
     pthread_cleanup_pop(1); /* Closes push(hashpipe_pktsock_close) */
+    pthread_cleanup_pop(1); /* Closes push(free) */
 #endif
 
     return NULL;
@@ -857,7 +870,7 @@ static void *run(hashpipe_thread_args_t * args)
 static hashpipe_thread_desc_t pktsock_thread = {
     name: "s6_pktsock_thread",
     skey: "NETSTAT",
-    init: NULL,
+    init: init,
     run:  run,
     ibuf_desc: {NULL},
     obuf_desc: {s6_input_databuf_create}
