@@ -16,6 +16,9 @@
 #include <sys/types.h>
 #include <errno.h>
 
+#include <smmintrin.h>
+#include <immintrin.h>
+
 #include "hashpipe.h"
 #include "s6_databuf.h"
 
@@ -139,6 +142,44 @@ void dump_mcnt_log(int pchan)
 }
 #endif
 
+static inline void * s6_memcpy(uint64_t * out, const uint64_t * const in, size_t n_bytes) {
+//#define bitload256
+  __m128i lo128, hi128;
+  __m256i out256         = _mm256_setzero_si256();
+#ifdef bitload256
+  __m256i *p_in          = (__m256i *)in;
+#else
+  __m128i *p_in          = (__m128i *)in;
+#endif
+  __m256i *p_out         = (__m256i *)out;
+  size_t n_256_bit_words = n_bytes/32;
+  size_t i;
+
+  for(i=0; i<n_256_bit_words; i++) {
+#ifdef bitload256
+        //out256 = _mm256_stream_load_si256(p_in++);  // Program terminated with signal 4, Illegal instruction.
+        out256 = _mm256_load_si256(p_in++);
+#else
+        // have to load 128, rather than 256, bits at a time
+        lo128 = _mm_stream_load_si128(p_in++);
+        hi128 = _mm_stream_load_si128(p_in++);
+
+        // Transfer lo128 to lower half of __m256i variable 'out256'
+        // Use pragmas to avoid "uninitialized use of out256" warning/error
+        out256 = _mm256_insertf128_si256(out256, lo128, 0);
+        // Transfer hi128 to upper half of __m256i variable 'out256'
+        out256 = _mm256_insertf128_si256(out256, hi128, 1);
+#endif
+        // now stream to final destination 256 bits at a time
+        _mm256_stream_si256(p_out++, out256);
+
+        // both p_in and p_out have now been advanced by 256 bits (32 bytes)
+  }
+
+//fprintf(stderr, "In s6_memcpy : end   : p_in = %p p_out = %p\n", p_in, p_out);
+  return (void *)out;
+}
+
 static inline void get_header(unsigned char *p_frame, packet_header_t * pkt_header)
 {
     uint64_t raw_header;
@@ -146,7 +187,7 @@ static inline void get_header(unsigned char *p_frame, packet_header_t * pkt_head
     pkt_header->mcnt        =  raw_header >> 16;
     pkt_header->pchan       = (raw_header >>  4) & 0x0000000000000FFF;
     pkt_header->sid         =  raw_header        & 0x000000000000000F;
- 
+
     // Compute nchan from packet size (minus UDP header and S6 header and CRC words)
     pkt_header->nchan = (PKT_UDP_SIZE(p_frame) - 3*8)/ N_BYTES_PER_CHAN; // N_BYTES_PER_CHAN==4
 
@@ -256,7 +297,7 @@ static inline int calc_block_indexes(block_info_t *binfo, packet_header_t * pkt_
 	binfo->nchan = pkt_header->nchan;
 	binfo->pchan = pkt_header->pchan;
     }
-    
+
     // Warn on changes to PCHAN and NCHAN
     if(pkt_header->pchan != binfo->pchan) {
 	hashpipe_warn(__FUNCTION__,
@@ -447,11 +488,20 @@ static inline uint64_t process_packet(
 	// Calculate starting points for unpacking this packet into block's data buffer.
 	dest_p = s6_input_databuf_p->block[pkt_block_i].data
 	    + (pkt_header.sid*Nm + (pkt_mcnt%Nm)) * N_COARSE_CHAN * N_BYTES_PER_CHAN / sizeof(uint64_t);
-	payload_p        = (uint64_t *)(PKT_UDP_DATA(p_frame)+8);
 
 	// Copy data into buffer
+
+#if 1
+	// Point to payload (after S6 header)
+	payload_p        = (uint64_t *)(PKT_UDP_DATA(p_frame)+8);
 	// Use length from packet (minus UDP header and minus HEADER word and minus CRC word)
 	memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame) - 8 - 8 - 8);
+#else
+	// Copy "extra" packet preface data to maintain alignment
+	payload_p        = (uint64_t *)(PKT_NET(p_frame)+16);
+	s6_memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame));
+#endif
+
 	//memset(dest_p, 0, N_COARSE_CHAN*N_BYTES_PER_CHAN);
 	//dest_p[0] = be64toh(*(uint64_t *)(p->data));
 
