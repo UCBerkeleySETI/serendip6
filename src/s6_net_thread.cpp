@@ -695,8 +695,11 @@ static void *run(hashpipe_thread_args_t * args)
 #endif
 
     // Force ourself into the hold off state
+    // and delete keys from s6_pktsock_thread that this thread does not use.
     hashpipe_status_lock_safe(&st);
     hputi4(st.buf, "NETHOLD", 1);
+    hdel(st.buf, "NETPKTS");
+    hdel(st.buf, "NETDROPS");
     hashpipe_status_unlock_safe(&st);
 
     while(holdoff) {
