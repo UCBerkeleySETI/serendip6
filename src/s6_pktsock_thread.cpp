@@ -415,7 +415,8 @@ static inline uint64_t process_packet(
 
 #if N_DEBUG_INPUT_BLOCKS == 1
     debug_ptr = (uint64_t *)&s6_input_databuf_p->block[N_INPUT_BLOCKS];
-    debug_ptr[debug_offset++] = be64toh(*(uint64_t *)(p->data));
+    //debug_ptr[debug_offset++] = be64toh(*(uint64_t *)(PKT_NET(p_frame)+16));
+    debug_ptr[debug_offset++] = (uint64_t)PKT_NET(p_frame)+16;
     if(--debug_remaining == 0) {
 	exit(1);
     }
@@ -430,11 +431,13 @@ static inline uint64_t process_packet(
 	// block + 3/2 blocks), then "current" block is done.
 	if(pkt_mcnt_dist >= 3*(Nm/2)) {
 
+#if 0
 	    for(i=0; i<N_BEAMS; i++) {
 		if(s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i] != 0)
 		    printf("missed %lu packets for beam %d\n",
 			s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i], i);
 	    }
+#endif
 
 	    // Mark the current block as filled
 	    netmcnt = set_block_filled(s6_input_databuf_p, &binfo);
