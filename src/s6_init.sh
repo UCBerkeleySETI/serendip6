@@ -1,5 +1,8 @@
 #!/bin/bash
 
+VERS6SW=0.6.0                   \
+VERS6GW=0.1.0                   \
+
 # Add directory containing this script to PATH
 PATH="$(dirname $0):${PATH}"
 
@@ -83,8 +86,8 @@ function init() {
 
   echo taskset $mask                   \
   hashpipe -p serendip6 -I $instance   \
-    -o VERS6SW=0.5.0                   \
-    -o VERS6GW=0.1.0                   \
+    -o VERS6SW=$VERS6SW                \
+    -o VERS6GW=$VERS6GW                \
     -o RUNALWYS=0                      \
     -o MAXHITS=2048                    \
     -o BINDHOST=$bindhost              \
@@ -95,8 +98,8 @@ function init() {
 
   taskset $mask                        \
   hashpipe -p serendip6 -I $instance   \
-    -o VERS6SW=0.5.0                   \
-    -o VERS6GW=0.1.0                   \
+    -o VERS6SW=$VERS6SW                \
+    -o VERS6GW=$VERS6GW                \
     -o RUNALWYS=0                      \
     -o MAXHITS=2048                    \
     -o BINDHOST=$bindhost              \
