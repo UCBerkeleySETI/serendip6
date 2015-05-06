@@ -724,6 +724,8 @@ static void *run(hashpipe_thread_args_t * args)
     float ns_per_wait = 0.0; // Average ns per wait over 1 block
     float ns_per_recv = 0.0; // Average ns per recv over 1 block
     float ns_per_proc = 0.0; // Average ns per proc over 1 block
+    unsigned int pktsock_pkts = 0;  // Stats counter from socket packet
+    unsigned int pktsock_drops = 0; // Stats counter from socket packet;
     struct timespec start, stop;
     struct timespec recv_start, recv_stop;
 
@@ -777,6 +779,9 @@ static void *run(hashpipe_thread_args_t * args)
             ns_per_recv = (float)elapsed_recv_ns / packet_count;
             ns_per_proc = (float)elapsed_proc_ns / packet_count;
 
+	    // Get stats from packet socket
+	    hashpipe_pktsock_stats(&s_ps, &pktsock_pkts, &pktsock_drops);
+
             hashpipe_status_lock_busywait_safe(&st);
 
             hputu8(st.buf, "NETMCNT", mcnt);
@@ -793,6 +798,9 @@ static void *run(hashpipe_thread_args_t * args)
             hputi8(st.buf, "NETWATMX", max_wait_ns);
             hputi8(st.buf, "NETRECMX", max_recv_ns);
             hputi8(st.buf, "NETPRCMX", max_proc_ns);
+
+            hputi8(st.buf, "NETPKTS", pktsock_pkts);
+            hputi8(st.buf, "NETDROPS", pktsock_drops);
 
             hashpipe_status_unlock_safe(&st);
 
