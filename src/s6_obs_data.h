@@ -66,7 +66,9 @@ typedef struct scram {
 } scram_t;
 
 int get_obs_info_from_redis(scram_t *scram, char *hostname, int port);
-int is_alfa_enabled (scram_t *scram);
-int is_327_enabled (scram_t *scram);
+bool is_alfa_enabled (scram_t *scram);
+bool is_327_enabled (scram_t *scram);
+bool is_source_gregorian(scram_t *scram);
+
 
 #endif  // _S6_OBS_DATA_H

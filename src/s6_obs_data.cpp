@@ -243,12 +243,13 @@ int get_obs_info_from_redis(scram_t *scram,
     redisFree(c);       // TODO do I really want to free each time?
 
     if (!rv) {
-        // TODO this should be collapsed a bit once testing/debugging is done
+        // Check that a desired receiver is in focus and that the 
+        // signal source is the gregorian dome.
         scram->rec_alfa_enabled = is_alfa_enabled(scram);
         scram->rec_327_enabled  = is_327_enabled(scram);
-        if(scram->rec_alfa_enabled) {
+        if(scram->rec_alfa_enabled && is_source_gregorian(scram)) {
             scram->receiver = RECEIVER_ALFA;
-        } else if(scram->rec_327_enabled) {
+        } else if(scram->rec_327_enabled && is_source_gregorian(scram)) {
             scram->receiver = RECEIVER_327MHZ;
         } else {
             scram->receiver = RECEIVER_NONE;
@@ -258,7 +259,7 @@ int get_obs_info_from_redis(scram_t *scram,
     return rv;         
 }
 
-int is_alfa_enabled (scram_t *scram) {
+bool is_alfa_enabled (scram_t *scram) {
 
   time_t now;
   
@@ -273,15 +274,12 @@ int is_alfa_enabled (scram_t *scram) {
   if (fabs(scram->TTTURDEG - TT_TurretDegreesAlfa) > TT_TurretDegreesTolerance) return false;
 
   return true;
-
 }
 
-int is_327_enabled (scram_t *scram) {
+bool is_327_enabled (scram_t *scram) {
 // Code and values via AO Phil.
 #define TUR_DEG_TO_ENC_UNITS  ( (4096. * 210. / 5.0) / (360.) )
 #define RCV_POS_327 339.90
-
-    int    rcv327Active = 0;
 
     double turDeg     = scram->TTTURDEG;
     double syn1Mhz    = scram->IF1SYNHZ * 1e-6;
@@ -306,11 +304,18 @@ int is_327_enabled (scram_t *scram) {
     double syn2Mhz_327_puppi = 1010;    // IF1 synth + IF2 synth
     double syn2Mhz_327_mock  = 1075;    // IF1 synth + IF2 synth
 
-    rcv327Active=(scram->IF2SIGSR                     == 0          &&   // signal source 0-gr,1-ch,2-noise
-                  (fabs(turDeg  - RCV_POS_327)        < epsPosDeg)  &&   
-                  (fabs(syn1Mhz - syn1Mhz_327)        < epsFrqMhz)  &&
-                  ((fabs(syn2Mhz - syn2Mhz_327_puppi) < epsFrqMhz) ||
-                   (fabs(syn2Mhz - syn2Mhz_327_mock ) < epsFrqMhz)));
+    return((fabs(turDeg  - RCV_POS_327)        < epsPosDeg)  &&   
+           (fabs(syn1Mhz - syn1Mhz_327)        < epsFrqMhz)  &&
+           ((fabs(syn2Mhz - syn2Mhz_327_puppi) < epsFrqMhz) ||
+            (fabs(syn2Mhz - syn2Mhz_327_mock ) < epsFrqMhz)));
+}
 
-    return(rcv327Active);
+bool is_source_gregorian(scram_t *scram) {
+
+    // signal source 0=gr,1=ch,2=noise
+    if(scram->IF2SIGSR == 0) { 
+        return true;
+    } else {
+        return false;
+    }
 }
