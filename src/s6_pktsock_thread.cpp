@@ -740,7 +740,9 @@ static void *run(hashpipe_thread_args_t * args)
     float ns_per_recv = 0.0; // Average ns per recv over 1 block
     float ns_per_proc = 0.0; // Average ns per proc over 1 block
     unsigned int pktsock_pkts = 0;  // Stats counter from socket packet
-    unsigned int pktsock_drops = 0; // Stats counter from socket packet;
+    unsigned int pktsock_drops = 0; // Stats counter from socket packet
+    uint64_t pktsock_pkts_total = 0;  // Stats total for socket packet
+    uint64_t pktsock_drops_total = 0; // Stats total for socket packet
     struct timespec start, stop;
     struct timespec recv_start, recv_stop;
 
@@ -814,8 +816,13 @@ static void *run(hashpipe_thread_args_t * args)
             hputi8(st.buf, "NETRECMX", max_recv_ns);
             hputi8(st.buf, "NETPRCMX", max_proc_ns);
 
-            hputi8(st.buf, "NETPKTS", pktsock_pkts);
-            hputi8(st.buf, "NETDROPS", pktsock_drops);
+            hputu8(st.buf, "NETPKTS",  pktsock_pkts);
+            hputu8(st.buf, "NETDROPS", pktsock_drops);
+
+            hgetu8(st.buf, "NETPKTTL", (long long unsigned int*)&pktsock_pkts_total);
+            hgetu8(st.buf, "NETDRPTL", (long long unsigned int*)&pktsock_drops_total);
+            hputu8(st.buf, "NETPKTTL", pktsock_pkts_total + pktsock_pkts);
+            hputu8(st.buf, "NETDRPTL", pktsock_drops_total + pktsock_drops);
 
             hashpipe_status_unlock_safe(&st);
 
