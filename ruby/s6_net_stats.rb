@@ -2,6 +2,7 @@
 
 # Monitore SERENDIP6 network statistics
 
+require 'astroutil'
 require 'hashpipe'
 
 STDOUT.sync = true
@@ -19,7 +20,7 @@ rescue
 end
 
 FIELDS = %w[
-  NETBKOUT MISSEDPK NETDROPS
+  NETBKOUT MISSEDPK NETDRPTL NETPKTS
   NETWATNS NETRECNS NETPRCNS
   NETWATMX NETRECMX NETPRCMX
   NETGBPS
@@ -30,7 +31,7 @@ prev_netbkout = nil
 while iters != 0
   values = FIELDS.map {|k| stat.hgets(k)}
   if values[0] != prev_netbkout
-    printf "%3d %s %s %s %.3f %.3f %.3f %6d %5d %6d %.1f\n", i, *values
+    printf "%3d %s %s %s %s %.3f %.3f %.3f %6d %5d %6d %.1f %s\n", i, *values, DateTime.now.to_s(3)
     prev_netbkout = values[0]
     i += 1
     iters -= 1
