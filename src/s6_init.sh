@@ -134,8 +134,11 @@ then
   # Zero out MISSEDPK counts
   for instidx in ${instance_i[@]}
   do
-    echo Resetting MISSEDPK count for s6c$mys6cn/$instidx
-    hashpipe_check_status -I $instidx -k MISSEDPK -s 0
+    for key in MISSEDPK NETDRPTL
+    do
+      echo Resetting $key count for s6c$mys6cn/$instidx
+      hashpipe_check_status -I $instidx -k $key -s 0
+    done
   done
 else
   # Zero out MISSPKTL counts
