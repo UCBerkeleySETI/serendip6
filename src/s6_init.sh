@@ -34,7 +34,7 @@ then
 fi
 
 # Setup parameters for two instances.
-instance_i=("0") # "1")
+instance_i=("0" "1")
 log_timestamp=`date +%Y%m%d_%H%M%S`
 instances=(
   # 2 x E5-2630 (6-cores @ 2.3 GHz, 15 MB L3, 7.2 GT/s QPI, 1333 MHz DRAM)
