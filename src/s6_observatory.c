@@ -82,7 +82,7 @@ int main(int argc, char ** argv) {
     double RA, Dec, MJD, azfix, zafix; // PNT vars
     int mlasttck, Az, ZA, agctime; double Azdeg, ZAdeg, timesecs, Azerrdeg, ZAerrdeg; // AGC vars
     int synIDB_0, fltrbank; double synIHz_0, rfFreq, FrqMhz; // IF1 vars
-    bool useAlfa; // IF2 vars
+    bool useAlfa; int sigSrc; // IF2 vars
     int encoder; double degrees; // TT vars
     int fstbias, sndbias; double motorpos; // ALFASHM vars
     double synIHz_1, lo2Hz;
@@ -321,10 +321,11 @@ int main(int argc, char ** argv) {
                 if(scram->if2Data.st.stat1.useAlfa) { useAlfa = true; } else { useAlfa = false; }
                 synIHz_1 = scram->if2Data.st.synI.freqHz[4];        // TODO label/name as 2nd LO, right?  AO Phil says to use [4]
                 ftoa(synIHz_1,synIHz_1buf);
-                sprintf(strbuf,"SCRAM:IF2 IF2STIME %ld IF2SYNHZ %s IF2ALFON %d",time_if2,synIHz_1buf,useAlfa);
+                sigSrc = scram->if2Data.st.stat1.sigSrc;
+                sprintf(strbuf,"SCRAM:IF2 IF2STIME %ld IF2SYNHZ %s IF2ALFON %d IF2SIGSR %d",time_if2,synIHz_1buf,useAlfa,sigSrc);
                 if (!nodb) { 
-                reply = redisCommand(c,"HMSET %s %s %d %s %s %s %d",
-                                     "SCRAM:IF2","IF2STIME",time_if2, "IF2SYNHZ", synIHz_1buf, "IF2ALFON",useAlfa); 
+                reply = redisCommand(c,"HMSET %s %s %d %s %s %s %d %s %d",
+                                     "SCRAM:IF2","IF2STIME",time_if2, "IF2SYNHZ", synIHz_1buf, "IF2ALFON",useAlfa, "IF2SIGSR",sigSrc); 
                 freeReplyObject(reply); 
                 }
                 if (dostdout) {
