@@ -2,6 +2,13 @@ LASTUPDT last_update
 LST lst
 UTC utc
 MJD mjd
+EPOCH epoch
+MAJTYPE major_type
+MINTYPE minor_type
+MAJOR major
+MINOR minor
+AZCOMM az_commanded
+ELCOMM el_commanded
 AZACTUAL az_actual
 ELACTUAL el_actual
 FREQ freq

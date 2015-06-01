@@ -15,7 +15,7 @@ const char *status_fields_config = "./status_fields";
 
 const char *usage = "Usage: s6obs_gbt [-stdout] [-nodb] [-hostname hostname] [-port port]\n  -stdout: output packets to stdout (normally quiet)\n  -nodb: don't update redis db\n  hostname/port: for redis database (default 127.0.0.1:6379)\n\n";
 
-MYSQL* mysql;
+MYSQL mysql;
 MYSQL_ROW row;
 MYSQL_RES* resp;
 int retval;
@@ -38,9 +38,14 @@ int main(int argc, char ** argv) {
   bool nodb = false;
   bool dostdout = false;
 
-  int az_actual_index, el_actual_index, last_update_index; // make sure we have these
+  int az_actual_index, el_actual_index, last_update_index, lst_index, mjd_index; // make sure we have these
 
   double az_actual, el_actual, ra_derived, dec_derived;
+  double za;
+  double lsthour,lstminute,lstsecond;
+
+  double xyz[3];
+  double xyz_precessed[3];
 
   char last_last_update[32];
 
@@ -71,32 +76,32 @@ int main(int argc, char ** argv) {
 
   //### read in status fields (and create mysql "select" command string)
   
-  az_actual_index = -1; 
-  el_actual_index = -1;
-  last_update_index = -1;
+  az_actual_index = el_actual_index = last_update_index = lst_index = mjd_index = -1;
   char *selectcommand = (char *)malloc(sizeof(char*)*lines_allocated*max_line_len);
   char **fitskeys= (char **)malloc(sizeof(char*)*lines_allocated);
   char **mysqlkeys= (char **)malloc(sizeof(char*)*lines_allocated);
   if (fitskeys==NULL || mysqlkeys==NULL) { fprintf(stderr,"Out of memory (while initializing).\n"); exit(1); }
 
   statusfp = fopen(status_fields_config, "r");
-  if (statusfp == NULL) { fprintf(stderr,"Error opening file.\n"); exit(2); }
+  if (statusfp == NULL) { fprintf(stderr,"Error opening file.\n"); exit(1); }
 
   for (i=0;1;i++) {
-      if (i >= lines_allocated) { fprintf(stderr,"over allocated # of lines (%d lines).\n",lines_allocated); exit(3); }
+      if (i >= lines_allocated) { fprintf(stderr,"over allocated # of lines (%d lines).\n",lines_allocated); exit(1); }
       fitskeys[i] = malloc(max_line_len);
       mysqlkeys[i] = malloc(max_line_len);
-      if (fitskeys[i]==NULL || mysqlkeys[i]==NULL) { fprintf(stderr,"Out of memory (getting next line).\n"); exit(4); }
+      if (fitskeys[i]==NULL || mysqlkeys[i]==NULL) { fprintf(stderr,"Out of memory (getting next line).\n"); exit(1); }
       if (fscanf(statusfp,"%s %s",fitskeys[i],mysqlkeys[i])!=2) break;
       if (strcmp(mysqlkeys[i],"az_actual") == 0) az_actual_index = i;
       if (strcmp(mysqlkeys[i],"el_actual") == 0) el_actual_index = i;
       if (strcmp(mysqlkeys[i],"last_update") == 0) last_update_index = i;
+      if (strcmp(mysqlkeys[i],"lst") == 0) lst_index = i;
+      if (strcmp(mysqlkeys[i],"mjd") == 0) mjd_index = i;
       }
   fclose(statusfp);
 
-  if (az_actual_index == -1 || el_actual_index == -1 || last_update_index == -1) {
-    fprintf(stderr,"az_actual, el_actual, last_update must all be represented in status fields file: %s",status_fields_config);
-    exit(5);
+  if (az_actual_index == -1 || el_actual_index == -1 || last_update_index == -1 || lst_index == -1 || mjd_index == -1 ) {
+    fprintf(stderr,"az_actual, el_actual, last_update, lst, mjd\n   must all be represented in status fields file: %s\n\n",status_fields_config);
+    exit(1);
     }
 
   numkeys = i;
@@ -131,10 +136,10 @@ int main(int argc, char ** argv) {
   
   //### connect to mysql db
   
-  mysql = mysql_init(0);
-  if (!mysql_real_connect (&mysql, "gbtdata.gbt.nrao.edu","gbtstatus","w3bqu3ry","gbt_status",3306,0,CLIENT_FOUND_ROWS); {
+  mysql_init(&mysql);
+  if (!mysql_real_connect (&mysql, "gbtdata.gbt.nrao.edu","gbtstatus","w3bqu3ry","gbt_status",3306,0,CLIENT_FOUND_ROWS)) {
     fprintf(stderr, "Failed to connect to database: Error: %s\n", mysql_error(&mysql));
-    exit(6);
+    exit(1);
     }
 
   //### any other preparations before main loop?
@@ -147,12 +152,12 @@ int main(int argc, char ** argv) {
 
     // read from mysql database
 
-    retval = mysql_query(mysql,selectcommand);
+    retval = mysql_query(&mysql,selectcommand);
     if (retval) {
       fprintf(stderr,"can't connect to the status mysql database - exiting...\n");
       exit(1);
       }
-    resp = mysql_store_result(mysql);
+    resp = mysql_store_result(&mysql);
     if (!resp) {
       fprintf(stderr,"error storing mysql result - exiting...\n");
       exit(1);
@@ -171,7 +176,31 @@ int main(int argc, char ** argv) {
       continue;  
       }
     strcpy(last_last_update,row[last_update_index]);
-    
+
+    az_actual = atof(row[az_actual_index]);
+    el_actual = atof(row[el_actual_index]);
+
+    // testing
+    // az_actual = 198.5284;
+    // el_actual = 45.6437;
+  
+    za = 90-el_actual;
+
+    sscanf(row[lst_index],"%lf:%lf:%lf",&lsthour,&lstminute,&lstsecond);
+    lsthour += (lstminute/60) + (lstsecond/3600);
+
+    //testing
+    // lsthour = 9.64055552;
+ 
+    co_ZenAzToRaDec(za, az_actual, lsthour, &ra_derived, &dec_derived, GBT_LATITUDE);
+    co_EqToXyz(ra_derived, dec_derived, xyz);
+    // DEBUG: // printf("before precess: ra %lf dec %lf\n",ra_derived,dec_derived);
+    // co_Precess(2000 + ((atof(row[mjd_index])+2400000.5) - 2451545) / 365.25, xyz, 2000, xyz_precessed);
+    // testing
+    co_Precess(tm_JulianDateToJulianEpoch(57170.9397344+2400000.5), xyz, 2000, xyz_precessed);
+    // co_Precess(2015, xyz, 2000, xyz_precessed);
+    co_XyzToEq(xyz_precessed, &ra_derived, &dec_derived);
+
     // update redis db (if so desired)
 
     if (!nodb) {
@@ -184,12 +213,21 @@ int main(int argc, char ** argv) {
         // fprintf(stderr, "SET: %s\n", reply->str);
         freeReplyObject(reply); 
         }
+      reply = redisCommand(c,"SET RA_DRV \"%lf\"",ra_derived);
+      freeReplyObject(reply); 
+      reply = redisCommand(c,"SET RADG_DRV \"%lf\"",ra_derived*15);
+      freeReplyObject(reply); 
+      reply = redisCommand(c,"SET DEC_DRV \"%lf\"",dec_derived);
+      freeReplyObject(reply); 
       }
  
     //display values to stdout (if so desired)
      
     if (dostdout) {
       for (i=0;i<numkeys;i++) printf("%2d %8s (%32s) : %s\n",i,fitskeys[i],mysqlkeys[i],row[i]);
+      printf("     RA_DRV (%32s) : %lf\n","",ra_derived);
+      printf("   RADG_DRV (%32s) : %lf\n","",ra_derived*15);
+      printf("    DEC_DRV (%32s) : %lf\n","",dec_derived);
       printf("-----------\n");
       }
 
@@ -209,4 +247,43 @@ JD = MJD + 2400000.5
 UNIX = (JD - 2440587.5) * 86400
 UNIX = (MJD - -40587.0) * 86400
 
+void co_ZenAzToRaDec(double zenith_ang, double azimuth, double lsthour, double *ra, double *dec, double latitude);
+void co_EqToXyz(double ra, double dec, double *xyz);
+void co_XyzToEq(double xyz[], double *ra, double *dec);
+void co_Precess(double e1, double *pos1, double e2, double *pos2);
+
+                lst: 09:38:26
+                utc: 22:33:13
+           utc_date: 2015-05-28
+        time_to_set: 04:28
+              epoch: J2000
+         major_type: RA
+         minor_type: Dec
+              major: 131.5424 (RA)
+              minor: -4.2297 (Dec)
+      major_current: 29.5
+      minor_current: 15.0
+       az_commanded: 198.529
+       el_commanded: 45.644
+          az_actual: 198.5284
+          el_actual: 45.6437
+           az_error: 0.328
+           el_error: -0.218
+               lpcs: (0.000 0.000 0.000)
+       focus_offset: (0.00 0.00 0.00)
+         ant_motion: Guiding
+           receiver: Rcvr_342
+      first_if_freq: 1080.000
+       if_rest_freq: 350.000
+ambient_temperature: 24.3650
+      wind_velocity: 1.2230
+    major_commanded: 131.5417 (RA)
+    minor_commanded: -4.2295 (Dec)
+                mjd: 57170.9397344
+        j2000_major: 131.5426
+        j2000_minor: -4.2297
+
+
 */
+
+
