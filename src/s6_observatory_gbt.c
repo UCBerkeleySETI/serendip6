@@ -10,6 +10,8 @@
 
 #define SLEEP_MICROSECONDS 100000
 
+#define ftoa(A,B) sprintf(B,"%lf",A);
+
 // file containing redis key/mysql row pairs for which to read from mysql and put into redis
 const char *status_fields_config = "./status_fields";
 
@@ -43,6 +45,10 @@ int main(int argc, char ** argv) {
   double az_actual, el_actual, ra_derived, dec_derived;
   double za;
   double lsthour,lstminute,lstsecond;
+
+  char RAbuf[24];  // for annoying hiredis problem with floats
+  char RADbuf[24];
+  char Decbuf[24];
 
   double xyz[3];
   double xyz_precessed[3];
@@ -209,15 +215,21 @@ int main(int argc, char ** argv) {
         // sprintf(strbuf,"ROW%d \"%s\"",i,row[i]);
         // fprintf(stderr,"%s\n",strbuf);
         // reply = redisCommand(c,"SET %s",strbuf);
-        reply = redisCommand(c,"SET %s \"%s\"",fitskeys[i],row[i]);
-        // fprintf(stderr, "SET: %s\n", reply->str);
+        reply = redisCommand(c,"SET %s %s",fitskeys[i],row[i]);
+        // fprintf(stderr, "SET: %d\n", reply->type);
         freeReplyObject(reply); 
         }
-      reply = redisCommand(c,"SET RA_DRV \"%lf\"",ra_derived);
+      ftoa(ra_derived,RAbuf);
+      ftoa(ra_derived*15,RADbuf);
+      ftoa(dec_derived,Decbuf);
+      reply = redisCommand(c,"SET RA_DRV %s",RAbuf);
+      // fprintf(stderr, "DSET: %d\n", reply->type);
       freeReplyObject(reply); 
-      reply = redisCommand(c,"SET RADG_DRV \"%lf\"",ra_derived*15);
+      reply = redisCommand(c,"SET RADG_DRV %s",RADbuf);
+      // fprintf(stderr, "DSET: %d\n", reply->type);
       freeReplyObject(reply); 
-      reply = redisCommand(c,"SET DEC_DRV \"%lf\"",dec_derived);
+      reply = redisCommand(c,"SET DEC_DRV %s",Decbuf);
+      // fprintf(stderr, "DSET: %d\n", reply->type);
       freeReplyObject(reply); 
       }
  
@@ -246,43 +258,6 @@ MJD = JD - 2400000.5
 JD = MJD + 2400000.5
 UNIX = (JD - 2440587.5) * 86400
 UNIX = (MJD - -40587.0) * 86400
-
-void co_ZenAzToRaDec(double zenith_ang, double azimuth, double lsthour, double *ra, double *dec, double latitude);
-void co_EqToXyz(double ra, double dec, double *xyz);
-void co_XyzToEq(double xyz[], double *ra, double *dec);
-void co_Precess(double e1, double *pos1, double e2, double *pos2);
-
-                lst: 09:38:26
-                utc: 22:33:13
-           utc_date: 2015-05-28
-        time_to_set: 04:28
-              epoch: J2000
-         major_type: RA
-         minor_type: Dec
-              major: 131.5424 (RA)
-              minor: -4.2297 (Dec)
-      major_current: 29.5
-      minor_current: 15.0
-       az_commanded: 198.529
-       el_commanded: 45.644
-          az_actual: 198.5284
-          el_actual: 45.6437
-           az_error: 0.328
-           el_error: -0.218
-               lpcs: (0.000 0.000 0.000)
-       focus_offset: (0.00 0.00 0.00)
-         ant_motion: Guiding
-           receiver: Rcvr_342
-      first_if_freq: 1080.000
-       if_rest_freq: 350.000
-ambient_temperature: 24.3650
-      wind_velocity: 1.2230
-    major_commanded: 131.5417 (RA)
-    minor_commanded: -4.2295 (Dec)
-                mjd: 57170.9397344
-        j2000_major: 131.5426
-        j2000_minor: -4.2297
-
 
 */
 
