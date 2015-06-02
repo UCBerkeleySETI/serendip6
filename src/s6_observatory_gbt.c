@@ -6,14 +6,14 @@
 
 #include <hiredis.h>
 
-#include "s6obs_gbt_aux.h"
+#include "s6_obsaux_gbt.h"
 
 #define SLEEP_MICROSECONDS 100000
 
 // file containing redis key/mysql row pairs for which to read from mysql and put into redis
 const char *status_fields_config = "./status_fields";
 
-const char *usage = "Usage: s6obs_gbt [-stdout] [-nodb] [-hostname hostname] [-port port]\n  -stdout: output packets to stdout (normally quiet)\n  -nodb: don't update redis db\n  hostname/port: for redis database (default 127.0.0.1:6379)\n\n";
+const char *usage = "Usage: s6_observatory_gbt [-stdout] [-nodb] [-hostname hostname] [-port port]\n  -stdout: output packets to stdout (normally quiet)\n  -nodb: don't update redis db\n  hostname/port: for redis database (default 127.0.0.1:6379)\n\n";
 
 MYSQL mysql;
 MYSQL_ROW row;
@@ -195,9 +195,9 @@ int main(int argc, char ** argv) {
     co_ZenAzToRaDec(za, az_actual, lsthour, &ra_derived, &dec_derived, GBT_LATITUDE);
     co_EqToXyz(ra_derived, dec_derived, xyz);
     // DEBUG: // printf("before precess: ra %lf dec %lf\n",ra_derived,dec_derived);
-    // co_Precess(2000 + ((atof(row[mjd_index])+2400000.5) - 2451545) / 365.25, xyz, 2000, xyz_precessed);
+    co_Precess(tm_JulianDateToJulianEpoch(atof(row[mjd_index])+2400000.5), xyz, 2000, xyz_precessed);
     // testing
-    co_Precess(tm_JulianDateToJulianEpoch(57170.9397344+2400000.5), xyz, 2000, xyz_precessed);
+    // co_Precess(tm_JulianDateToJulianEpoch(57170.9397344+2400000.5), xyz, 2000, xyz_precessed);
     // co_Precess(2015, xyz, 2000, xyz_precessed);
     co_XyzToEq(xyz_precessed, &ra_derived, &dec_derived);
 

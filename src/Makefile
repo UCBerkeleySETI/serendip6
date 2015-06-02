@@ -11,6 +11,16 @@ S6OBS_PROG_CCFLAGS = -g -lstdc++ \
 		     -I/usr/local/include/ao \
 		     -L/usr/local/lib \
 		     -lhiredis -lazzatoradec -laoscram -lm
+S6OBS_GBT_PROG_CCFLAGS = -g -lstdc++ \
+                     -L/usr/lib64/mysql \
+                     -I/usr/include/mysql \
+                     -L/users/mlebofsk/hiredis \
+                     -I/users/mlebofsk/hiredis \
+                     -I. \
+		     -I/usr/local/include \
+		     -L/usr/local/lib \
+		     -lhiredis -lmysqlclient -lm
+
 S6GPUTEST_CCFLAGS  = -g \
 		     -I. -I/usr/local/cuda/include \
 		     -L. -L/usr/local/cuda/lib64 \
@@ -57,9 +67,14 @@ S6OBS_PROG_SOURCES  = s6_observatory.c \
 S6OBS_PROG_INCLUDES = s6_obsaux.h \
 		      s6_time.h
 
+S6OBS_GBT_PROG_TARGET   = s6_observatory_gbt
+S6OBS_GBT_PROG_SOURCES  = s6_observatory_gbt.c \
+		      s6_obsaux_gbt.c
+S6OBS_GBT_PROG_INCLUDES = s6_obsaux_gbt.h
+
 S6_SCRIPT_TARGET = s6_init.sh
 
-all: $(S6GPU_LIB_TARGET) $(S6_LIB_TARGET) $(S6GPUTEST_PROG_TARGET) $(S6OBS_PROG_TARGET) $(S6EXTRACT_PROG_TARGET)
+all: $(S6GPU_LIB_TARGET) $(S6_LIB_TARGET) $(S6GPUTEST_PROG_TARGET) $(S6OBS_PROG_TARGET) $(S6EXTRACT_PROG_TARGET) $(S6OBS_GBT_PROG_TARGET)
 
 $(S6GPU_LIB_TARGET): $(S6GPU_LIB_SOURCES) $(S6GPU_LIB_INCLUDES)   ; $(NVCC) -o $(S6GPU_LIB_TARGET) $(S6GPU_LIB_SOURCES) $(NVCCFLAGS)
 
@@ -68,6 +83,8 @@ $(S6GPUTEST_PROG_TARGET): $(S6GPUTEST_PROG_SOURCES) $(S6GPUTEST_PROG_INCLUDES) ;
 $(S6_LIB_TARGET): $(S6_LIB_SOURCES) $(S6_LIB_INCLUDES) ; $(CC) -o $(S6_LIB_TARGET) $(S6_LIB_SOURCES) $(S6_LIB_CCFLAGS)
 
 $(S6OBS_PROG_TARGET): $(S6OBS_PROG_SOURCES) $(S6OBS_PROG_INCLUDES) ; $(CC) -o $(S6OBS_PROG_TARGET) $(S6OBS_PROG_SOURCES) $(S6OBS_PROG_CCFLAGS)
+
+$(S6OBS_GBT_PROG_TARGET): $(S6OBS_GBT_PROG_SOURCES) $(S6OBS_GBT_PROG_INCLUDES) ; $(CC) -o $(S6OBS_GBT_PROG_TARGET) $(S6OBS_GBT_PROG_SOURCES) $(S6OBS_GBT_PROG_CCFLAGS)
 
 $(S6EXTRACT_PROG_TARGET): $(S6EXTRACT_PROG_SOURCES) $(S6EXTRACT_PROG_INCLUDES) ; $(CC) -o $(S6EXTRACT_PROG_TARGET) $(S6EXTRACT_PROG_SOURCES) $(S6EXTRACT_PROG_CCFLAGS)
 
