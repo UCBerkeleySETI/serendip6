@@ -14,9 +14,6 @@ S6OBS_PROG_CCFLAGS = -g -lstdc++ \
 S6OBS_GBT_PROG_CCFLAGS = -g -lstdc++ \
                      -L/usr/lib64/mysql \
                      -I/usr/include/mysql \
-                     -L/users/mlebofsk/hiredis \
-                     -I/users/mlebofsk/hiredis \
-                     -I. \
 		     -I/usr/local/include \
 		     -L/usr/local/lib \
 		     -lhiredis -lmysqlclient -lm
@@ -55,6 +52,7 @@ S6_LIB_SOURCES  = s6_databuf.cpp \
 		  s6_gpu_thread.cpp \
 		  s6_output_thread.cpp \
 		  s6_obs_data.cpp \
+		  s6_obs_data_gbt.cpp \
 		  s6_etfits.cpp \
 		  s6_time.c
 S6_LIB_INCLUDES = s6_etfits.h \

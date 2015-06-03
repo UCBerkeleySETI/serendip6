@@ -57,4 +57,6 @@ typedef struct gbtstatus {
 
 } gbtstatus_t;
 
+int get_obs_gbt_info_from_redis(gbtstatus_t *scram, char *hostname, int port);
+
 #endif  // _S6_OBS_DATA_GBT_H

@@ -4,17 +4,16 @@
 #include <math.h>
 #include <time.h>
 
-// #include <hiredis/hiredis.h>
-#include <hiredis.h>
+#include <hiredis/hiredis.h>
 
 #include "hashpipe.h"
 #include "s6_obs_data_gbt.h"
 
-#define redis_get_string(key,struct,rediscontext) reply = redisCommand(rediscontext,"GET key"); struct->key = reply->str; freeReplyObject(reply);
-#define redis_get_double(key,struct,rediscontext) reply = redisCommand(rediscontext,"GET key"); struct->key = atof(reply->str); freeReplyObject(reply);
+#define redis_get_string(key,struct,rediscontext) reply = (redisReply *)redisCommand(rediscontext,"GET key"); strcpy(struct->key,reply->str); freeReplyObject(reply);
+#define redis_get_double(key,struct,rediscontext) reply = (redisReply *)redisCommand(rediscontext,"GET key"); struct->key = atof(reply->str); freeReplyObject(reply);
 
 //----------------------------------------------------------
-int get_obs_info_from_redis(gbtstatus_t *gbtstatus,     
+int get_obs_gbt_info_from_redis(gbtstatus_t *gbtstatus,     
                             char    *hostname, 
                             int     port) {
 //----------------------------------------------------------
@@ -52,7 +51,7 @@ int get_obs_info_from_redis(gbtstatus_t *gbtstatus,
       } 
     else {
       no_time_change_count = 0;
-      prior_agc_time = gbtstatus->MJD;
+      prior_mjd = gbtstatus->MJD;
       }
      
     if (!rv) {
