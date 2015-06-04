@@ -4,7 +4,7 @@
 #include <string.h>
 #include "mysql.h"
 
-#include <hiredis/hiredis.h>
+#include <hiredis.h>
 
 #include "s6_obsaux_gbt.h"
 
@@ -49,6 +49,7 @@ int main(int argc, char ** argv) {
   char RAbuf[24];  // for annoying hiredis problem with floats
   char RADbuf[24];
   char Decbuf[24];
+  char lsthourbuf[24];
 
   double xyz[3];
   double xyz_precessed[3];
@@ -222,14 +223,14 @@ int main(int argc, char ** argv) {
       ftoa(ra_derived,RAbuf);
       ftoa(ra_derived*15,RADbuf);
       ftoa(dec_derived,Decbuf);
+      ftoa(lsthour,lsthourbuf); 
       reply = redisCommand(c,"SET RA_DRV %s",RAbuf);
-      // fprintf(stderr, "DSET: %d\n", reply->type);
       freeReplyObject(reply); 
       reply = redisCommand(c,"SET RADG_DRV %s",RADbuf);
-      // fprintf(stderr, "DSET: %d\n", reply->type);
       freeReplyObject(reply); 
       reply = redisCommand(c,"SET DEC_DRV %s",Decbuf);
-      // fprintf(stderr, "DSET: %d\n", reply->type);
+      freeReplyObject(reply); 
+      reply = redisCommand(c,"SET LSTH_DRV %s",lsthourbuf);
       freeReplyObject(reply); 
       }
  
@@ -237,6 +238,7 @@ int main(int argc, char ** argv) {
      
     if (dostdout) {
       for (i=0;i<numkeys;i++) printf("%2d %8s (%32s) : %s\n",i,fitskeys[i],mysqlkeys[i],row[i]);
+      printf("   LSTH_DRV (%32s) : %lf\n","",lsthour);
       printf("     RA_DRV (%32s) : %lf\n","",ra_derived);
       printf("   RADG_DRV (%32s) : %lf\n","",ra_derived*15);
       printf("    DEC_DRV (%32s) : %lf\n","",dec_derived);
