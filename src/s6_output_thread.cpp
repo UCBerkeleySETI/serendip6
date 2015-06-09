@@ -125,6 +125,7 @@ rv=0;
         scram.coarse_chan_id = db->block[block_idx].header.coarse_chan_id;
 
         hashpipe_status_lock_safe(&st);
+#ifdef SOURCE_S6
         hputs(st.buf,  "TELESCOP", receiver[scram.receiver]);
         hputi4(st.buf, "COARCHID", scram.coarse_chan_id);
         hputi4(st.buf, "CLOCKFRQ", scram.CLOCKFRQ);
@@ -144,6 +145,9 @@ rv=0;
         hputi4(st.buf, "SCRALFFB", scram.IF1ALFFB);
         hputi4(st.buf, "SCRALFON", scram.IF2ALFON);
         hputi4(st.buf, "SCRIF2SR", scram.IF2SIGSR);
+#elif SOURCE_DIBAS
+// TODO - put GBT status items to status shmem
+#endif
         hashpipe_status_unlock_safe(&st);
 
         // test for and handle file change events
@@ -180,10 +184,15 @@ rv=0;
             prior_run_always = run_always;
         }
 
+#ifdef SOURCE_S6
         // write hits and metadata to etFITS file only if there is a receiver
         // in focus or the run_always flag in on
         if(scram.receiver || run_always) {
-            etf.file_chan = scram.coarse_chan_id;
+#elif SOURCE_DIBAS
+// TODO - put GBT acquisition trigger logic, if any, here
+        if(run_always) {
+#endif
+            etf.file_chan = scram.coarse_chan_id;           // TODO - sensible for GBT?
             rv = write_etfits(db, block_idx, &etf, scram_p);
             if(rv) {
                 hashpipe_error(__FUNCTION__, "error error returned from write_etfits()");

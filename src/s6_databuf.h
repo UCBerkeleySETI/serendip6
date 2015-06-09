@@ -17,29 +17,57 @@
 // N_COARSE_CHAN needs to be evenly divisible by 32 in order for each time sample
 // ("row" of coarse chans) to be 256 bit aligned.  256 bit alignment is required by
 // the "non-temporal" memory copy. 
-#define N_COARSE_CHAN           320 
-#define N_FINE_CHAN             (128*1024)               
+#define N_POLS_PER_BEAM         2
+#define N_BYTES_PER_SAMPLE      2
+
+#ifdef SOURCE_S6
+#define N_BEAMS                     7
+#define N_BEAM_SLOTS                8
+#define N_COARSE_CHAN               320 
+#define N_FINE_CHAN                 (128*1024)               
+#define N_SPECTRA_PER_PACKET        1
+#define N_SUBSPECTRA_PER_SPECTRUM   1
+#define N_SAMPLES_PER_BLOCK         (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM * N_BEAM_SLOTS)
+#define N_BORS                      N_BEAMS
+
+#elif SOURCE_DIBAS
+#define N_BEAMS                     1
+#define N_BEAM_SLOTS                1
+#define N_COARSE_CHAN               512 
+#define N_FINE_CHAN                 (512*1024)               
+#define N_SPECTRA_PER_PACKET        4
+#define N_SUBSPECTRA_PER_SPECTRUM   8
+#define N_SAMPLES_PER_BLOCK         (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM)
+#define N_BORS                      N_SUBSPECTRA_PER_SPECTRUM
+#endif
+
+//#define N_COARSE_CHAN_PER_SUBSPECTRUM   (N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM) 
+//#define N_BYTES_PER_SUBSPECTRUM         (N_COARSE_CHAN_PER_SUBSPECTRUM * N_BYTES_PER_SAMPLE * N_POLS_PER_BEAM)
+
+#define N_SAMPLES_PER_BEAM      (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM)
+#define N_BYTES_PER_BEAM        (N_BYTES_PER_SAMPLE * N_SAMPLES_PER_BEAM)
+
+#define N_BYTES_PER_SUBSPECTRUM (N_BYTES_PER_SAMPLE * N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM * N_POLS_PER_BEAM)
+
+#define N_DATA_BYTES_PER_BLOCK  (N_BYTES_PER_SAMPLE * N_SAMPLES_PER_BLOCK)
+
 #define SMOOTH_SCALE            1024
 #define POWER_THRESH            20.0
 #define MIN_POWER_THRESH        10.0
 #define MAXGPUHITS              ((int)(1.0 / MIN_POWER_THRESH * N_FINE_CHAN))    
 #define MAXHITS                 4096
 
-#define N_BEAMS                 7
-#define N_BEAM_SLOTS            8
-#define N_POLS_PER_BEAM         2
-#define N_BYTES_PER_SAMPLE      2
-
-#define N_GPU_ELEMENTS          (N_FINE_CHAN * N_COARSE_CHAN)
-#define N_SAMPLES_PER_BEAM      (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM)
-#define N_SAMPLES_PER_BLOCK     (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM * N_BEAM_SLOTS)
-
-#define N_DATA_BYTES_PER_BLOCK  (N_BYTES_PER_SAMPLE * N_SAMPLES_PER_BLOCK)
-#define N_BYTES_PER_BEAM        (N_BYTES_PER_SAMPLE * N_SAMPLES_PER_BEAM)
-
 #define N_INPUT_BLOCKS          3
 #define N_DEBUG_INPUT_BLOCKS    0
 #define N_OUTPUT_BLOCKS         3
+
+// The following 3 #define's are needed only by s6_gen_fake_data.
+// Perhaps they should be removed at some point (with a change to
+// s6_gen_fake_data).
+#define N_SUBBANDS              1
+#define N_SUBBAND_CHAN          (N_COARSE_CHAN / N_SUBBANDS)
+#define N_GPU_ELEMENTS          (N_FINE_CHAN * N_SUBBAND_CHAN)
+//#define N_SAMPLES_PER_SUBBAND   (N_FINE_CHAN * N_COARSE_CHAN/N_SUBBANDS * N_POLS_PER_BEAM)
 
 // Used to pad after hashpipe_databuf_t to maintain cache alignment
 typedef uint8_t hashpipe_databuf_cache_alignment[
@@ -53,7 +81,7 @@ typedef struct s6_input_block_header {
   uint64_t mcnt;                    // mcount of first packet
   uint64_t coarse_chan_id;          // coarse channel number of lowest channel in this block
   uint64_t num_coarse_chan;         // number of actual coarse channels (<= N_COARSE_CHAN)
-  uint64_t missed_pkts[N_BEAM_SLOTS];    // missed per beam - this block or this run? TODO
+  uint64_t missed_pkts[N_BORS];    // missed per beam - this block or this run? TODO
 } s6_input_block_header_t;
 
 typedef uint8_t s6_input_header_cache_alignment[
@@ -79,8 +107,8 @@ typedef struct s6_output_block_header {
   uint64_t mcnt;
   uint64_t coarse_chan_id;          // coarse channel number of lowest channel in this block
   uint64_t num_coarse_chan;         // number of actual coarse channels (<= N_COARSE_CHAN)
-  uint64_t missed_pkts[N_BEAM_SLOTS];    // missed per beam - this block or this run? TODO
-  uint64_t nhits[N_BEAM_SLOTS];
+  uint64_t missed_pkts[N_BORS];    // missed per beam - this block or this run? TODO
+  uint64_t nhits[N_BORS];
 } s6_output_block_header_t;
 
 typedef uint8_t s6_output_header_cache_alignment[
@@ -90,12 +118,12 @@ typedef uint8_t s6_output_header_cache_alignment[
 typedef struct s6_output_block {
   s6_output_block_header_t header;
   s6_output_header_cache_alignment padding; // Maintain cache alignment
-  float power       [N_BEAM_SLOTS][MAXGPUHITS];
-  float baseline    [N_BEAM_SLOTS][MAXGPUHITS];
-  long  hit_indices [N_BEAM_SLOTS][MAXGPUHITS];    
-  int   pol         [N_BEAM_SLOTS][MAXGPUHITS];
-  int   coarse_chan [N_BEAM_SLOTS][MAXGPUHITS];
-  int   fine_chan   [N_BEAM_SLOTS][MAXGPUHITS];
+  float power       [N_BORS][MAXGPUHITS];
+  float baseline    [N_BORS][MAXGPUHITS];
+  long  hit_indices [N_BORS][MAXGPUHITS];    
+  int   pol         [N_BORS][MAXGPUHITS];
+  int   coarse_chan [N_BORS][MAXGPUHITS];
+  int   fine_chan   [N_BORS][MAXGPUHITS];
 } s6_output_block_t;
 
 typedef struct s6_output_databuf {

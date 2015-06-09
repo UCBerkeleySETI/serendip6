@@ -23,6 +23,7 @@
 
 #include "hashpipe.h"
 #include "s6_databuf.h"
+#include "s6_logger.h"
 
 #define DEBUG_NET
 
@@ -40,8 +41,10 @@
 #define PKTSOCK_NFRAMES (PKTSOCK_FRAMES_PER_BLOCK * PKTSOCK_NBLOCKS)
 
 // Number of mcnts per block
+// TODO - put these in s6_databuf.h ?
 static const uint64_t     Nm = N_FINE_CHAN;
-static const unsigned int N_PACKETS_PER_BLOCK = Nm * N_BEAMS;
+//static const unsigned int N_PACKETS_PER_BLOCK = Nm * N_BEAMS;
+static const unsigned int N_PACKETS_PER_BLOCK = Nm/N_SPECTRA_PER_PACKET * N_BEAMS;
 static const unsigned int N_BYTES_PER_CHAN = 4;
 
 typedef struct {
@@ -114,10 +117,11 @@ static inline int block_for_mcnt(uint64_t mcnt)
     return (mcnt / Nm) % N_INPUT_BLOCKS;
 }
 
+#define LOC_MCNTS
 #ifdef LOG_MCNTS
 #define MAX_MCNT_LOG (1024*1024)
-//static uint64_t mcnt_log[MAX_MCNT_LOG];
-//static int mcnt_log_idx = 0;
+static uint64_t mcnt_log[MAX_MCNT_LOG];
+static int mcnt_log_idx = 0;
 static int total_packets_counted = 0;
 static int expected_packets_counted = 0;
 static int late_packets_counted = 0;
@@ -136,10 +140,10 @@ void dump_mcnt_log(int pchan)
     fprintf(f, "outofseq packets counted = %d\n", outofseq_packets_counted);
     fprintf(f, "total    packets counted = %d\n", total_packets_counted);
     fprintf(f, "filled   packets counted = %d\n", filled_packets_counted);
-    //for(i=0; i<MAX_MCNT_LOG; i++) {
-    //    if(mcnt_log[i] == 0) break;
-    //    fprintf(f, "%012lx\n", mcnt_log[i]);
-    //}
+    for(i=0; i<MAX_MCNT_LOG; i++) {
+        if(mcnt_log[i] == 0) break;
+        fprintf(f, "%012lx\n", mcnt_log[i]);
+    }
     fclose(f);
 }
 #endif
@@ -186,20 +190,31 @@ static inline void get_header(unsigned char *p_frame, packet_header_t * pkt_head
 {
     uint64_t raw_header;
     raw_header = be64toh(*(unsigned long long *)PKT_UDP_DATA(p_frame));
+#ifdef SOURCE_S6
     pkt_header->mcnt        =  raw_header >> 16;
     pkt_header->pchan       = (raw_header >>  4) & 0x0000000000000FFF;
     pkt_header->sid         =  raw_header        & 0x000000000000000F;
+#elif SOURCE_DIBAS
+    pkt_header->pchan       =  (raw_header >> 56) * N_COARSE_CHAN;  // node ID converted to phcan. 
+    pkt_header->mcnt        =  raw_header & 0x00FFFFFFFFFFFFFF;
+    pkt_header->sid         =  0;
+#endif
 
+#ifdef SOURCE_S6
     // Compute nchan from packet size (minus UDP header and S6 header and CRC words)
-    pkt_header->nchan = (PKT_UDP_SIZE(p_frame) - 3*8)/ N_BYTES_PER_CHAN; // N_BYTES_PER_CHAN==4
+    pkt_header->nchan = (PKT_UDP_SIZE(p_frame) - 3*8)/ N_BYTES_PER_CHAN / N_SPECTRA_PER_PACKET; 
+#elif SOURCE_DIBAS
+    // Compute nchan from packet size (minus UDP header and S6 header and CRC words, and two interframe gaps)
+    pkt_header->nchan = (PKT_UDP_SIZE(p_frame) - 5*8)/ N_BYTES_PER_CHAN / N_SPECTRA_PER_PACKET; 
+#endif
 
 #ifdef LOG_MCNTS
     total_packets_counted++;
-    //mcnt_log[mcnt_log_idx++] = pkt_header->mcnt;
-    //if(mcnt_log_idx == MAX_MCNT_LOG) {
-    //    dump_mcnt_log(pkt_header->sid);
-    //    abort();
-    //}
+    mcnt_log[mcnt_log_idx++] = pkt_header->mcnt;
+    if(mcnt_log_idx == MAX_MCNT_LOG) {
+        dump_mcnt_log(pkt_header->sid);
+        abort();
+    }
     if(total_packets_counted == 10*1000*1000) {
 	dump_mcnt_log(pkt_header->sid);
 	abort();
@@ -405,7 +420,8 @@ static inline uint64_t process_packet(
 
     // Parse packet header
     get_header(p_frame, &pkt_header);
-    pkt_mcnt = pkt_header.mcnt;
+    //pkt_mcnt = pkt_header.mcnt;
+    pkt_mcnt = pkt_header.mcnt*N_SPECTRA_PER_PACKET;
     pkt_block_i = block_for_mcnt(pkt_mcnt);
     cur_mcnt = binfo.mcnt_start;
 
@@ -491,22 +507,59 @@ static inline uint64_t process_packet(
 	s6_input_databuf_p->block[pkt_block_i].header.missed_pkts[pkt_header.sid]--;
 
 	// Calculate starting points for unpacking this packet into block's data buffer.
-	dest_p = s6_input_databuf_p->block[pkt_block_i].data
-	    + (pkt_header.sid*Nm + (pkt_mcnt%Nm)) * N_COARSE_CHAN * N_BYTES_PER_CHAN / sizeof(uint64_t);
-
-	// Copy data into buffer
-
-#if 1
 	// Point to payload (after S6 header)
 	payload_p        = (uint64_t *)(PKT_UDP_DATA(p_frame)+8);
-	// Use length from packet (minus UDP header and minus HEADER word and minus CRC word)
-	memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame) - 8 - 8 - 8);
+#ifdef SOURCE_S6
+    const uint64_t *src_p = payload_p;
+	dest_p = s6_input_databuf_p->block[pkt_block_i].data        // start of block
+	    + (pkt_header.sid * Nm                                  // offset of the destination beam
+        + (pkt_mcnt       % Nm))                                // offset within the destination beam 
+        * N_COARSE_CHAN * N_BYTES_PER_CHAN / sizeof(uint64_t);  // units of offset, in 64 bit words
+#if 1
+    // Use length from packet (minus UDP header and minus HEADER word and minus CRC word)
+    memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame) - 8 - 8 - 8);
 #else
-	// Copy "extra" packet preface data to maintain alignment
-	payload_p        = (uint64_t *)(PKT_NET(p_frame)+16);
-	s6_memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame));
+    // Copy "extra" packet preface data to maintain alignment
+    payload_p        = (uint64_t *)(PKT_NET(p_frame)+16);
+    s6_memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame));
+#endif
+#elif SOURCE_DIBAS
+    const uint64_t *src_p = payload_p;  // TODO - get beyond the header?
+
+    // for each spectrum in packet...
+    for(int pkt_spectrum_i=0; pkt_spectrum_i < N_SPECTRA_PER_PACKET; pkt_spectrum_i++) {    
+
+        uint64_t pkt_spectrum_mcnt = pkt_mcnt * N_SPECTRA_PER_PACKET + pkt_spectrum_i;      // should not wrap - pkt_cnt is 56 bits for DiBAS
+
+        // for each subspectrum...
+        for(int sub_spectrum_i=0; 
+                sub_spectrum_i < N_SUBSPECTRA_PER_SPECTRUM; 
+                sub_spectrum_i++, 
+                src_p += N_BYTES_PER_SUBSPECTRUM/sizeof(uint64_t)) {
+
+            dest_p = s6_input_databuf_p->block[pkt_block_i].data        // start of block 
+                + (sub_spectrum_i    * N_FINE_CHAN                      // offset of the destination sub-spectrum
+                +  pkt_spectrum_mcnt % N_FINE_CHAN)                     // offset within the destination sub-spectrum 
+                * N_BYTES_PER_SUBSPECTRUM/sizeof(uint64_t);             // units of offset, in 64 bit words
+#if 0
+static uint64_t test_memcpy_counter;
+test_memcpy_counter++;
+fprintf(stderr, "%9lu %d %d src_p = %p  dest_p = %p  pkt_mcnt = %lu  pkt_spectrum_mcnt = %lu  size = %d\n", test_memcpy_counter, pkt_spectrum_i, sub_spectrum_i, src_p, dest_p, pkt_mcnt, pkt_spectrum_mcnt, N_BYTES_PER_SUBSPECTRUM);
+#endif
+#if 1
+	        // Use length from packet (minus UDP header and minus HEADER word and minus CRC word)
+	        //memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame) - 8 - 8 - 8);
+	        memcpy(dest_p, src_p, N_BYTES_PER_SUBSPECTRUM);
+#else
+	        // Copy "extra" packet preface data to maintain alignment
+	        payload_p        = (uint64_t *)(PKT_NET(p_frame)+16);
+	        s6_memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame));
+#endif
+        }
+    }
 #endif
 
+    // TODO - this should probably be moved into the SOURCE_ sections, above
 	//memset(dest_p, 0, N_COARSE_CHAN*N_BYTES_PER_CHAN);
 	//dest_p[0] = be64toh(*(uint64_t *)(p->data));
 
@@ -586,9 +639,10 @@ static int init(hashpipe_thread_args_t *args)
 {
     /* Read network params */
     char bindhost[80];
-    int bindport = 21302;
+    //int bindport = 21302;
+    int bindport = 60000;
 
-    strcpy(bindhost, "eth2");
+    strcpy(bindhost, "eth3");
 
     hashpipe_status_t st = args->st;
 
@@ -698,7 +752,8 @@ static void *run(hashpipe_thread_args_t * args)
 
     /* Read network params */
     int bindport = 21302;
-    size_t max_packet_size = 8 + (N_COARSE_CHAN * N_BYTES_PER_CHAN) + 8;
+    size_t max_packet_size = 8 + (N_COARSE_CHAN * N_BYTES_PER_CHAN * N_SPECTRA_PER_PACKET) + 8 + 16;    // + 16 for 2 8byte interframe gaps
+//fprintf(stderr, "max_packet_size = %lu\n", max_packet_size);
 
 #ifndef TIMING_TEST
     /* Get pktsock from args*/
@@ -754,6 +809,8 @@ static void *run(hashpipe_thread_args_t * args)
 	do {
 	    clock_gettime(CLOCK_MONOTONIC, &start);
 	    //p_frame = hashpipe_pktsock_recv_udp_frame(p_ps, bindport, 10);
+	    //p_frame = hashpipe_pktsock_recv_udp_frame_nonblock(p_ps, bindport);
+	    //p_frame = hashpipe_pktsock_recv_udp_frame_nonblock(p_ps, 0);
 	    p_frame = hashpipe_pktsock_recv_udp_frame_nonblock(p_ps, bindport);
 	    clock_gettime(CLOCK_MONOTONIC, &recv_stop);
 	} while (!p_frame && run_threads());
