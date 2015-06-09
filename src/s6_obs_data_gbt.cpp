@@ -10,10 +10,9 @@
 #include "s6_obs_data_gbt.h"
 
 #define redis_get_string(key,struct,rediscontext) reply = (redisReply *)redisCommand(rediscontext,"GET key"); strcpy(struct->key,reply->str); freeReplyObject(reply);
-#define redis_get_double(key,struct,rediscontext) reply = (redisReply *)redisCommand(rediscontext,"GET key"); struct->key = atof(reply->str); freeReplyObject(reply);
 
 //----------------------------------------------------------
-int get_obs_gbt_info_from_redis(gbtstatus_t *gbtstatus,     
+int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,     
                             char    *hostname, 
                             int     port) {
 //----------------------------------------------------------
@@ -40,7 +39,7 @@ int get_obs_gbt_info_from_redis(gbtstatus_t *gbtstatus,
         exit(1);
     }
 
-    redis_get_double(MJD,gbtstatus,c); 
+    reply = (redisReply *)redisCommand(c,"GET MJD"); gbtstatus->MJD = atof(reply->str); freeReplyObject(reply); 
     if (gbtstatus->MJD == prior_mjd) {
       no_time_change_count++;
       hashpipe_warn(__FUNCTION__, "mjd in redis databse has not been updated over %d queries", no_time_change_count);
@@ -56,36 +55,36 @@ int get_obs_gbt_info_from_redis(gbtstatus_t *gbtstatus,
      
     if (!rv) {
 
-      redis_get_string(LASTUPDT,gbtstatus,c);
-      redis_get_string(LST,gbtstatus,c);
-      redis_get_string(UTC,gbtstatus,c);
-      redis_get_string(EPOCH,gbtstatus,c);
-      redis_get_string(MAJTYPE,gbtstatus,c);
-      redis_get_string(MINTYPE,gbtstatus,c);
-      redis_get_string(MAJOR,gbtstatus,c);
-      redis_get_string(MINOR,gbtstatus,c);
-      redis_get_double(AZCOMM,gbtstatus,c);
-      redis_get_double(ELCOMM,gbtstatus,c);
-      redis_get_double(AZACTUAL,gbtstatus,c);
-      redis_get_double(ELACTUAL,gbtstatus,c);
-      redis_get_double(AZERROR,gbtstatus,c);
-      redis_get_double(ELERROR,gbtstatus,c);
-      redis_get_string(LPCS,gbtstatus,c);
-      redis_get_string(FOCUSOFF,gbtstatus,c);
-      redis_get_string(ANTMOT,gbtstatus,c);
-      redis_get_string(RECEIVER,gbtstatus,c);
-      redis_get_double(IFFRQ1ST,gbtstatus,c);
-      redis_get_double(IFFRQRST,gbtstatus,c);
-      redis_get_double(FREQ,gbtstatus,c);
-      redis_get_string(VELFRAME,gbtstatus,c);
-      redis_get_string(VELDEF,gbtstatus,c);
-      redis_get_double(J2000MAJ,gbtstatus,c);
-      redis_get_double(J2000MIN,gbtstatus,c);
+      reply = (redisReply *)redisCommand(c,"GET LASTUPDT"); strcpy(gbtstatus->LASTUPDT,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET LST"); strcpy(gbtstatus->LST,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET UTC"); strcpy(gbtstatus->UTC,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET EPOCH"); strcpy(gbtstatus->EPOCH,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET MAJTYPE"); strcpy(gbtstatus->MAJTYPE,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET MINTYPE"); strcpy(gbtstatus->MINTYPE,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET MAJOR"); strcpy(gbtstatus->MAJOR,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET MINOR"); strcpy(gbtstatus->MINOR,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET AZCOMM"); gbtstatus->AZCOMM = atof(reply->str); freeReplyObject(reply); 
+      reply = (redisReply *)redisCommand(c,"GET ELCOMM"); gbtstatus->ELCOMM = atof(reply->str); freeReplyObject(reply); 
+      reply = (redisReply *)redisCommand(c,"GET AZACTUAL"); gbtstatus->AZACTUAL = atof(reply->str); freeReplyObject(reply); 
+      reply = (redisReply *)redisCommand(c,"GET ELACTUAL"); gbtstatus->ELACTUAL = atof(reply->str); freeReplyObject(reply); 
+      reply = (redisReply *)redisCommand(c,"GET AZERROR"); gbtstatus->AZERROR = atof(reply->str); freeReplyObject(reply); 
+      reply = (redisReply *)redisCommand(c,"GET ELERROR"); gbtstatus->ELERROR = atof(reply->str); freeReplyObject(reply); 
+      reply = (redisReply *)redisCommand(c,"GET LPCS"); strcpy(gbtstatus->LPCS,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET FOCUSOFF"); strcpy(gbtstatus->FOCUSOFF,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET ANTMOT"); strcpy(gbtstatus->ANTMOT,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET RECEIVER"); strcpy(gbtstatus->RECEIVER,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET IFFRQ1ST"); gbtstatus->IFFRQ1ST = atof(reply->str); freeReplyObject(reply); 
+      reply = (redisReply *)redisCommand(c,"GET IFFRQRST"); gbtstatus->IFFRQRST = atof(reply->str); freeReplyObject(reply); 
+      reply = (redisReply *)redisCommand(c,"GET FREQ"); gbtstatus->FREQ = atof(reply->str); freeReplyObject(reply); 
+      reply = (redisReply *)redisCommand(c,"GET VELFRAME"); strcpy(gbtstatus->VELFRAME,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET VELDEF"); strcpy(gbtstatus->VELDEF,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET J2000MAJ"); gbtstatus->J2000MAJ = atof(reply->str); freeReplyObject(reply); 
+      reply = (redisReply *)redisCommand(c,"GET J2000MIN"); gbtstatus->J2000MIN = atof(reply->str); freeReplyObject(reply); 
 
-      redis_get_double(LSTH_DRV,gbtstatus,c);
-      redis_get_double(RA_DRV,gbtstatus,c);
-      redis_get_double(RADG_DRV,gbtstatus,c);
-      redis_get_double(DEC_DRV,gbtstatus,c);
+      reply = (redisReply *)redisCommand(c,"GET LSTH_DRV"); gbtstatus->LSTH_DRV = atof(reply->str); freeReplyObject(reply); 
+      reply = (redisReply *)redisCommand(c,"GET RA_DRV"); gbtstatus->RA_DRV = atof(reply->str); freeReplyObject(reply); 
+      reply = (redisReply *)redisCommand(c,"GET RADG_DRV"); gbtstatus->RADG_DRV = atof(reply->str); freeReplyObject(reply); 
+      reply = (redisReply *)redisCommand(c,"GET DEC_DRV"); gbtstatus->DEC_DRV = atof(reply->str); freeReplyObject(reply); 
    
       }
 
@@ -139,23 +138,26 @@ int get_obs_gbt_info_from_redis(gbtstatus_t *gbtstatus,
       }
       freeReplyObject(reply);
     }
-    if (!rv) {
-      reply = (redisReply *)redisCommand(c, "HMGET ADC2RMS      ADCRMS1 ADCRMS2 ADCRMS3 ADCRMS4 ADCRMS5 ADCRMS6 ADCRMS7 ADCRMS8");
-      if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
-      else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
-      else if (!reply->element[0]->str) { fprintf(stderr,"ADC2RMS not set yet!\n"); rv = 1; }
-      else {
-          gbtstatus->ADC2RMS[0] = atof(reply->element[0]->str);
-          gbtstatus->ADC2RMS[1] = atof(reply->element[1]->str);
-          gbtstatus->ADC2RMS[2] = atof(reply->element[2]->str);
-          gbtstatus->ADC2RMS[3] = atof(reply->element[3]->str);
-          gbtstatus->ADC2RMS[4] = atof(reply->element[4]->str);
-          gbtstatus->ADC2RMS[5] = atof(reply->element[5]->str);
-          gbtstatus->ADC2RMS[6] = atof(reply->element[6]->str);
-          gbtstatus->ADC2RMS[7] = atof(reply->element[7]->str);
-      }
-      freeReplyObject(reply);
-    }
+
+    // ONLY ONE ROACH AT GBT (not like AO, which has 2)
+    //
+    // if (!rv) {
+    //   reply = (redisReply *)redisCommand(c, "HMGET ADC2RMS      ADCRMS1 ADCRMS2 ADCRMS3 ADCRMS4 ADCRMS5 ADCRMS6 ADCRMS7 ADCRMS8");
+    //   if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
+    //   else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
+    //   else if (!reply->element[0]->str) { fprintf(stderr,"ADC2RMS not set yet!\n"); rv = 1; }
+    //   else {
+    //       gbtstatus->ADC2RMS[0] = atof(reply->element[0]->str);
+    //       gbtstatus->ADC2RMS[1] = atof(reply->element[1]->str);
+    //       gbtstatus->ADC2RMS[2] = atof(reply->element[2]->str);
+    //       gbtstatus->ADC2RMS[3] = atof(reply->element[3]->str);
+    //       gbtstatus->ADC2RMS[4] = atof(reply->element[4]->str);
+    //       gbtstatus->ADC2RMS[5] = atof(reply->element[5]->str);
+    //       gbtstatus->ADC2RMS[6] = atof(reply->element[6]->str);
+    //       gbtstatus->ADC2RMS[7] = atof(reply->element[7]->str);
+    //   }
+    //   freeReplyObject(reply);
+    // }
 
     redisFree(c);       // TODO do I really want to free each time?
 

@@ -4,7 +4,7 @@
 #include <string.h>
 #include "mysql.h"
 
-#include <hiredis.h>
+#include <hiredis/hiredis.h>
 
 #include "s6_obsaux_gbt.h"
 

@@ -15,9 +15,15 @@ S6OBS_GBT_PROG_CCFLAGS = -g -lstdc++ \
                      -L/usr/lib64/mysql \
                      -I/usr/include/mysql \
 		     -I/usr/local/include \
+		     -I/usr/local/cuda/include \
 		     -L/usr/local/lib \
-		     -lhiredis -lmysqlclient -lm
-
+		     -lhiredis -lmysqlclient -lm serendip6.so
+S6OBS_TEST_OBS_GBT_PROG_CCFLAGS = -g -O3 -fPIC -lstdc++ -mavx -msse4 \
+                     -L/usr/lib64/mysql \
+		     -I. -I$(CUDA_DIR)/include -I/usr/local/include \
+		     -L. -L/usr/local/lib \
+                     -I/usr/include/mysql \
+		     -lmysqlclient serendip6.so
 S6GPUTEST_CCFLAGS  = -g \
 		     -I. -I/usr/local/cuda/include \
 		     -L. -L/usr/local/cuda/lib64 \
@@ -70,6 +76,9 @@ S6OBS_GBT_PROG_SOURCES  = s6_observatory_gbt.c \
 		      s6_obsaux_gbt.c
 S6OBS_GBT_PROG_INCLUDES = s6_obsaux_gbt.h
 
+S6OBS_TEST_OBS_GBT_PROG_TARGET   = test_obs
+S6OBS_TEST_OBS_GBT_PROG_SOURCES  = test_obs.cpp
+
 S6_SCRIPT_TARGET = s6_init.sh
 
 all: $(S6GPU_LIB_TARGET) $(S6_LIB_TARGET) $(S6GPUTEST_PROG_TARGET) $(S6OBS_PROG_TARGET) $(S6EXTRACT_PROG_TARGET) $(S6OBS_GBT_PROG_TARGET)
@@ -83,6 +92,9 @@ $(S6_LIB_TARGET): $(S6_LIB_SOURCES) $(S6_LIB_INCLUDES) ; $(CC) -o $(S6_LIB_TARGE
 $(S6OBS_PROG_TARGET): $(S6OBS_PROG_SOURCES) $(S6OBS_PROG_INCLUDES) ; $(CC) -o $(S6OBS_PROG_TARGET) $(S6OBS_PROG_SOURCES) $(S6OBS_PROG_CCFLAGS)
 
 $(S6OBS_GBT_PROG_TARGET): $(S6OBS_GBT_PROG_SOURCES) $(S6OBS_GBT_PROG_INCLUDES) ; $(CC) -o $(S6OBS_GBT_PROG_TARGET) $(S6OBS_GBT_PROG_SOURCES) $(S6OBS_GBT_PROG_CCFLAGS)
+
+# $(S6OBS_TEST_OBS_GBT_PROG_TARGET): $(S6OBS_TEST_OBS_GBT_PROG_SOURCES) ; $(CC) -o $(S6OBS_TEST_OBS_GBT_PROG_TARGET) $(S6OBS_TEST_OBS_GBT_PROG_SOURCES) $(S6_LIB_CCFLAGS) $(S6OBS_TEST_OBS_GBT_PROG_CCFLAGS)
+$(S6OBS_TEST_OBS_GBT_PROG_TARGET): $(S6OBS_TEST_OBS_GBT_PROG_SOURCES) ; $(CC) -o $(S6OBS_TEST_OBS_GBT_PROG_TARGET) $(S6OBS_TEST_OBS_GBT_PROG_SOURCES) $(S6OBS_TEST_OBS_GBT_PROG_CCFLAGS)
 
 $(S6EXTRACT_PROG_TARGET): $(S6EXTRACT_PROG_SOURCES) $(S6EXTRACT_PROG_INCLUDES) ; $(CC) -o $(S6EXTRACT_PROG_TARGET) $(S6EXTRACT_PROG_SOURCES) $(S6EXTRACT_PROG_CCFLAGS)
 
