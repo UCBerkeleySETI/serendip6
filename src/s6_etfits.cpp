@@ -83,7 +83,8 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
         // TODO update code versions
         etf->primary_hdr.n_subband = db->block[block_idx].header.num_coarse_chan;
         etf->primary_hdr.n_chan    = N_FINE_CHAN;
-        etf->primary_hdr.n_inputs  = N_BEAMS * N_POLS_PER_BEAM;
+        //etf->primary_hdr.n_inputs  = N_BEAMS * N_POLS_PER_BEAM;
+        etf->primary_hdr.n_inputs  = N_BORS * N_POLS_PER_BEAM;
         strncpy(etf->primary_hdr.receiver, receiver[scram_p->receiver], sizeof(etf->primary_hdr.receiver));
         // TODO not yet implemented
         //etf->primary_hdr.bandwidth = ;
@@ -103,7 +104,8 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
     // populate hits header data
     // TODO maybe I should do away with this and write directly to the header
     //      from scram in write_hits_header()
-    for(int i=0; i < N_BEAMS*N_POLS_PER_BEAM; i++) {
+    //for(int i=0; i < N_BEAMS*N_POLS_PER_BEAM; i++) {
+    for(int i=0; i < N_BORS*N_POLS_PER_BEAM; i++) {
         etf->hits_hdr[i].time    = (time_t)s6_seti_ao_timeMS2unixtime(scram_p->AGCTIME, scram_p->AGCSTIME);
         etf->hits_hdr[i].ra      = scram_p->ra_by_beam[int(floor(i/N_POLS_PER_BEAM))];       
         etf->hits_hdr[i].dec     = scram_p->dec_by_beam[int(floor(i/N_POLS_PER_BEAM))];  
@@ -353,7 +355,7 @@ int write_integration_header(etfits_t * etf, scram_t *scram) {
 }
 
 //----------------------------------------------------------
-int write_hits_header(etfits_t * etf, int beampol, size_t nhits, size_t missed_pkts) {
+int write_hits_header(etfits_t * etf, int borspol, size_t nhits, size_t missed_pkts) {
 //----------------------------------------------------------
 
 #define TFIELDS 4
@@ -376,10 +378,10 @@ int write_hits_header(etfits_t * etf, int beampol, size_t nhits, size_t missed_p
         if(! *status_p) fits_create_tbl(etf->fptr, BINARY_TBL, 0, TFIELDS, (char **)&ttype, (char **)&tform, NULL, (char *)"ETHITS", status_p);
     }
 
-    if(! *status_p) fits_update_key(etf->fptr, TINT,    "TIME",    &(etf->hits_hdr[beampol].time),    NULL, status_p);    
-    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "RA",      &(etf->hits_hdr[beampol].ra),      NULL, status_p);   
-    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr[beampol].dec),     NULL, status_p);   
-    if(! *status_p) fits_update_key(etf->fptr, TINT,    "BEAMPOL", &(etf->hits_hdr[beampol].beampol), NULL, status_p);   
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "TIME",    &(etf->hits_hdr[borspol].time),    NULL, status_p);    
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "RA",      &(etf->hits_hdr[borspol].ra),      NULL, status_p);   
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr[borspol].dec),     NULL, status_p);   
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "BORSPOL", &(etf->hits_hdr[borspol].beampol), NULL, status_p);   
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "NHITS",   &nhits,                            NULL, status_p);   
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "MISSEDPK",&missed_pkts,                      NULL, status_p);   
 
@@ -415,29 +417,30 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
     firstrow  = 1;
     firstelem = 1;
 
-    for(int beam=0; beam < N_BEAMS; beam++) {
+    //for(int beam=0; beam < N_BEAMS; beam++) {
+    for(int bors=0; bors < N_BORS; bors++) {
         // TODO - this goes through the output block for each beam twice. We could cut
         // this in half if we have a set of arrays for each pol (consuming twice the
         // memory).
         for(int input=0; input < N_POLS_PER_BEAM; input++) {        
-            int beampol = beam * N_POLS_PER_BEAM + input;
+            int borspol = bors * N_POLS_PER_BEAM + input;
             int hit_j=0;
             nhits_this_input=0;
-            for(int hit_i=0; hit_i < (size_t)db->block[block_idx].header.nhits[beam]; hit_i++) {
-                if(db->block[block_idx].pol[beam][hit_i] == input) {
+            for(int hit_i=0; hit_i < (size_t)db->block[block_idx].header.nhits[bors]; hit_i++) {
+                if(db->block[block_idx].pol[bors][hit_i] == input) {
                     nhits_this_input++;
-                    det_pow[hit_j]     = db->block[block_idx].power[beam][hit_i];
-                    mean_pow[hit_j]    = db->block[block_idx].baseline[beam][hit_i];
-                    coarse_chan[hit_j] = db->block[block_idx].coarse_chan[beam][hit_i];
-                    fine_chan[hit_j]   = db->block[block_idx].fine_chan[beam][hit_i];
+                    det_pow[hit_j]     = db->block[block_idx].power[bors][hit_i];
+                    mean_pow[hit_j]    = db->block[block_idx].baseline[bors][hit_i];
+                    coarse_chan[hit_j] = db->block[block_idx].coarse_chan[bors][hit_i];
+                    fine_chan[hit_j]   = db->block[block_idx].fine_chan[bors][hit_i];
                     hit_j++;
                 }
             }
 
             write_hits_header(etf, 
-                              beampol, 
+                              borspol, 
                               nhits_this_input, 
-                              (size_t)db->block[block_idx].header.missed_pkts[beam]);
+                              (size_t)db->block[block_idx].header.missed_pkts[bors]);
             nhits += nhits_this_input;
 
             // write the hits for this input
