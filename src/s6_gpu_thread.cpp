@@ -48,7 +48,8 @@ int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHand
     // of input data buffer size and is set at compile time. At run time 
     // the number of coarse channels can change but this does not affect 
     // the size of the input data buffer.  
-    num_channels_max = N_COARSE_CHAN   * N_FINE_CHAN;
+    //num_channels_max = N_COARSE_CHAN_PER_SUBSPECTRUM   * N_FINE_CHAN;
+    num_channels_max = N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM * N_FINE_CHAN;
     num_channels_utilized = num_coarse_chan * N_FINE_CHAN;
     *dv_p = init_device_vectors(num_channels_max, num_channels_utilized, N_POLS_PER_BEAM);
 
@@ -56,7 +57,8 @@ int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHand
     size_t  nfft_     = N_FINE_CHAN;                      // FFT length
     size_t  nbatch    = num_coarse_chan*N_POLS_PER_BEAM;  // number of FFT batches to do 
                                                           //    (only work on utilized coarse channels)
-    int     istride   = N_COARSE_CHAN*N_POLS_PER_BEAM;    // this effectively transposes the input data
+    //int     istride   = N_COARSE_CHAN*N_POLS_PER_BEAM;    // this effectively transposes the input data
+    int     istride   = N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM * N_POLS_PER_BEAM;    // this effectively transposes the input data
     int     ostride   = 1;                                // no transpose needed on the output
     int     idist     = 1;                                // distance between 1st input elements of consecutive batches
     int     odist     = nfft_;                            // distance between 1st output elements of consecutive batches
@@ -121,7 +123,7 @@ static void *run(hashpipe_thread_args_t * args)
 
     device_vectors_t *dv_p = NULL;
     uint64_t num_coarse_chan = N_COARSE_CHAN;
-    init_gpu_memory(num_coarse_chan, &dv_p, fft_plan_p, 1);
+    init_gpu_memory(num_coarse_chan/N_SUBSPECTRA_PER_SPECTRUM, &dv_p, fft_plan_p, 1);
 
     while (run_threads()) {
 
@@ -150,11 +152,13 @@ static void *run(hashpipe_thread_args_t * args)
         hputu8(st.buf, "GPUMCNT", db_in->block[curblock_in].header.mcnt);
         hashpipe_status_unlock_safe(&st);
 
+#ifdef SOURCE_S6
         if(db_in->block[curblock_in].header.num_coarse_chan != num_coarse_chan) {
             // number of coarse channels has changed!  Redo GPU memory / FFT plan
             num_coarse_chan = db_in->block[curblock_in].header.num_coarse_chan;
-            init_gpu_memory(num_coarse_chan, &dv_p, fft_plan_p, 0);
+            init_gpu_memory(num_coarse_chan/N_SUBSPECTRA_PER_SPECTRUM, &dv_p, fft_plan_p, 0);
         }
+#endif
 
         if(db_in->block[curblock_in].header.mcnt >= last_mcount) {
           // Wait for new output block to be free
@@ -192,20 +196,28 @@ static void *run(hashpipe_thread_args_t * args)
             // do spectroscopy and hit detection on this block.
             // spectroscopy() writes directly to the output buffer.
             size_t total_hits = 0;
-            for(int beam_i = 0; beam_i < N_BEAMS; beam_i++) {
+#ifdef SOURCE_S6
+            int n_chunks = N_BEAMS;
+            int n_bytes_per_chunk  = N_BYTES_PER_BEAM;
+#elif SOURCE_DIBAS
+            int n_chunks = N_SUBSPECTRA_PER_SPECTRUM;
+            //int n_bytes_per_chunk  = N_BYTES_PER_SUBSPECTRUM;
+            int n_bytes_per_chunk  = N_BYTES_PER_SUBSPECTRUM*N_FINE_CHAN;
+#endif
+            for(int chunk_i = 0; chunk_i < n_chunks; chunk_i++) {
                 size_t nhits = 0; 
                 // TODO there is no real c error checking in spectroscopy()
                 //      Errors are handled via c++ exceptions
-                nhits = spectroscopy(num_coarse_chan,
+                nhits = spectroscopy(num_coarse_chan/N_SUBSPECTRA_PER_SPECTRUM,
                                      N_FINE_CHAN,
                                      N_POLS_PER_BEAM,
-                                     beam_i,
+                                     chunk_i,
                                      maxhits,
                                      MAXGPUHITS,
                                      POWER_THRESH,
                                      SMOOTH_SCALE,
-                                     &db_in->block[curblock_in].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)],
-                                     N_BYTES_PER_BEAM,
+                                     &db_in->block[curblock_in].data[chunk_i*n_bytes_per_chunk/sizeof(uint64_t)],
+                                     n_bytes_per_chunk,
                                      &db_out->block[curblock_out],
                                      dv_p,
                                      fft_plan_p);

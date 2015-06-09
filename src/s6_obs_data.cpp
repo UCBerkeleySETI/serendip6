@@ -10,7 +10,11 @@
 #include "s6_obs_data.h"
 
 //                          0           1          2
+#ifdef SOURCE_S6
 const char *receiver[3] = {"AO_NOREC", "AO_ALFA", "AO_327MHz"};
+#elif SOURCE_DIBAS
+const char *receiver[3] = {"GB_NOREC", "GB_ONE", "GB_TWO"};
+#endif
 
 //----------------------------------------------------------
 int get_obs_info_from_redis(scram_t *scram,     
@@ -55,6 +59,7 @@ int get_obs_info_from_redis(scram_t *scram,
     }
     freeReplyObject(reply);
     // make sure redis is being updated!
+#if 0
     if(scram->AGCTIME == prior_agc_time) {
         no_time_change_count++;
         hashpipe_warn(__FUNCTION__, "agctime in redis databse has not been updated over %d queries", no_time_change_count);
@@ -66,6 +71,7 @@ int get_obs_info_from_redis(scram_t *scram,
         no_time_change_count = 0;
         prior_agc_time = scram->AGCTIME;
     } 
+#endif
 
     if (!rv) {
         reply = (redisReply *)redisCommand(c, "HMGET SCRAM:PNT        PNTSTIME PNTRA PNTDEC PNTMJD PNTAZCOR PNTZACOR");
