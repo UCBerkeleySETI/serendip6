@@ -18,6 +18,7 @@
 #include "hashpipe.h"
 #include "s6_databuf.h"
 #include "s6_obs_data.h"
+#include "s6_obs_data_gbt.h"
 #include "s6_etfits.h"
 
 
@@ -44,10 +45,17 @@ static void *run(hashpipe_thread_args_t * args)
     const char * status_key = args->thread_desc->skey;
 
     etfits_t  etf;
+#ifdef SOURCE_S6
     scram_t   scram;
     scram_t * scram_p = &scram;
-    
     int prior_receiver = 0;    
+#elif SOURCE_DIBAS
+    gbtstatus_t gbtstatus;
+    gbtstatus_t * gbtstatus_p = &gbtstatus;
+    char *prior_receiver = (char *)malloc(32);
+    strcpy(prior_receiver,"");
+#endif    
+
     int run_always, prior_run_always=0;                 // 1 = run even if no receiver
 
     size_t num_coarse_chan = 0;
@@ -113,8 +121,10 @@ static void *run(hashpipe_thread_args_t * args)
         // TODO check mcnt
 
         // get scram, etc data
-#if 1
+#ifdef SOURCE_S6
         rv = get_obs_info_from_redis(scram_p, (char *)"redishost", 6379);
+#elif SOURCE_DIBAS
+        rv = get_obs_gbt_info_from_redis(gbtstatus_p, (char *)"redishost", 6379);
 #endif
 rv=0;
         if(rv) {
@@ -122,8 +132,11 @@ rv=0;
             pthread_exit(NULL);
         }
 
+#ifdef SOURCE_S6
         scram.coarse_chan_id = db->block[block_idx].header.coarse_chan_id;
-
+#elif SOURCE_DIBAS
+        gbtstatus.coarse_chan_id = db->block[block_idx].header.coarse_chan_id;
+#endif
         hashpipe_status_lock_safe(&st);
 #ifdef SOURCE_S6
         hputs(st.buf,  "TELESCOP", receiver[scram.receiver]);
@@ -146,12 +159,26 @@ rv=0;
         hputi4(st.buf, "SCRALFON", scram.IF2ALFON);
         hputi4(st.buf, "SCRIF2SR", scram.IF2SIGSR);
 #elif SOURCE_DIBAS
-// TODO - put GBT status items to status shmem
+// TODO - put other GBT status items to status shmem?
+        hputs(st.buf,  "TELESCOP", gbtstatus.RECEIVER);
+        hputi4(st.buf, "COARCHID", gbtstatus.coarse_chan_id);
+        hputi4(st.buf, "CLOCKFRQ", gbtstatus.CLOCKFRQ);
+        hputr4(st.buf, "AZACTUAL", gbtstatus.AZACTUAL);
+        hputr4(st.buf, "ELACTUAL", gbtstatus.ELACTUAL);
+        hputr4(st.buf, "RA_DEG", gbtstatus.RADG_DRV);
+        hputr4(st.buf, "DEC_DEG", gbtstatus.DEC_DRV);
+        hputr4(st.buf, "IFFRQ1ST", gbtstatus.IFFRQ1ST);
+        hputr4(st.buf, "FREQ", gbtstatus.FREQ);
 #endif
         hashpipe_status_unlock_safe(&st);
 
         // test for and handle file change events
+
+#ifdef SOURCE_S6
         if(scram.receiver  != prior_receiver    ||
+#elif SOURCE_DIBAS
+        if(strcmp(gbtstatus.RECEIVER,prior_receiver) != 0 ||
+#endif
             run_always      != prior_run_always  ||
             num_coarse_chan != db->block[block_idx].header.num_coarse_chan)  {
 
@@ -171,7 +198,11 @@ rv=0;
 #endif
 
             hashpipe_info(__FUNCTION__, "Initializing output for %ld coarse channels, using receiver %s\n",
+#ifdef SOURCE_S6
                           num_coarse_chan, receiver[scram.receiver]);
+#elif SOURCE_DIBAS
+                          num_coarse_chan, gbtstatus.RECEIVER);
+#endif
 
             // change files
             if(etf.file_open) {
@@ -179,7 +210,11 @@ rv=0;
             }
             etf.new_file = 1; 
             // re-init
+#ifdef SOURCE_S6
             prior_receiver   = scram.receiver;
+#elif SOURCE_DIBAS
+            strcpy(prior_receiver,gbtstatus.RECEIVER);
+#endif
             num_coarse_chan  = db->block[block_idx].header.num_coarse_chan; 
             prior_run_always = run_always;
         }
@@ -192,8 +227,13 @@ rv=0;
 // TODO - put GBT acquisition trigger logic, if any, here
         if(run_always) {
 #endif
-            etf.file_chan = scram.coarse_chan_id;           // TODO - sensible for GBT?
+#ifdef SOURCE_S6
+            etf.file_chan = scram.coarse_chan_id;          
             rv = write_etfits(db, block_idx, &etf, scram_p);
+#elif SOURCE_DIBAS
+            etf.file_chan = gbtstatus.coarse_chan_id;           // TODO - sensible for GBT?
+            rv = write_etfits_gbt(db, block_idx, &etf, gbtstatus_p);
+#endif
             if(rv) {
                 hashpipe_error(__FUNCTION__, "error error returned from write_etfits()");
                 pthread_exit(NULL);
