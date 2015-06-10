@@ -204,10 +204,14 @@ static void *run(hashpipe_thread_args_t * args)
             //int n_bytes_per_chunk  = N_BYTES_PER_SUBSPECTRUM;
             int n_bytes_per_chunk  = N_BYTES_PER_SUBSPECTRUM*N_FINE_CHAN;
 #endif
+            // TODO - chunk to bors
             for(int chunk_i = 0; chunk_i < n_chunks; chunk_i++) {
                 size_t nhits = 0; 
                 // TODO there is no real c error checking in spectroscopy()
                 //      Errors are handled via c++ exceptions
+#if 0
+fprintf(stderr, "n_bytes_per_chunk = %d  chunk addr = %p\n", n_bytes_per_chunk, &db_in->block[curblock_in].data[chunk_i*n_bytes_per_chunk/sizeof(uint64_t)]);
+#endif
                 nhits = spectroscopy(num_coarse_chan/N_SUBSPECTRA_PER_SPECTRUM,
                                      N_FINE_CHAN,
                                      N_POLS_PER_BEAM,
