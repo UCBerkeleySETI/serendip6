@@ -263,7 +263,11 @@ int etfits_create(etfits_t * etf) {
     // Create basic FITS file from our template
     char template_file[1024];
     //printf("Opening file '%s'\n", etf->filename);
+#ifdef SOURCE_S6
     sprintf(template_file, "%s/%s", etf->s6_dir, ETFITS_TEMPLATE);
+#elif SOURCE_DIBAS
+    sprintf(template_file, "%s/%s", etf->s6_dir, ETFITS_GBT_TEMPLATE);
+#endif
     if(! *status_p) fits_create_template(&(etf->fptr), etf->filename_working, template_file, status_p);
 
     // Check to see if file was successfully created

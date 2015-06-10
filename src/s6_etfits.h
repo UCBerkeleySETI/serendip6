@@ -11,6 +11,7 @@
 
 // The following is the template file to use to create a ETFITS file.
 #define ETFITS_TEMPLATE "s6_ETFITS_template.txt"
+#define ETFITS_GBT_TEMPLATE "s6_ETFITS_gbt_template.txt"
 
 typedef struct etfits_primary_header {
     char date[16];          // Date file was created (dd/mm/yy)  TODO does this need to be populated?
