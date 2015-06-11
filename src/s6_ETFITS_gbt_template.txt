@@ -1,0 +1,181 @@
+##################################################################
+# FITS Primary Header Block
+##################################################################
+#
+SIMPLE  =                    T  / file does conform to FITS standard
+BITPIX  =                    8  / number of bits per data pixel
+NAXIS   =                    0  / number of data axes
+EXTEND  =                    T  / FITS dataset may contain extensions
+BLOCKED =                    T  / Blocks of 2880 bytes
+ORIGIN  ='SERENDIP VI'          / File was created by the guppi_daq sw
+DATE    =                    *  / Date (dd/mm//yy) this file was written
+#
+### Core ETFITS header fields ###
+#
+HDRVER  = 1.0                   / Header version 
+S6HPCVER= '0.5.0'               / version of serendip6.so
+LBGPUVER= '0.4.0'               / version of libS6GPU.so
+HASHPVER= '0.1.0'               / version of hashpipe lib/app
+FPGAVER = '0.1.0'               / version of FPGA code
+TELESCOP=                    *  / Telescope name
+DATE-OBS=                    *  / Date of observation (YYYY-MM-DDThh:mm:ss UTC)
+TSYS    =                    *  / System temperature
+PROJID  =                    *  / Project name
+FRONTEND=                    *  /   Rx and feed ID
+OBSFREQ =                    *  / [MHz] Centre frequency for observation
+SITELONG= -66.7552222           / Antenna longitude (degrees, float)
+SITELAT = 18.3538056            / Antenna latitude (degrees, float)
+SITEELEV= 497                   / Antenna elevation (metres, float)
+EQUINOX = 2000.0                / Equinox of coords (e.g. 2000.0) 
+FITSTYPE= 'ETFITS'              / FITS definition for pulsar data files
+INSTRUME= 'SERENDIP VI'         / Backend ID
+COORD_MD= 'J2000'               / Coordinate mode (J2000, GAL, ECLIP, etc.)
+NINPUTS =                    *  / Number of beampols
+BANDWID =                    *  / Bandwidth of entire backend
+FREQRES =                    *  / Width of each original spectral channel
+NSUBBAND=                    *  / number of subbands
+NCHAN   =                    *  / Number of spectral bins per sub-band
+CHAN_BW =                    *  / bandwidth of each spectral bin (resolution)
+#
+### multibeam pointing calcualtion fields ###
+#
+# per beam pointing ellipse zenith angle offsets 
+ZELLIPS0=   0.0                 / (TDOUBLE)
+ZELLIPS1= 384.005               / (TDOUBLE)
+ZELLIPS2= 384.005               / (TDOUBLE)
+ZELLIPS3= 384.005               / (TDOUBLE)
+ZELLIPS4= 384.005               / (TDOUBLE)
+ZELLIPS5= 384.005               / (TDOUBLE)
+ZELLIPS6= 384.005               / (TDOUBLE)
+# per beam pointing ellipse asimuth offsets 
+AELLIPS0=   0.0                 / (TDOUBLE)
+AELLIPS1= 329.06                / (TDOUBLE)
+AELLIPS2= 329.06                / (TDOUBLE)
+AELLIPS3= 329.06                / (TDOUBLE)
+AELLIPS4= 329.06                / (TDOUBLE)
+AELLIPS5= 329.06                / (TDOUBLE)
+AELLIPS6= 329.06                / (TDOUBLE)
+# per beam pointing ellipse array angle offsets 
+ARRANGL0=    0.0                / (TDOUBLE)
+ARRANGL1=  120.0                / (TDOUBLE)
+ARRANGL2=  180.0                / (TDOUBLE)
+ARRANGL3= -120.0                / (TDOUBLE)
+ARRANGL4=  -60.0                / (TDOUBLE)
+ARRANGL5=    0.0                / (TDOUBLE)
+ARRANGL6=   60.0                / (TDOUBLE)
+END
+##################################################################
+# ETFITS Binary Table Header Block - 1 per integration - no data
+##################################################################
+### Mandatory ETFITS header fields ###
+#
+XTENSION= BINTABLE              / FITS binary table
+BITPIX  =                    8  / Binary data
+NAXIS   =                    2  / 2-dimensional binary table
+NAXIS1  =                    *  / width of table in bytes 
+NAXIS2  =                    *  / Number of rows in table
+PCOUNT  =                    0  / size of special data area
+GCOUNT  =                    1  / one data group (required keyword)
+TFIELDS =                    *  / Number of fields per row
+EXTNAME = 'GBTSTATUS'           / name of this binary table extension
+NMATRIX =                    1  / 1 dataset per row
+#
+COARCHID=                    *  / coarse channel ID
+#
+### GBT_STATUS fields ###
+LASTUPDT=                    *  / time string when gbt_status was last updated (TSTRING)
+LST     =                    *  / local sidereal time HH:MM:SS (TSTRING)
+UTC     =                    *  / universal time HH:MM:SS (TSTRING)
+MJD     =                    *  / modified julian date (TDOUBLE)
+EPOCH   =                    *  / epoch (TSTRING)
+MAJTYPE =                    *  / major type (TSTRING)
+MINTYPE =                    *  / minor type (TSTRING)
+MAJOR   =                    *  / major (TSTRING)
+MINOR   =                    *  / minor (TSTRING)
+AZCOMM  =                    *  / az commanded (TDOUBLE)
+ELCOMM  =                    *  / el commanded (TDOUBLE)
+AZACTUAL=                    *  / az actual (TDOUBLE) (used in deriving ra/dec)
+ELACTUAL=                    *  / el actual (TDOUBLE)
+AZERROR =                    *  / az error (TDOUBLE)
+ELERROR =                    *  / el error (TDOUBLE)
+LPCS    =                    *  / lpcs (TSTRING)
+FOCUSOFF=                    *  / focus offset (TSTRING)
+ANTMOT  =                    *  / antenna motion (TSTRING)
+RECEIVER=                    *  / receiver (TSTRING)
+IFFRQ1ST=                    *  / first IF freq (TDOUBLE)
+IFFRQRST=                    *  / IF rest freq (TDOUBLE)
+FREQ    =                    *  / frequency (TDOUBLE)
+VELFRAME=                    *  / velocity frame (TSTRING)
+VELDEF  =                    *  / velocity defintion (TSTRING)
+J2000MAJ=                    *  / J2000 major (TDOUBLE)
+J2000MIN=                    *  / J2000 minor (TDOUBLE)
+### Derived fields ###
+LSTH_DRV=                    *  / local sidereal time in decimal hours (TDOUBLE)
+RA_DRV  =                    *  / RA in hours (taken from az/el actual, precessed to J2000)
+RADG_DRV=                    *  / RA in degrees (taken from az/el actual, precessed to J2000)
+DEC_DRV =                    *  / DEC in degrees (taken from az/el actual, precessed to J2000)
+### Sample clock synth fields ###
+CLOCKTIM=                    *  / unix time of this clock data (TINT)  
+CLOCKFRQ=                    *  / clock frequency - the sample rate of the instrument (TDOUBLE)
+CLOCKDBM=                    *  / clock power level in dBm (TDOUBLE)
+CLOCKLOC=                    *  / 1 = synth is locked, 0 = synth is not locked (TINT)
+### Birdie frequency synth fields ###
+BIRDITIM=                    *  / unix time of this birdie data (TINT)  
+BIRDIFRQ=                    *  / birdie frequency (TDOUBLE)
+BIRDIDBM=                    *  / birdie power level in dBm (TDOUBLE)
+BIRDILOC=                    *  / 1 = synth is locked, 0 = synth is not locked (TINT)
+### ADC RMS Values ###
+ADCRMSTM=                    *  / unix time of this ADC data (TINT)  
+ADCRMS01=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS02=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS03=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS04=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS05=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS06=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS07=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+ADCRMS08=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+#
+END
+##################################################################
+# ETFITS Binary Table Header Block - 1 per beam/pol per integration
+##################################################################
+#
+### Mandatory ETFITS header fields ###
+#
+XTENSION= BINTABLE             / FITS binary table
+BITPIX  =                    8 / Binary data
+NAXIS   =                    2 / 2-dimensional binary table
+NAXIS1  =                    * / width of table in bytes 
+NAXIS2  =                    * / Number of rows in table
+PCOUNT  =                    0 / size of special data area
+GCOUNT  =                    1 / one data group (required keyword)
+TFIELDS =                    * / Number of fields per row
+EXTNAME = 'ETHITS'             / name of this binary table extension
+NMATRIX =                    1 / 1 dataset per row
+#
+### ETFITS hits metadata ###
+#
+TIME    =                    * / unix time of this integration - is this fine enough res? (TINT)
+RA      =                    * / derived from corrected scram azza (TDOUBLE)
+DEC     =                    * / derived from corrected scram azza (TDOUBLE)
+BORSPOL =                    * / 0-13 beam/pols or 0-15 spectra/pols  (TINT)
+NHITS   =                    * / (TINT)
+MISSEDPK=                    * / missed packets this beam/pol this integration (TINT)
+#
+END
+##################################################################
+# Data table columns
+#####################################################################
+#
+### ETFITS hits columns ###
+#
+TTYPE#  = 'DETPOW  '           / detected power in units of mean power
+TFORM#  = '1E      '           / 4-byte real 
+TTYPE#  = 'MEANPOW '           / mean power
+TFORM#  = '1E      '           / 4-byte real 
+TTYPE#  = 'COARCHAN'           / coarse channel bin number
+TFORM#  = '1I      '           / 16-bit integer
+TTYPE#  = 'FINECHAN'           / fine channel bin number
+TFORM#  = '1J      '           / 32-bit integer
+#
+END
