@@ -1,0 +1,10 @@
+#! /usr/bin/env perl
+
+# UNIX = (MJD -40587.0) * 86400
+# MJD = (UNIX / 86400) + 40587.0
+
+while (1) {
+  $mjd = (time() / 86400.0) + 40587.0;
+  system("redis-cli set MJD $mjd 2>&1 > /dev/null");
+  sleep(1);
+  }
