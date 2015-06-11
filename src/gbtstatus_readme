@@ -1,0 +1,49 @@
+All gbtstatus-related files and functions
+=========================================
+status_fields:
+
+  * A text file, currently is /src, contains the mysql fields, and their
+    respective FITS name in two columns. This is used by s6_observatory_gbt.c
+    (to avoid having to recode that every time we change it).
+
+s6_obsaux_gbt.h:
+ 
+  * GBT latitude/longitude defined in here
+
+s6_obsaux_gbt.c:
+
+  * Various functions, largely plucked from setilib, for precessing/deriving 
+    RA/Dec from Az/El - used by s6_observatory_gbt.c
+
+s6_observatory_gbt.c:
+  
+  * How we populate redis database with values obtained from mysql or derived
+  * If you change the locale/name of status_fields, edit the appropriate #define
+  * All the derived fields are pretty much named in here
+
+s6_obs_data_gbt.h:
+
+  * The omnipresent gbtstatus_t struct is defined in here
+ 
+s6_obs_data_gbt.cpp:
+
+  * How we populate the gbtstatus_t struct from redis database
+  
+s6_ETFITS_gbt_template.txt:
+
+  * FITS header template
+
+s6_etfits.h:
+
+  * Note the #define for where the s6_ETFITS_gbt_template.txt is located
+
+s6_etfits.cpp:
+
+  * write_integration_header_gbt - output integration header based on gbtstatus
+  * write_etfits_gbt - main fits routine, including call to above
+
+s6_output_thread.cpp:
+
+  * updates status shmem with appropriate fields from gbtstatus. NOTE: As of 
+    time of writing the field names are different than FITS keys (to make the 
+    auto-lexigraphic display more pretty).
