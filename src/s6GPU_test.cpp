@@ -8,6 +8,7 @@
 
 #include "s6_databuf.h"
 #include "s6_obs_data.h"
+#include "s6_obs_data_gbt.h"
 #include "s6_etfits.h"
 #include "s6_obsaux.h"
 
