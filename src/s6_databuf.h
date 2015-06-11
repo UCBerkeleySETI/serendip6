@@ -29,6 +29,7 @@
 #define N_SUBSPECTRA_PER_SPECTRUM   1
 #define N_SAMPLES_PER_BLOCK         (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM * N_BEAM_SLOTS)
 #define N_BORS                      N_BEAMS
+#define N_SOURCE_NODES              N_BEAMS
 
 #elif SOURCE_DIBAS
 #define N_BEAMS                     1
@@ -39,6 +40,7 @@
 #define N_SUBSPECTRA_PER_SPECTRUM   8
 #define N_SAMPLES_PER_BLOCK         (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM)
 #define N_BORS                      N_SUBSPECTRA_PER_SPECTRUM
+#define N_SOURCE_NODES              8
 #endif
 
 //#define N_COARSE_CHAN_PER_SUBSPECTRUM   (N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM) 

@@ -197,27 +197,31 @@ static void *run(hashpipe_thread_args_t * args)
             // spectroscopy() writes directly to the output buffer.
             size_t total_hits = 0;
 #ifdef SOURCE_S6
-            int n_chunks = N_BEAMS;
-            int n_bytes_per_chunk  = N_BYTES_PER_BEAM;
+            int n_bors = N_BEAMS;
+            uint64_t n_bytes_per_bors  = N_BYTES_PER_BEAM;
 #elif SOURCE_DIBAS
-            int n_chunks = N_SUBSPECTRA_PER_SPECTRUM;
-            //int n_bytes_per_chunk  = N_BYTES_PER_SUBSPECTRUM;
-            int n_bytes_per_chunk  = N_BYTES_PER_SUBSPECTRUM*N_FINE_CHAN;
+            int n_bors = N_SUBSPECTRA_PER_SPECTRUM;
+            //int n_bytes_per_bors  = N_BYTES_PER_SUBSPECTRUM;
+            uint64_t n_bytes_per_bors  = N_BYTES_PER_SUBSPECTRUM*N_FINE_CHAN;
 #endif
-            for(int chunk_i = 0; chunk_i < n_chunks; chunk_i++) {
+            for(int bors_i = 0; bors_i < n_bors; bors_i++) {
                 size_t nhits = 0; 
                 // TODO there is no real c error checking in spectroscopy()
                 //      Errors are handled via c++ exceptions
+#if 0
+fprintf(stderr, "num_coarse_chan = %lu n_bytes_per_bors = %lu  bors addr = %p\n", 
+        num_coarse_chan, n_bytes_per_bors, &db_in->block[curblock_in].data[bors_i*n_bytes_per_bors/sizeof(uint64_t)]);
+#endif
                 nhits = spectroscopy(num_coarse_chan/N_SUBSPECTRA_PER_SPECTRUM,
                                      N_FINE_CHAN,
                                      N_POLS_PER_BEAM,
-                                     chunk_i,
+                                     bors_i,
                                      maxhits,
                                      MAXGPUHITS,
                                      POWER_THRESH,
                                      SMOOTH_SCALE,
-                                     &db_in->block[curblock_in].data[chunk_i*n_bytes_per_chunk/sizeof(uint64_t)],
-                                     n_bytes_per_chunk,
+                                     &db_in->block[curblock_in].data[bors_i*n_bytes_per_bors/sizeof(uint64_t)],
+                                     n_bytes_per_bors,
                                      &db_out->block[curblock_out],
                                      dv_p,
                                      fft_plan_p);

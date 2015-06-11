@@ -42,9 +42,8 @@
 
 // Number of mcnts per block
 // TODO - put these in s6_databuf.h ?
-static const uint64_t     Nm = N_FINE_CHAN;
-//static const unsigned int N_PACKETS_PER_BLOCK = Nm * N_BEAMS;
-static const unsigned int N_PACKETS_PER_BLOCK = Nm/N_SPECTRA_PER_PACKET * N_BEAMS;
+static const uint64_t     Nm = N_FINE_CHAN / N_SPECTRA_PER_PACKET;
+static const unsigned int N_PACKETS_PER_BLOCK = Nm * N_BEAMS;           // for GBT, this is just Nm
 static const unsigned int N_BYTES_PER_CHAN = 4;
 
 typedef struct {
@@ -114,7 +113,7 @@ static void print_ring_mcnts(s6_input_databuf_t *s6_input_databuf_p) {
 // Returns physical block number for given mcnt
 static inline int block_for_mcnt(uint64_t mcnt)
 {
-    return (mcnt / Nm) % N_INPUT_BLOCKS;
+    return (mcnt / Nm) % N_INPUT_BLOCKS;       
 }
 
 #define LOC_MCNTS
@@ -197,7 +196,7 @@ static inline void get_header(unsigned char *p_frame, packet_header_t * pkt_head
 #elif SOURCE_DIBAS
     pkt_header->pchan       =  (raw_header >> 56) * N_COARSE_CHAN;  // node ID converted to phcan. 
     pkt_header->mcnt        =  raw_header & 0x00FFFFFFFFFFFFFF;
-    pkt_header->sid         =  0;
+    pkt_header->sid         =  raw_header >> 56;
 #endif
 
 #ifdef SOURCE_S6
@@ -276,7 +275,7 @@ static uint64_t set_block_filled(s6_input_databuf_t *s6_input_databuf_p, block_i
     // If we missed more than Nm, then assume we are missing one or more beams.
     // Any missed packets beyond an integer multiple of Nm will be considered
     // as dropped packets.
-    block_missed_beams   = block_missed_pkt_cnt / Nm;
+    block_missed_beams   = block_missed_pkt_cnt / Nm;       // TODO GBT beams or spectra
     block_missed_mod_cnt = block_missed_pkt_cnt % Nm;
 
     // Update status buffer
@@ -302,10 +301,10 @@ static uint64_t set_block_filled(s6_input_databuf_t *s6_input_databuf_p, block_i
 static inline int calc_block_indexes(block_info_t *binfo, packet_header_t * pkt_header)
 {
     // Reject pacets with bad SID Values
-    if(pkt_header->sid >= N_BEAMS) {
+    if(pkt_header->sid >= N_SOURCE_NODES) {            // TODO - sid == 0 for dibas
 	hashpipe_error(__FUNCTION__,
 		"current packet SID %u out of range (0-%d)",
-		pkt_header->sid, N_BEAMS-1);
+		pkt_header->sid, N_SOURCE_NODES-1);
 	return -1;
     }
 
@@ -331,7 +330,7 @@ static inline int calc_block_indexes(block_info_t *binfo, packet_header_t * pkt_
 }
 
 // This allows for 2 out of sequence packets from each beam (in a row)
-#define MAX_OUT_OF_SEQ (2*N_BEAMS)
+#define MAX_OUT_OF_SEQ (2*N_BORS)
 
 // This allows packets to be two full databufs late without being considered
 // out of sequence.
@@ -348,8 +347,9 @@ static inline void initialize_block(s6_input_databuf_t * s6_input_databuf_p,
     int i;
     int block_i = block_for_mcnt(mcnt);
 
-    for(i=0; i<N_BEAM_SLOTS; i++) {
-	s6_input_databuf_p->block[block_i].header.missed_pkts[i] = (i < N_BEAMS ? Nm : 0);
+    //for(i=0; i<N_BEAM_SLOTS; i++) {
+    for(i=0; i<N_BORS; i++) {               // TODO - not right for s6 at ao where N_BORS != N_BEAM_SLOTS ?
+	s6_input_databuf_p->block[block_i].header.missed_pkts[i] = (i < N_BORS ? Nm : 0);
     }
     // Round pkt_mcnt down to nearest multiple of Nm
     s6_input_databuf_p->block[block_i].header.mcnt = mcnt - (mcnt % Nm);
@@ -420,8 +420,7 @@ static inline uint64_t process_packet(
 
     // Parse packet header
     get_header(p_frame, &pkt_header);
-    //pkt_mcnt = pkt_header.mcnt;
-    pkt_mcnt = pkt_header.mcnt*N_SPECTRA_PER_PACKET;
+    pkt_mcnt = pkt_header.mcnt;
     pkt_block_i = block_for_mcnt(pkt_mcnt);
     cur_mcnt = binfo.mcnt_start;
 
@@ -504,7 +503,7 @@ static inline uint64_t process_packet(
 	}
 
 	// Decrement missed packet counter
-	s6_input_databuf_p->block[pkt_block_i].header.missed_pkts[pkt_header.sid]--;
+	s6_input_databuf_p->block[pkt_block_i].header.missed_pkts[pkt_header.sid]--;    // TODO GBT - is this correct?
 
 	// Calculate starting points for unpacking this packet into block's data buffer.
 	// Point to payload (after S6 header)
@@ -539,12 +538,36 @@ static inline uint64_t process_packet(
 
             dest_p = s6_input_databuf_p->block[pkt_block_i].data        // start of block 
                 + (sub_spectrum_i    * N_FINE_CHAN                      // offset of the destination sub-spectrum
-                +  pkt_spectrum_mcnt % N_FINE_CHAN)                     // offset within the destination sub-spectrum 
+                +  pkt_spectrum_mcnt % N_FINE_CHAN)                     // offset within the destination sub-spectrum TODO - this can br above this for loop 
                 * N_BYTES_PER_SUBSPECTRUM/sizeof(uint64_t);             // units of offset, in 64 bit words
 #if 0
-static uint64_t test_memcpy_counter;
-test_memcpy_counter++;
-fprintf(stderr, "%9lu %d %d src_p = %p  dest_p = %p  pkt_mcnt = %lu  pkt_spectrum_mcnt = %lu  size = %d\n", test_memcpy_counter, pkt_spectrum_i, sub_spectrum_i, src_p, dest_p, pkt_mcnt, pkt_spectrum_mcnt, N_BYTES_PER_SUBSPECTRUM);
+            // log debugging information
+            char log_message[256];
+            static int net_log_lines = 1000;
+            //int first_log_line = 1;
+            static uint64_t test_memcpy_counter;
+            static uint64_t *prior_src_p, *prior_dest_p, prior_pkt_mcnt, prior_pkt_spectrum_mcnt;
+            test_memcpy_counter++;
+            uint64_t offset = (sub_spectrum_i    * N_FINE_CHAN   +  pkt_spectrum_mcnt % N_FINE_CHAN)  * N_BYTES_PER_SUBSPECTRUM/sizeof(uint64_t);
+            //if(offset == 0) {
+            if(net_log_lines) {
+                sprintf(log_message, "%9lu %d %d %d src_p = %p (%lu)  dest_p = %p (%lu)  pkt_mcnt = %lu (%lu)  pkt_spectrum_mcnt = %lu (%lu) (%lu)  offset64 = %lu", 
+                        test_memcpy_counter, pkt_block_i, pkt_spectrum_i, sub_spectrum_i, 
+                        src_p, src_p-prior_src_p, 
+                        dest_p, dest_p-prior_dest_p,
+                        pkt_mcnt, pkt_mcnt-prior_pkt_mcnt, 
+                        pkt_spectrum_mcnt, pkt_spectrum_mcnt-prior_pkt_spectrum_mcnt, pkt_spectrum_mcnt % N_FINE_CHAN,
+                        offset);
+                if(logger(log_message, net_log_lines) == net_log_lines) {
+                    net_log_lines  = 0;     // stop logging after writing out the current log
+                    //first_log_line = 1;     // re-init for next log run
+                }       
+            }
+            //}
+            prior_src_p = (uint64_t*)src_p;
+            prior_dest_p = (uint64_t*)dest_p;
+            prior_pkt_mcnt = pkt_mcnt;
+            prior_pkt_spectrum_mcnt = pkt_spectrum_mcnt;
 #endif
 #if 1
 	        // Use length from packet (minus UDP header and minus HEADER word and minus CRC word)
