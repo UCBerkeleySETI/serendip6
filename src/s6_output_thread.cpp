@@ -163,19 +163,19 @@ rv=0;
         hputs(st.buf,  "TELESCOP", gbtstatus.RECEIVER);
         hputi4(st.buf, "COARCHID", gbtstatus.coarse_chan_id);
         // hputi4(st.buf, "CLOCKFRQ", gbtstatus.CLOCKFRQ);
-        hputi4(st.buf, "GBCLKFRQ", gbtstatus.CLOCKFRQ);
+        hputi4(st.buf, "GBTCLKFQ", gbtstatus.CLOCKFRQ);
         // hputr4(st.buf, "AZACTUAL", gbtstatus.AZACTUAL);
-        hputr4(st.buf, "GBAZACTL", gbtstatus.AZACTUAL);
+        hputr4(st.buf, "GBTAZACT", gbtstatus.AZACTUAL);
         // hputr4(st.buf, "ELACTUAL", gbtstatus.ELACTUAL);
-        hputr4(st.buf, "GBELACTL", gbtstatus.ELACTUAL);
+        hputr4(st.buf, "GBTELACT", gbtstatus.ELACTUAL);
         // hputr4(st.buf, "RA_DEG", gbtstatus.RADG_DRV);
-        hputr4(st.buf, "GBRADEG", gbtstatus.RADG_DRV);
+        hputr4(st.buf, "GBTRADG", gbtstatus.RADG_DRV);
         // hputr4(st.buf, "DEC_DEG", gbtstatus.DEC_DRV);
-        hputr4(st.buf, "GBDECDEG", gbtstatus.DEC_DRV);
+        hputr4(st.buf, "GBTDECDG", gbtstatus.DEC_DRV);
         // hputr4(st.buf, "IFFRQ1ST", gbtstatus.IFFRQ1ST);
-        hputr4(st.buf, "GBIFFRQ1", gbtstatus.IFFRQ1ST);
+        hputr4(st.buf, "GBTIFFQ1", gbtstatus.IFFRQ1ST);
         // hputr4(st.buf, "FREQ", gbtstatus.FREQ);
-        hputr4(st.buf, "GBFREQ", gbtstatus.FREQ);
+        hputr4(st.buf, "GBTFREQ", gbtstatus.FREQ);
 #endif
         hashpipe_status_unlock_safe(&st);
 
