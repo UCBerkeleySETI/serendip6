@@ -387,6 +387,37 @@ static inline void initialize_block_info(block_info_t * binfo)
     binfo->initialized = 1;
 }
 
+inline void log_rms(s6_input_databuf_t *s6_input_databuf_p, block_info_t *binfo, int coarse_chan, double &rms_p0, double &rms_p1) {
+
+    static int n_rms = 0;
+    //if(n_rms >= 5) return;
+
+    //int coarse_chan = 246;
+    long sum_p0 = 0;
+    long sum_p1 = 0;
+    char * data_p = (char *)&s6_input_databuf_p->block[binfo->block_i].data;
+//fprintf(stderr, "%p\n\n", data_p);
+    char * coarse_chan_p = data_p 
+                            + (long)floor(coarse_chan / (N_COARSE_CHAN/N_SUBSPECTRA_PER_SPECTRUM))
+                            * N_FINE_CHAN * (N_COARSE_CHAN/N_SUBSPECTRA_PER_SPECTRUM) * N_POLS_PER_BEAM * N_BYTES_PER_SAMPLE
+                            + coarse_chan % (N_COARSE_CHAN/N_SUBSPECTRA_PER_SPECTRUM)  
+                            * N_POLS_PER_BEAM * N_BYTES_PER_SAMPLE;  
+    for(int i=0; i < N_FINE_CHAN; i++) {
+//fprintf(stderr, "%p\n", coarse_chan_p);
+        // just calc the 'real' portion
+        sum_p0 += *coarse_chan_p * *coarse_chan_p;
+        sum_p1 += *(coarse_chan_p+2) * *(coarse_chan_p+2);
+        coarse_chan_p += N_COARSE_CHAN/N_SUBSPECTRA_PER_SPECTRUM * N_POLS_PER_BEAM * N_BYTES_PER_SAMPLE;	
+    }
+    
+    rms_p0 = sqrt((double)sum_p0/N_FINE_CHAN);
+    rms_p1 = sqrt((double)sum_p1/N_FINE_CHAN);
+    //fprintf(stderr, "rms = %lf %lf\n", rms_p0, rms_p1);
+
+    //n_rms += 1;
+}
+
+
 // This function returns -1 unless the given packet causes a block to be marked
 // as filled in which case this function returns the marked block's first mcnt.
 // Any return value other than -1 will be stored in the status memory as
@@ -453,6 +484,22 @@ static inline uint64_t process_packet(
 			s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i], i);
 	    }
 #endif
+#define LOG_RMS
+#ifdef LOG_RMS
+        // only do this once per block! Ie, when the block is done.
+        int coarse_chan, retval;
+        double rms_p0, rms_p1;
+        hashpipe_status_lock_safe(st_p);
+        retval = hgeti4(st_p->buf, "CCTORMS", &coarse_chan);
+        hashpipe_status_unlock_safe(st_p);
+        if(retval) {
+	        log_rms(s6_input_databuf_p, &binfo, coarse_chan, rms_p0, rms_p1);
+            hashpipe_status_lock_safe(st_p);
+            hputr4(st_p->buf, "CCRMSP0", rms_p0);
+            hputr4(st_p->buf, "CCRMSP1", rms_p1);
+            hashpipe_status_unlock_safe(st_p);
+        }
+#endif
 
 	    // Mark the current block as filled
 	    netmcnt = set_block_filled(s6_input_databuf_p, &binfo);
@@ -503,7 +550,7 @@ static inline uint64_t process_packet(
 	}
 
 	// Decrement missed packet counter
-	s6_input_databuf_p->block[pkt_block_i].header.missed_pkts[pkt_header.sid]--;    // TODO GBT - is this correct?
+	s6_input_databuf_p->block[pkt_block_i].header.missed_pkts[pkt_header.sid]--;    // TODO GBT - is this correct?  sid is constant for a given instance
 
 	// Calculate starting points for unpacking this packet into block's data buffer.
 	// Point to payload (after S6 header)

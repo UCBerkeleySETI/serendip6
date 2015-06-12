@@ -40,6 +40,8 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
     }
 
     reply = (redisReply *)redisCommand(c,"GET MJD"); gbtstatus->MJD = atof(reply->str); freeReplyObject(reply); 
+// TODO - re-enable this
+#if 0
     if (gbtstatus->MJD == prior_mjd) {
       no_time_change_count++;
       hashpipe_warn(__FUNCTION__, "mjd in redis databse has not been updated over %d queries", no_time_change_count);
@@ -52,6 +54,7 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
       no_time_change_count = 0;
       prior_mjd = gbtstatus->MJD;
       }
+#endif
      
     if (!rv) {
 

@@ -599,12 +599,15 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
             nhits_this_input=0;
             for(int hit_i=0; hit_i < (size_t)db->block[block_idx].header.nhits[bors]; hit_i++) {
                 if(db->block[block_idx].pol[bors][hit_i] == input) {
-                    nhits_this_input++;
-                    det_pow[hit_j]     = db->block[block_idx].power[bors][hit_i];
-                    mean_pow[hit_j]    = db->block[block_idx].baseline[bors][hit_i];
-                    coarse_chan[hit_j] = db->block[block_idx].coarse_chan[bors][hit_i];
-                    fine_chan[hit_j]   = db->block[block_idx].fine_chan[bors][hit_i];
-                    hit_j++;
+                    int this_fine_chan =  db->block[block_idx].fine_chan[bors][hit_i];
+                    if(this_fine_chan != 0) {   // ignore the DC bin
+                        nhits_this_input++;
+                        det_pow[hit_j]     = db->block[block_idx].power[bors][hit_i];
+                        mean_pow[hit_j]    = db->block[block_idx].baseline[bors][hit_i];
+                        coarse_chan[hit_j] = db->block[block_idx].coarse_chan[bors][hit_i];
+                        fine_chan[hit_j]   = this_fine_chan;
+                        hit_j++;
+                    }
                 }
             }
 
