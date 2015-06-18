@@ -176,8 +176,15 @@ rv=0;
         hputr4(st.buf, "GBTIFFQ1", gbtstatus.IFFRQ1ST);
         // hputr4(st.buf, "FREQ", gbtstatus.FREQ);
         hputr4(st.buf, "GBTFREQ", gbtstatus.FREQ);
+        hputi4(st.buf, "WEBCNTRL", gbtstatus.WEBCNTRL);
 #endif
         hashpipe_status_unlock_safe(&st);
+
+#ifdef SOURCE_DIBAS
+        //if(gbtstatus.WEBCNTRL == 0) {
+        //    pthread_exit(NULL);
+        //}
+#endif
 
         // test for and handle file change events
 
@@ -185,9 +192,10 @@ rv=0;
         if(scram.receiver  != prior_receiver    ||
 #elif SOURCE_DIBAS
         if(strcmp(gbtstatus.RECEIVER,prior_receiver) != 0 ||
+                  gbtstatus.WEBCNTRL == 0  ||
 #endif
-            run_always      != prior_run_always  ||
-            num_coarse_chan != db->block[block_idx].header.num_coarse_chan)  {
+                  run_always      != prior_run_always  ||
+                  num_coarse_chan != db->block[block_idx].header.num_coarse_chan) {
 
 #if 0
             uint32_t total_missed_pkts[N_BEAM_SLOTS];
@@ -232,7 +240,7 @@ rv=0;
         if(scram.receiver || run_always) {
 #elif SOURCE_DIBAS
 // TODO - put GBT acquisition trigger logic, if any, here
-        if(run_always) {
+        if(run_always && gbtstatus.WEBCNTRL == 1) {
 #endif
 #ifdef SOURCE_S6
             etf.file_chan = scram.coarse_chan_id;          
