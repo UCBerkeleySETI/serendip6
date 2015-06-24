@@ -23,46 +23,20 @@ TSYS    =                    *  / System temperature
 PROJID  =                    *  / Project name
 FRONTEND=                    *  /   Rx and feed ID
 OBSFREQ =                    *  / [MHz] Centre frequency for observation
-SITELONG= -66.7552222           / Antenna longitude (degrees, float)
-SITELAT = 18.3538056            / Antenna latitude (degrees, float)
-SITEELEV= 497                   / Antenna elevation (metres, float)
+SITELONG= 79.839835             / Antenna longitude (degrees, float)
+SITELAT = 38.433121             / Antenna latitude (degrees, float)
+SITEELEV= 807.43                / Antenna elevation (metres, float)
 EQUINOX = 2000.0                / Equinox of coords (e.g. 2000.0) 
 FITSTYPE= 'ETFITS'              / FITS definition for pulsar data files
 INSTRUME= 'SERENDIP VI'         / Backend ID
 COORD_MD= 'J2000'               / Coordinate mode (J2000, GAL, ECLIP, etc.)
-NINPUTS =                    *  / Number of beampols
+NINPUTS =                    *  / Number of pols * number of subbands
 BANDWID =                    *  / Bandwidth of entire backend
 FREQRES =                    *  / Width of each original spectral channel
 NSUBBAND=                    *  / number of subbands
 NCHAN   =                    *  / Number of spectral bins per sub-band
 CHAN_BW =                    *  / bandwidth of each spectral bin (resolution)
 #
-### multibeam pointing calcualtion fields ###
-#
-# per beam pointing ellipse zenith angle offsets 
-ZELLIPS0=   0.0                 / (TDOUBLE)
-ZELLIPS1= 384.005               / (TDOUBLE)
-ZELLIPS2= 384.005               / (TDOUBLE)
-ZELLIPS3= 384.005               / (TDOUBLE)
-ZELLIPS4= 384.005               / (TDOUBLE)
-ZELLIPS5= 384.005               / (TDOUBLE)
-ZELLIPS6= 384.005               / (TDOUBLE)
-# per beam pointing ellipse asimuth offsets 
-AELLIPS0=   0.0                 / (TDOUBLE)
-AELLIPS1= 329.06                / (TDOUBLE)
-AELLIPS2= 329.06                / (TDOUBLE)
-AELLIPS3= 329.06                / (TDOUBLE)
-AELLIPS4= 329.06                / (TDOUBLE)
-AELLIPS5= 329.06                / (TDOUBLE)
-AELLIPS6= 329.06                / (TDOUBLE)
-# per beam pointing ellipse array angle offsets 
-ARRANGL0=    0.0                / (TDOUBLE)
-ARRANGL1=  120.0                / (TDOUBLE)
-ARRANGL2=  180.0                / (TDOUBLE)
-ARRANGL3= -120.0                / (TDOUBLE)
-ARRANGL4=  -60.0                / (TDOUBLE)
-ARRANGL5=    0.0                / (TDOUBLE)
-ARRANGL6=   60.0                / (TDOUBLE)
 END
 ##################################################################
 # ETFITS Binary Table Header Block - 1 per integration - no data
