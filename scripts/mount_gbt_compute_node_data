@@ -1,0 +1,42 @@
+#! /bin/csh -b
+
+set COMPUTE_NODES = "1 2 3"
+if (`whoami` != "root") then
+  echo "must be root to execute this script"
+  exit 1
+endif
+
+echo -n "pinging servers:"
+foreach i ($COMPUTE_NODES)
+  echo -n " "s6c$i
+  set SUCCESS = `ping -c 1 -W 1 s6c$i |& grep -c "1 packets transmitted, 1 received, 0% packet loss"`
+  if ($SUCCESS == 0) then
+    echo '! - failed to ping back..'
+  endif
+end
+
+echo " " 
+
+echo "mounting /data onto /mnt_data: "
+foreach i ($COMPUTE_NODES)
+  echo -n "   "s6c${i}": "
+  set ALREADYMOUNTED = `df | grep -c /mnt_data/s6c$i'$'`
+  if ($ALREADYMOUNTED > 0) then
+    echo "already mounted"
+  else 
+    echo "mounting..."
+    mount s6c${i}:/data /mnt_data/s6c${i}
+  endif
+end  
+
+echo -n "checking mounts:"
+foreach i ($COMPUTE_NODES)
+  echo -n " "s6c$i
+  set MOUNTED = `df | grep -c /mnt_data/s6c$i'$'`
+  if ($MOUNTED == 0) then
+    echo '! - still not mounted..'
+  endif
+end
+
+echo " "
+exit 0
