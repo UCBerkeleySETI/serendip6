@@ -147,8 +147,6 @@ int write_etfits_gbt(s6_output_databuf_t *db, int block_idx, etfits_t *etf, gbts
     int * status_p = &(etf->status);
     *status_p = 0;
 
-    gbtstatus_t gbtstatus;
-
     // Create the initial file or change to a new one if needed.
     if (etf->new_run || etf->new_file) {
         etf->new_file = 0;
