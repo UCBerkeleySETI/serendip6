@@ -8,7 +8,8 @@
 
 #include "s6_obsaux_gbt.h"
 
-#define SLEEP_MICROSECONDS 100000
+// #define SLEEP_MICROSECONDS 100000 // tenth of a second
+#define SLEEP_MICROSECONDS 1000000   // whole second
 
 #define ftoa(A,B) sprintf(B,"%lf",A);
 
