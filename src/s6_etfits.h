@@ -70,7 +70,7 @@ typedef struct etfits {
     int file_open;          // boolean indicating file open or not      TODO can I use fitsfile * for this?
     etfits_primary_header_t     primary_hdr;
     etfits_integration_header_t integration_hdr;
-    etfits_hits_header_t        hits_hdr[N_BEAMS*N_POLS_PER_BEAM];       // one hits HDU per beam/pol per integration
+    etfits_hits_header_t        hits_hdr[N_BORS*N_POLS_PER_BEAM];       // one hits HDU per beam/pol per integration
     etfits_hits_t               hits;
 } etfits_t;
 

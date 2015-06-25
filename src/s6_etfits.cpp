@@ -147,8 +147,6 @@ int write_etfits_gbt(s6_output_databuf_t *db, int block_idx, etfits_t *etf, gbts
     int * status_p = &(etf->status);
     *status_p = 0;
 
-    gbtstatus_t gbtstatus;
-
     // Create the initial file or change to a new one if needed.
     if (etf->new_run || etf->new_file) {
         etf->new_file = 0;
@@ -410,6 +408,7 @@ int write_integration_header_gbt(etfits_t * etf, gbtstatus_t *gbtstatus) {
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "BIRDIDBM",  &(gbtstatus->BIRDIDBM), NULL, status_p);
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "BIRDILOC",  &(gbtstatus->BIRDILOC), NULL, status_p); 
 
+#ifdef SOURCE_S6
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "ADCRMSTM",  &(gbtstatus->ADCRMSTM),   NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS01",  &(gbtstatus->ADC1RMS[0]), NULL, status_p);
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS02",  &(gbtstatus->ADC1RMS[1]), NULL, status_p);
@@ -419,6 +418,7 @@ int write_integration_header_gbt(etfits_t * etf, gbtstatus_t *gbtstatus) {
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS06",  &(gbtstatus->ADC1RMS[5]), NULL, status_p);
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS07",  &(gbtstatus->ADC1RMS[6]), NULL, status_p);
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS08",  &(gbtstatus->ADC1RMS[7]), NULL, status_p);
+#endif
 
     if (*status_p) {
         hashpipe_error(__FUNCTION__, "Error writing integration header");
