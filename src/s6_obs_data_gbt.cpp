@@ -78,6 +78,8 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
       reply = (redisReply *)redisCommand(c,"GET RECEIVER"); strcpy(gbtstatus->RECEIVER,reply->str); freeReplyObject(reply);
       reply = (redisReply *)redisCommand(c,"GET IFFRQ1ST"); gbtstatus->IFFRQ1ST = atof(reply->str); freeReplyObject(reply); 
       reply = (redisReply *)redisCommand(c,"GET IFFRQRST"); gbtstatus->IFFRQRST = atof(reply->str); freeReplyObject(reply); 
+      reply = (redisReply *)redisCommand(c,"GET DCRSCFRQ"); gbtstatus->DCRSCFRQ = atof(reply->str); freeReplyObject(reply); 
+      reply = (redisReply *)redisCommand(c,"GET SPRCSFRQ"); gbtstatus->SPRCSFRQ = atof(reply->str); freeReplyObject(reply); 
       reply = (redisReply *)redisCommand(c,"GET FREQ"); gbtstatus->FREQ = atof(reply->str); freeReplyObject(reply); 
       reply = (redisReply *)redisCommand(c,"GET VELFRAME"); strcpy(gbtstatus->VELFRAME,reply->str); freeReplyObject(reply);
       reply = (redisReply *)redisCommand(c,"GET VELDEF"); strcpy(gbtstatus->VELDEF,reply->str); freeReplyObject(reply);

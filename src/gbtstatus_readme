@@ -1,6 +1,6 @@
 All gbtstatus-related files and functions
 =========================================
-status_fields:
+status_fields: (to be copied to /usr/local/etc/mysql_status_fields)
 
   * A text file, currently is /src, contains the mysql fields, and their
     respective FITS name in two columns. This is used by s6_observatory_gbt.c

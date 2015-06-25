@@ -385,6 +385,8 @@ int write_integration_header_gbt(etfits_t * etf, gbtstatus_t *gbtstatus) {
     if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "RECEIVER",  &(gbtstatus->RECEIVER), NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "IFFRQ1ST",  &(gbtstatus->IFFRQ1ST), NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "IFFRQRST",  &(gbtstatus->IFFRQRST), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "DCRSCFRQ",  &(gbtstatus->DCRSCFRQ), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "SPRCSFRQ",  &(gbtstatus->SPRCSFRQ), NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "FREQ",  &(gbtstatus->FREQ), NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VELFRAME",  &(gbtstatus->VELFRAME), NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VELDEF",  &(gbtstatus->VELDEF), NULL, status_p); 

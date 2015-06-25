@@ -28,6 +28,8 @@ typedef struct gbtstatus {
    char RECEIVER[32];       // receiver
    double IFFRQ1ST;         // first_if_freq
    double IFFRQRST;         // if_rest_freq
+   double DCRSCFRQ;         // dcr_sky_center_freq (should be long?)
+   double SPRCSFRQ;         // spectral_processor_sky_freq (should be long?)
    double FREQ;             // freq
    char VELFRAME[16];       // velocity_frame
    char VELDEF[16];         // velocity_definition

@@ -15,7 +15,7 @@
 
 // file containing redis key/mysql row pairs for which to read from mysql and put into redis
 // const char *status_fields_config = "./status_fields";
-const char *status_fields_config = "/usr/local/bin/mysql_status_fields";
+const char *status_fields_config = "/usr/local/etc/mysql_status_fields";
 
 const char *usage = "Usage: s6_observatory_gbt [-stdout] [-nodb] [-hostname hostname] [-port port]\n  -stdout: output packets to stdout (normally quiet)\n  -nodb: don't update redis db\n  hostname/port: for redis database (default 127.0.0.1:6379)\n\n";
 
