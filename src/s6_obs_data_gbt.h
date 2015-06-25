@@ -55,6 +55,7 @@ typedef struct gbtstatus {
    double  BIRDIFRQ;
    double  BIRDIDBM;
    int     BIRDILOC;
+   int     WEBCNTRL;    // 1 = on, 0 = off - for GBT operator control
 
 } gbtstatus_t;
 

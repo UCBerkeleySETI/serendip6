@@ -40,6 +40,8 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
     }
 
     reply = (redisReply *)redisCommand(c,"GET MJD"); gbtstatus->MJD = atof(reply->str); freeReplyObject(reply); 
+// TODO - re-enable this
+#if 0
     if (gbtstatus->MJD == prior_mjd) {
       no_time_change_count++;
       hashpipe_warn(__FUNCTION__, "mjd in redis databse has not been updated over %d queries", no_time_change_count);
@@ -52,6 +54,7 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
       no_time_change_count = 0;
       prior_mjd = gbtstatus->MJD;
       }
+#endif
      
     if (!rv) {
 
@@ -118,8 +121,17 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
       freeReplyObject(reply);
     }
 
+    // Web based operator off/on switch
+    if (!rv) {
+      gbtstatus->WEBCNTRL = 0;  // default to off
+      reply = (redisReply *)redisCommand(c,"GET WEBCNTRL"); gbtstatus->WEBCNTRL = atoi(reply->str); freeReplyObject(reply); 
+    }
+
+
 
     // ADC RMS values (we get the time from the first set only)
+// TODO - re-enable?
+#if 0
     if (!rv) {
       reply = (redisReply *)redisCommand(c, "HMGET ADC1RMS      ADCRMSTM ADCRMS1 ADCRMS2 ADCRMS3 ADCRMS4 ADCRMS5 ADCRMS6 ADCRMS7 ADCRMS8");
       if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
@@ -158,6 +170,7 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
     //   }
     //   freeReplyObject(reply);
     // }
+#endif
 
     redisFree(c);       // TODO do I really want to free each time?
 
