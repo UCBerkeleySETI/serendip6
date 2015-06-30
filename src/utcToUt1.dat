@@ -118,3 +118,12 @@
 #   lin fit prediction 21oct13-15jun14 from oct13 dataset
 # peak error over region:  10ms  rms:  5.9 ms 
 2013        294      -4.587 -1.338775
+#   lin fit prediction 11jul14-11jul15 from jul14 dataset
+# peak error over region:  10ms  rms:  5.9 ms 
+2014        192    -277.344 -1.152726
+#   lin fit prediction 01jul15-30sep15 from jul15 dataset
+# peak error over region:  5ms  rms:  3.2 ms 
+2015        182     329.538 -.493420
+#   lin fit prediction 01oct15-15jun16 from jul15 dataset
+# peak error over region:  8ms  rms:  3.9 ms 
+2015        274     271.987 -1.219109
