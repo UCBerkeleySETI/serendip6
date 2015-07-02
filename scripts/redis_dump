@@ -1,0 +1,17 @@
+#! /bin/csh
+
+foreach KEY (`redis-cli keys "*" | sort`)
+  echo -n $KEY" "
+  set TYPE = `redis-cli type $KEY`
+  if ($TYPE == "string") then
+    set VALUE = `redis-cli get $KEY`
+    echo $VALUE
+  else
+    foreach HKEY (`redis-cli hkeys $KEY`)
+      set VALUE = `redis-cli hmget $KEY $HKEY`
+      echo -n "$HKEY $VALUE "
+    end
+    echo " "
+  endif
+end
+
