@@ -4,5 +4,7 @@ libS6GPU.so
 s6GPU_test
 s6_extract_coarse_chan
 s6_observatory
+s6_observatory_gbt
+s6_observatory_ao
 serendip6.so
 tags
