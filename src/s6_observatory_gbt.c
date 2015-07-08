@@ -23,7 +23,7 @@ const char *mysql_fields_config = "/usr/local/etc/mysql_status_fields";
 //const char *cleo_fields_config = "/usr/local/etc/mysql_status_fields";
 const char *cleo_fields_config = "./cleo_status_fields";
 
-const char *usage = "Usage: s6_observatory_gbt [-stdout] [-nodb] [-redishost hostname] [-redisport port]\n  [-cleohost hostname] [-cleoport port]\n  -stdout: output packets to stdout (normally quiet)\n  -nodb: don't update redis db\n  redishost/redisport: for redis database (default 127.0.0.1:6379)\n  cleohost/cleoport: for cleo socket connection (default euler.gb.nrao.edu/8033)\n\n";
+const char *usage = "Usage: s6_observatory_gbt [-stdout] [-nodb] [-redishost hostname] [-redisport port]\n -[-cleohost hostname] [-cleoport port]\n  [-nomysql] [-nocleo]\n  -stdout: output packets to stdout (normally quiet)\n  -nodb: don't update redis db\n  redishost/redisport: for redis database (default 127.0.0.1:6379)\n  cleohost/cleoport: for cleo socket connection (default euler.gb.nrao.edu/8033)\n  -nomysql/-nocleo : don't attempt to read from either as specified\n\n";
 
 MYSQL mysql;
 MYSQL_ROW row;
@@ -50,6 +50,8 @@ int main(int argc, char ** argv) {
 
   bool nodb = false;
   bool dostdout = false;
+  bool nomysql = false;
+  bool nocleo = false;
 
   int az_actual_index, el_actual_index, last_update_index, lst_index, mjd_index; // make sure we have these
 
@@ -85,6 +87,14 @@ int main(int argc, char ** argv) {
           // do not update the redis DB
           nodb = true;
       }
+      else if (strcmp(argv[i],"-nomysql") == 0) {
+          // do not try to connect to mysql status db
+          nomysql = true;
+      }
+      else if (strcmp(argv[i],"-nocleo") == 0) {
+          // do not try to connect to cleo socket
+          nocleo = true;
+      }
       else if (strcmp(argv[i],"-stdout") == 0) {
           // output values to stdout.  Can be used with or without
           // -nodb but is nearly always specified when -nodb is used.
@@ -111,12 +121,14 @@ int main(int argc, char ** argv) {
       }
   }
 
-  // resolve server host name
-  server_info = gethostbyname(cleo_server_hostname);
-  if (server_info == NULL) {
-      fprintf(stderr,"ERROR - no such cleo host: %s\n",cleo_server_hostname);
-      exit(0);
-  }
+  // resolve cleo server host name
+  if (!nocleo) {
+    server_info = gethostbyname(cleo_server_hostname);
+    if (server_info == NULL) {
+        fprintf(stderr,"ERROR - no such cleo host: %s\n",cleo_server_hostname);
+        exit(0);
+      }
+    }
 
   //### read in mysql status fields (and create mysql "select" command string)
   
@@ -194,34 +206,39 @@ int main(int argc, char ** argv) {
   
   //### connect to mysql db
   
-  mysql_init(&mysql);
-  if (!mysql_real_connect (&mysql, "gbtdata.gbt.nrao.edu","gbtstatus","w3bqu3ry","gbt_status",3306,0,CLIENT_FOUND_ROWS)) {
-    fprintf(stderr, "Failed to connect to database: Error: %s\n", mysql_error(&mysql));
-    exit(1);
+  if (!nomysql) {
+    mysql_init(&mysql);
+    if (!mysql_real_connect (&mysql, "gbtdata.gbt.nrao.edu","gbtstatus","w3bqu3ry","gbt_status",3306,0,CLIENT_FOUND_ROWS)) {
+      fprintf(stderr, "Failed to connect to database: Error: %s\n", mysql_error(&mysql));
+      exit(1);
+      }
     }
 
   //### connect to cleo socket
 
-    //Create socket
-  sock = socket(AF_INET , SOCK_STREAM , 0);
-  if (sock == -1) { fprintf(stderr, "Could not create socket\n"); exit(1); }
-  fprintf(stderr, "Socket created\n");
+  if (!nocleo) {
+      //Create socket
+    sock = socket(AF_INET , SOCK_STREAM , 0);
+    if (sock == -1) { fprintf(stderr, "Could not create socket\n"); exit(1); }
+    fprintf(stderr, "Socket created\n");
+  
+      // populate server struct
+    memset((char *) &server, 0, sizeof(server));
+    server.sin_family = AF_INET;
+    memcpy((char *)&server.sin_addr.s_addr,
+           (char *)server_info->h_addr,
+           server_info->h_length);
+    server.sin_port = htons(cleo_port);            // network byte order
+  
+      //Connect to remote server
+    if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0) {
+        perror("connect failed. Error");
+        return 1;
+      }
 
-    // populate server struct
-  memset((char *) &server, 0, sizeof(server));
-  server.sin_family = AF_INET;
-  memcpy((char *)&server.sin_addr.s_addr,
-         (char *)server_info->h_addr,
-         server_info->h_length);
-  server.sin_port = htons(cleo_port);            // network byte order
+    // fprintf(stderr, "Connected\n");
 
-    //Connect to remote server
-  if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0) {
-      perror("connect failed. Error");
-      return 1;
     }
-
-  // fprintf(stderr, "Connected\n");
 
   //### any other preparations before main loop?
   
@@ -231,129 +248,138 @@ int main(int argc, char ** argv) {
   
   while (1) {
 
-    // read from mysql database
 
-    retval = mysql_query(&mysql,selectcommand);
-    if (retval) {
-      fprintf(stderr,"can't connect to the status mysql database - exiting...\n");
-      exit(1);
-      }
-    resp = mysql_store_result(&mysql);
-    if (!resp) {
-      fprintf(stderr,"error storing mysql result - exiting...\n");
-      exit(1);
-      }
-    row = mysql_fetch_row(resp);
-    now = time(NULL);
-    if (!row || !row[0]) {
-      fprintf(stderr,"error fetching mysql row - exiting...\n");
-      exit(1);
-      }
- 
+    if (!nomysql) {
 
-    // calculations
+      // read from mysql database
 
-    if (strcmp(last_last_update,row[last_update_index]) == 0) {
-      // fprintf(stderr,"not updated.. skipping..\n");
-      usleep(SLEEP_MICROSECONDS); // sleep one half a second (enough to ensure update within +/- 1 second)
-      continue;  
-      }
-    strcpy(last_last_update,row[last_update_index]);
-
-    az_actual = atof(row[az_actual_index]);
-    el_actual = atof(row[el_actual_index]);
-
-    // testing
-    // az_actual = 198.5284;
-    // el_actual = 45.6437;
+      retval = mysql_query(&mysql,selectcommand);
+      if (retval) {
+        fprintf(stderr,"can't connect to the status mysql database - exiting...\n");
+        exit(1);
+        }
+      resp = mysql_store_result(&mysql);
+      if (!resp) {
+        fprintf(stderr,"error storing mysql result - exiting...\n");
+        exit(1);
+        }
+      row = mysql_fetch_row(resp);
+      now = time(NULL);
+      if (!row || !row[0]) {
+        fprintf(stderr,"error fetching mysql row - exiting...\n");
+        exit(1);
+        }
+   
   
-    za = 90-el_actual;
-
-    sscanf(row[lst_index],"%lf:%lf:%lf",&lsthour,&lstminute,&lstsecond);
-    lsthour += (lstminute/60) + (lstsecond/3600);
-
-    //testing
-    // lsthour = 9.64055552;
- 
-    co_ZenAzToRaDec(za, az_actual, lsthour, &ra_derived, &dec_derived, GBT_LATITUDE);
-    co_EqToXyz(ra_derived, dec_derived, xyz);
-    // DEBUG: // printf("before precess: ra %lf dec %lf\n",ra_derived,dec_derived);
-    co_Precess(tm_JulianDateToJulianEpoch(atof(row[mjd_index])+2400000.5), xyz, 2000, xyz_precessed);
-    // testing
-    // co_Precess(tm_JulianDateToJulianEpoch(57170.9397344+2400000.5), xyz, 2000, xyz_precessed);
-    // co_Precess(2015, xyz, 2000, xyz_precessed);
-    co_XyzToEq(xyz_precessed, &ra_derived, &dec_derived);
-
-    // update redis db (if so desired)
-
-    if (!nodb) {
-      for (i=0;i<num_mysql_keys;i++) {
-        // fprintf(stderr,"%d %s\n",i,row[i]);
-        // sprintf(strbuf,"ROW%d \"%s\"",i,row[i]);
-        // fprintf(stderr,"%s\n",strbuf);
-        // reply = redisCommand(c,"SET %s",strbuf);
-        reply = redisCommand(c,"HMSET %s STIME %ld VALUE %s",mysqlfitskeys[i],now,row[i]);
-        // fprintf(stderr, "SET: %d\n", reply->type);
+      // calculations
+  
+      if (strcmp(last_last_update,row[last_update_index]) == 0) {
+        // fprintf(stderr,"not updated.. skipping..\n");
+        usleep(SLEEP_MICROSECONDS); // sleep one half a second (enough to ensure update within +/- 1 second)
+        continue;  
+        }
+      strcpy(last_last_update,row[last_update_index]);
+  
+      az_actual = atof(row[az_actual_index]);
+      el_actual = atof(row[el_actual_index]);
+  
+      // testing
+      // az_actual = 198.5284;
+      // el_actual = 45.6437;
+    
+      za = 90-el_actual;
+  
+      sscanf(row[lst_index],"%lf:%lf:%lf",&lsthour,&lstminute,&lstsecond);
+      lsthour += (lstminute/60) + (lstsecond/3600);
+  
+      //testing
+      // lsthour = 9.64055552;
+   
+      co_ZenAzToRaDec(za, az_actual, lsthour, &ra_derived, &dec_derived, GBT_LATITUDE);
+      co_EqToXyz(ra_derived, dec_derived, xyz);
+      // DEBUG: // printf("before precess: ra %lf dec %lf\n",ra_derived,dec_derived);
+      co_Precess(tm_JulianDateToJulianEpoch(atof(row[mjd_index])+2400000.5), xyz, 2000, xyz_precessed);
+      // testing
+      // co_Precess(tm_JulianDateToJulianEpoch(57170.9397344+2400000.5), xyz, 2000, xyz_precessed);
+      // co_Precess(2015, xyz, 2000, xyz_precessed);
+      co_XyzToEq(xyz_precessed, &ra_derived, &dec_derived);
+  
+      // update redis db (if so desired)
+  
+      if (!nodb) {
+        for (i=0;i<num_mysql_keys;i++) {
+          // fprintf(stderr,"%d %s\n",i,row[i]);
+          // sprintf(strbuf,"ROW%d \"%s\"",i,row[i]);
+          // fprintf(stderr,"%s\n",strbuf);
+          // reply = redisCommand(c,"SET %s",strbuf);
+          reply = redisCommand(c,"HMSET %s STIME %ld VALUE %s",mysqlfitskeys[i],now,row[i]);
+          // fprintf(stderr, "SET: %d\n", reply->type);
+          freeReplyObject(reply); 
+          }
+        ftoa(ra_derived,RAbuf);
+        ftoa(ra_derived*15,RADbuf);
+        ftoa(dec_derived,Decbuf);
+        ftoa(lsthour,lsthourbuf); 
+        reply = redisCommand(c,"HMSET RA_DRV STIME %ld VALUE %s",now,RAbuf);
+        freeReplyObject(reply); 
+        reply = redisCommand(c,"HMSET RADG_DRV STIME %ld VALUE %s",now,RADbuf);
+        freeReplyObject(reply); 
+        reply = redisCommand(c,"HMSET DEC_DRV STIME %ld VALUE %s",now,Decbuf);
+        freeReplyObject(reply); 
+        reply = redisCommand(c,"HMSET LSTH_DRV STIME %ld VALUE %s",now,lsthourbuf);
         freeReplyObject(reply); 
         }
-      ftoa(ra_derived,RAbuf);
-      ftoa(ra_derived*15,RADbuf);
-      ftoa(dec_derived,Decbuf);
-      ftoa(lsthour,lsthourbuf); 
-      reply = redisCommand(c,"HMSET RA_DRV STIME %ld VALUE %s",now,RAbuf);
-      freeReplyObject(reply); 
-      reply = redisCommand(c,"HMSET RADG_DRV STIME %ld VALUE %s",now,RADbuf);
-      freeReplyObject(reply); 
-      reply = redisCommand(c,"HMSET DEC_DRV STIME %ld VALUE %s",now,Decbuf);
-      freeReplyObject(reply); 
-      reply = redisCommand(c,"HMSET LSTH_DRV STIME %ld VALUE %s",now,lsthourbuf);
-      freeReplyObject(reply); 
-      }
- 
-    //display values to stdout (if so desired)
-     
-    if (dostdout) {
-      for (i=0;i<num_mysql_keys;i++) printf("%2d %8s (%32s) : %s\n",i,mysqlfitskeys[i],mysqlkeys[i],row[i]);
-      printf("   LSTH_DRV (%32s) : %lf\n","",lsthour);
-      printf("     RA_DRV (%32s) : %lf\n","",ra_derived);
-      printf("   RADG_DRV (%32s) : %lf\n","",ra_derived*15);
-      printf("    DEC_DRV (%32s) : %lf\n","",dec_derived);
-      printf("----------- (end mysql)\n");
+   
+      //display values to stdout (if so desired)
+       
+      if (dostdout) {
+        for (i=0;i<num_mysql_keys;i++) printf("%2d %8s (%32s) : %s\n",i,mysqlfitskeys[i],mysqlkeys[i],row[i]);
+        printf("   LSTH_DRV (%32s) : %lf\n","",lsthour);
+        printf("     RA_DRV (%32s) : %lf\n","",ra_derived);
+        printf("   RADG_DRV (%32s) : %lf\n","",ra_derived*15);
+        printf("    DEC_DRV (%32s) : %lf\n","",dec_derived);
+        printf("----------- (end mysql)\n");
+        }
+  
+      mysql_free_result(resp);
+
       }
 
-    mysql_free_result(resp);
+    if (!nocleo) {
 
-    // read from cleo socket
+      // read from cleo socket
 
-    //Receive a reply from the server
-    if( (bytes_read = recv(sock , server_reply , 20000 , 0)) < 0) { fprintf(stderr, "recv failed"); break; }
-
-    now = time(NULL);
-    server_reply[bytes_read] = '\0';
-    fprintf(stderr, "\n#####DEBUG\nServer reply (%d) :\n%s\n#####END DEBUG\n",bytes_read, server_reply);
-    byte_at = 0;
-    while (sscanf(server_reply+byte_at,"%s %s %s\n%n",timestamp,key,value,&bytes_in) == 3) {
-      // act on timestamp/key/value 
-      found = 0;
-      // fprintf(stderr,"DEBUG: %s %s %s\n",timestamp,key,value);
-      for (i = 0; i < num_cleo_keys; i++) {
-        if (strcmp(key,cleokeys[i]) == 0) {
-          found = 1;
-          if (!nodb) {
-            reply = redisCommand(c,"HMSET %s STIME %ld VALUE %s MJD %s",cleofitskeys[i],now,value,timestamp);
-            freeReplyObject(reply); 
-            }
-          if (dostdout) {
-            printf("   %8s (%32s) : %s (time: %s)\n",cleofitskeys[i],cleokeys[i],value,timestamp);
+      //Receive a reply from the server
+      if( (bytes_read = recv(sock , server_reply , 20000 , 0)) < 0) { fprintf(stderr, "recv failed"); break; }
+  
+      now = time(NULL);
+      server_reply[bytes_read] = '\0';
+      // fprintf(stderr, "\n#####DEBUG\nServer reply (%d) :\n%s\n#####END DEBUG\n",bytes_read, server_reply);
+      byte_at = 0;
+      while (sscanf(server_reply+byte_at,"%s %s %s\n%n",timestamp,key,value,&bytes_in) == 3) {
+        // act on timestamp/key/value 
+        found = 0;
+        // fprintf(stderr,"DEBUG: %s %s %s\n",timestamp,key,value);
+        for (i = 0; i < num_cleo_keys; i++) {
+          if (strcmp(key,cleokeys[i]) == 0) {
+            found = 1;
+            if (!nodb) {
+              reply = redisCommand(c,"HMSET %s STIME %ld VALUE %s MJD %s",cleofitskeys[i],now,value,timestamp);
+              freeReplyObject(reply); 
+              }
+            if (dostdout) {
+              printf("   %8s (%32s) : %s (time: %s)\n",cleofitskeys[i],cleokeys[i],value,timestamp);
+              }
             }
           }
+        if (found == 0) { fprintf(stderr,"warning: can't look up cleo key: %s\n",key); }
+        // fprintf(stderr, "PARSED: timestamp %s key %s value %s (bytes_in %d, byte_at %d)\n", timestamp, key, value,bytes_in,byte_at);
+        byte_at += bytes_in;
         }
-      if (found == 0) { fprintf(stderr,"warning: can't look up cleo key: %s\n",key); }
-      // fprintf(stderr, "PARSED: timestamp %s key %s value %s (bytes_in %d, byte_at %d)\n", timestamp, key, value,bytes_in,byte_at);
-      byte_at += bytes_in;
+  
+      if (dostdout) { printf("----------- (end cleo)\n"); }
+ 
       }
-
-    if (dostdout) { printf("----------- (end cleo)\n"); }
 
     usleep(SLEEP_MICROSECONDS); // sleep one half a second (enough to ensure update within +/- 1 second)
   
