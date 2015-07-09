@@ -21,9 +21,9 @@
 // const char *status_fields_config = "./status_fields";
 const char *mysql_fields_config = "/usr/local/etc/mysql_status_fields";
 //const char *cleo_fields_config = "/usr/local/etc/mysql_status_fields";
-const char *cleo_fields_config = "./cleo_status_fields";
+const char *cleo_fields_config = "/usr/local/etc/cleo_status_fields";
 
-const char *usage = "Usage: s6_observatory_gbt [-stdout] [-nodb] [-redishost hostname] [-redisport port]\n -[-cleohost hostname] [-cleoport port]\n  [-nomysql] [-nocleo]\n  -stdout: output packets to stdout (normally quiet)\n  -nodb: don't update redis db\n  redishost/redisport: for redis database (default 127.0.0.1:6379)\n  cleohost/cleoport: for cleo socket connection (default euler.gb.nrao.edu/8033)\n  -nomysql/-nocleo : don't attempt to read from either as specified\n\n";
+const char *usage = "Usage: s6_observatory_gbt [-stdout] [-nodb] [-redishost hostname] [-redisport port]\n -[-cleohost hostname] [-cleoport port]\n  [-nomysql] [-nocleo]\n  -stdout: output packets to stdout (normally quiet)\n  -nodb: don't update redis db\n  redishost/redisport: for redis database (default 127.0.0.1:6379)\n  cleohost/cleoport: for cleo socket connection (default euler.gb.nrao.edu/8030)\n  -nomysql/-nocleo : don't attempt to read from either as specified\n\n";
 
 MYSQL mysql;
 MYSQL_ROW row;
@@ -77,7 +77,7 @@ int main(int argc, char ** argv) {
   char message[10000] , server_reply[20000];
 
   char * cleo_server_hostname = "euler.gb.nrao.edu";
-  int cleo_port = 8033;
+  int cleo_port = 8030;
   char timestamp[256], key[256], value[256];
 
   //### read in command line arguments
