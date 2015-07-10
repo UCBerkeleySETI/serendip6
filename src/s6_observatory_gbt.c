@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 #include "mysql.h"
+#include <fcntl.h>
 
 #include<sys/socket.h>
 #include<arpa/inet.h>
@@ -172,6 +173,8 @@ int main(int argc, char ** argv) {
   strcat(selectcommand,mysqlkeys[num_mysql_keys-1]);
   strcat(selectcommand," from status;");
 
+  // read in cleo status fields
+
   char **cleofitskeys= (char **)malloc(sizeof(char*)*lines_allocated);
   char **cleokeys= (char **)malloc(sizeof(char*)*lines_allocated);
   
@@ -232,13 +235,16 @@ int main(int argc, char ** argv) {
   
       //Connect to remote server
     if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0) {
-        perror("connect failed. Error");
-        return 1;
-      }
+        fprintf(stderr,"Connect to cleo socket failed. Error");
+        exit(1);
+        }
 
     // fprintf(stderr, "Connected\n");
 
     }
+
+  int saved_flags = fcntl(sock, F_GETFL);
+  fcntl(sock, F_SETFL, saved_flags | O_NONBLOCK);
 
   //### any other preparations before main loop?
   
@@ -247,7 +253,6 @@ int main(int argc, char ** argv) {
   //### MAIN LOOP
   
   while (1) {
-
 
     if (!nomysql) {
 
@@ -350,38 +355,45 @@ int main(int argc, char ** argv) {
       // read from cleo socket
 
       //Receive a reply from the server
-      if( (bytes_read = recv(sock , server_reply , 20000 , 0)) < 0) { fprintf(stderr, "recv failed"); break; }
+      // fprintf(stderr,"#####DEBUG: receiving from cleo...\n");
+      if( (bytes_read = recv(sock , server_reply , 20000 , 0)) < 0) { 
+        if (dostdout) printf("(nothing right now)\n"); 
+        }
+      else {
   
-      now = time(NULL);
-      server_reply[bytes_read] = '\0';
-      // fprintf(stderr, "\n#####DEBUG\nServer reply (%d) :\n%s\n#####END DEBUG\n",bytes_read, server_reply);
-      byte_at = 0;
-      while (sscanf(server_reply+byte_at,"%s %s %s\n%n",timestamp,key,value,&bytes_in) == 3) {
-        // act on timestamp/key/value 
-        found = 0;
-        // fprintf(stderr,"DEBUG: %s %s %s\n",timestamp,key,value);
-        for (i = 0; i < num_cleo_keys; i++) {
-          if (strcmp(key,cleokeys[i]) == 0) {
-            found = 1;
-            if (!nodb) {
-              reply = redisCommand(c,"HMSET %s STIME %ld VALUE %s MJD %s",cleofitskeys[i],now,value,timestamp);
-              freeReplyObject(reply); 
-              }
-            if (dostdout) {
-              printf("   %8s (%32s) : %s (time: %s)\n",cleofitskeys[i],cleokeys[i],value,timestamp);
+        now = time(NULL);
+        server_reply[bytes_read] = '\0';
+        // fprintf(stderr, "\n#####DEBUG\nServer reply (%d) :\n%s\n#####END DEBUG\n",bytes_read, server_reply);
+        byte_at = 0;
+        while (sscanf(server_reply+byte_at,"%s %s %s\n%n",timestamp,key,value,&bytes_in) == 3) {
+          // act on timestamp/key/value 
+          found = 0;
+          // fprintf(stderr,"DEBUG: %s %s %s\n",timestamp,key,value);
+          for (i = 0; i < num_cleo_keys; i++) {
+            if (strcmp(key,cleokeys[i]) == 0) {
+              found = 1;
+              if (!nodb) {
+                reply = redisCommand(c,"HMSET %s STIME %ld VALUE %s MJD %s",cleofitskeys[i],now,value,timestamp);
+                freeReplyObject(reply); 
+                }
+              if (dostdout) {
+                printf("   %8s (%32s) : %s (time: %s)\n",cleofitskeys[i],cleokeys[i],value,timestamp);
+                }
               }
             }
+          if (found == 0) { fprintf(stderr,"warning: can't look up cleo key: %s\n",key); }
+          // fprintf(stderr, "PARSED: timestamp %s key %s value %s (bytes_in %d, byte_at %d)\n", timestamp, key, value,bytes_in,byte_at);
+          byte_at += bytes_in;
           }
-        if (found == 0) { fprintf(stderr,"warning: can't look up cleo key: %s\n",key); }
-        // fprintf(stderr, "PARSED: timestamp %s key %s value %s (bytes_in %d, byte_at %d)\n", timestamp, key, value,bytes_in,byte_at);
-        byte_at += bytes_in;
+
         }
   
       if (dostdout) { printf("----------- (end cleo)\n"); }
  
       }
 
-    usleep(SLEEP_MICROSECONDS); // sleep one half a second (enough to ensure update within +/- 1 second)
+    usleep(SLEEP_MICROSECONDS); // sleep (hopefully enough to ensure update within +/- 1 second
+                                //        but not too much as to upset server admins)
   
     } // end main while loop
   
