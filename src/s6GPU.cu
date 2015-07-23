@@ -15,6 +15,8 @@ using std::endl;
 #include <thrust/gather.h>
 #include <thrust/binary_search.h>
 #include <thrust/device_ptr.h>
+#include <thrust/for_each.h>
+#include <thrust/functional.h>
 
 #include "s6GPU.h"
 #include "stopwatch.hpp"
@@ -217,6 +219,22 @@ void transpose(size_t m, size_t n, thrust::device_vector<T> *src, thrust::device
      dst->begin());
 }
 
+// convert a linear index to a row index
+template <typename T>
+struct linear_index_to_row_index : public thrust::unary_function<T,T>
+{
+  T C; // number of columns
+  
+  __host__ __device__
+  linear_index_to_row_index(T C) : C(C) {}
+
+  __host__ __device__
+  T operator()(T i)
+  {
+    return i / C;
+  }
+};
+
 void do_fft(cufftHandle *fft_plan, float2* &fft_input_ptr, float2* &fft_output_ptr) {
     Stopwatch timer;
     if(use_timer) timer.start();
@@ -241,6 +259,35 @@ void compute_power_spectrum(device_vectors_t *dv_p) {
     if(use_timer) timer.stop();
     if(use_timer) cout << "Power spectrum time:\t" << timer.getTime() << endl;
     if(use_timer) timer.reset();
+}
+
+struct printf_functor {
+    __host__ __device__
+    void operator()(float x)
+    {
+      // note that using printf in a __device__ function requires
+      // code compiled for a GPU with compute capability 2.0 or
+      // higher (nvcc --arch=sm_20)
+      printf("%f\n", x);
+    }
+};
+
+using namespace thrust::placeholders;
+void reduce_power_spectra(device_vectors_t *dv_p, int n_subband, int n_chan) {
+
+    // first, sum all of the fine (time) channels for each coarse channel (subband)
+    thrust::reduce_by_key(thrust::make_transform_iterator(thrust::counting_iterator<int>(0), 
+                            linear_index_to_row_index<int>(n_chan)),
+                          thrust::make_transform_iterator(thrust::counting_iterator<int>(0), 
+                            linear_index_to_row_index<int>(n_chan)) + (n_subband*n_chan),
+                          dv_p->powspec_p->begin(),
+                          dv_p->spectra_indices_p->begin(),
+                          dv_p->spectra_sums_p->begin(),
+                          thrust::equal_to<int>(),              
+                          thrust::plus<float>());             
+    // now find the mean of each (TODO why won't the divide_by functor work here?)
+    thrust::for_each(dv_p->spectra_sums_p->begin(), dv_p->spectra_sums_p->end(), _1 /= n_chan);
+    //thrust::for_each(dv_p->spectra_sums_p->begin(), dv_p->spectra_sums_p->end(), printf_functor());
 }
 
 void compute_baseline(device_vectors_t *dv_p, int n_chan, int n_element, float smooth_scale) {
@@ -434,6 +481,19 @@ int spectroscopy(int n_subband,         // N coarse chan
 
     do_fft                      (fft_plan, fft_input_ptr, fft_output_ptr);
     compute_power_spectrum      (dv_p);
+
+    // reduce coarse channels to mean power
+    // allocate working vectors
+    dv_p->spectra_sums_p      = new thrust::device_vector<float>(n_subband*n_input);
+    dv_p->spectra_indices_p   = new thrust::device_vector<int>(n_subband*n_input);
+    // do the reduce
+    reduce_power_spectra(dv_p, n_subband*n_input, n_chan);
+    // copy the result to the output buffer
+    thrust::copy(dv_p->spectra_sums_p->begin(), dv_p->spectra_sums_p->end(), 
+                 &s6_output_block->spectra_sums[bors*n_subband*n_input]);      
+    // delete working vectors
+    delete(dv_p->spectra_sums_p);
+    delete(dv_p->spectra_indices_p);
 
     // done with the timeseries and FFTs - delete the associated GPU memory
     delete(dv_p->raw_timeseries_p);         

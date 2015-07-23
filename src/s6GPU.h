@@ -27,6 +27,8 @@ typedef struct {
     thrust::device_vector<float>  * hit_powers_p;           // non-normalized hit powers, reported to caller
     thrust::device_vector<float>  * hit_baselines_p;        // mean power at hit bins, reported to caller. 
                                                             //   hit_power[n]/hit_baseline[n] = normalized hit power, reported to caller
+    thrust::device_vector<float>  * spectra_sums_p;
+    thrust::device_vector<int>    * spectra_indices_p;
 } device_vectors_t;
 
 device_vectors_t * init_device_vectors(int n_element_physical, int n_element_utilized, int n_input);
