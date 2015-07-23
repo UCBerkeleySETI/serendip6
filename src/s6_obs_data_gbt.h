@@ -5,34 +5,36 @@
 
 #define N_ADCS_PER_ROACH2 8     // should this be N_BEAM_SLOTS/2 ?
 
+#define GBTSTATUS_STRING_SIZE 32
+
 typedef struct gbtstatus {
 
-   char LASTUPDT[32];       // last_update
-   char LST[16];            // lst
-   char UTC[16];            // utc
+   char LASTUPDT[GBTSTATUS_STRING_SIZE];       // last_update
+   char LST[GBTSTATUS_STRING_SIZE];            // lst
+   char UTC[GBTSTATUS_STRING_SIZE];            // utc
    double MJD;              // mjd
-   char EPOCH[32];          // epoch
-   char MAJTYPE[16];        // major_type
-   char MINTYPE[16];        // minor_type
-   char MAJOR[32];          // major
-   char MINOR[32];          // minor
+   char EPOCH[GBTSTATUS_STRING_SIZE];          // epoch
+   char MAJTYPE[GBTSTATUS_STRING_SIZE];        // major_type
+   char MINTYPE[GBTSTATUS_STRING_SIZE];        // minor_type
+   char MAJOR[GBTSTATUS_STRING_SIZE];          // major
+   char MINOR[GBTSTATUS_STRING_SIZE];          // minor
    double AZCOMM;           // az_commanded
    double ELCOMM;           // el_commanded
    double AZACTUAL;         // az_actual
    double ELACTUAL;         // el_actual
    double AZERROR;          // az_error
    double ELERROR;          // el_error
-   char LPCS[32];           // lpcs
-   char FOCUSOFF[32];       // focus_offset
-   char ANTMOT[16];         // ant_motion
-   char RECEIVER[32];       // receiver
+   char LPCS[GBTSTATUS_STRING_SIZE];           // lpcs
+   char FOCUSOFF[GBTSTATUS_STRING_SIZE];       // focus_offset
+   char ANTMOT[GBTSTATUS_STRING_SIZE];         // ant_motion
+   char RECEIVER[GBTSTATUS_STRING_SIZE];       // receiver
    double IFFRQ1ST;         // first_if_freq
    double IFFRQRST;         // if_rest_freq
    double DCRSCFRQ;         // dcr_sky_center_freq (should be long?)
    double SPRCSFRQ;         // spectral_processor_sky_freq (should be long?)
    double FREQ;             // freq
-   char VELFRAME[16];       // velocity_frame
-   char VELDEF[16];         // velocity_definition
+   char VELFRAME[GBTSTATUS_STRING_SIZE];       // velocity_frame
+   char VELDEF[GBTSTATUS_STRING_SIZE];         // velocity_definition
    double J2000MAJ;         // j2000_major
    double J2000MIN;         // j2000_minor
 

@@ -12,6 +12,17 @@
 #define redis_get_string(key,struct,rediscontext) reply = (redisReply *)redisCommand(rediscontext,"GET key"); strcpy(struct->key,reply->str); freeReplyObject(reply);
 
 //----------------------------------------------------------
+int s6_strcpy(char * dest, char * src) {
+//----------------------------------------------------------
+
+    strncpy(dest, src, GBTSTATUS_STRING_SIZE);
+    if(dest[GBTSTATUS_STRING_SIZE-1] != '\0') {
+        dest[GBTSTATUS_STRING_SIZE-1] = '\0';
+        hashpipe_error(__FUNCTION__, "GBT status string exceeded buffer size, truncated");
+    }
+}
+
+//----------------------------------------------------------
 int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,     
                             char    *hostname, 
                             int     port) {
@@ -58,31 +69,31 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
      
     if (!rv) {
 
-      reply = (redisReply *)redisCommand(c,"GET LASTUPDT"); strcpy(gbtstatus->LASTUPDT,reply->str); freeReplyObject(reply);
-      reply = (redisReply *)redisCommand(c,"GET LST"); strcpy(gbtstatus->LST,reply->str); freeReplyObject(reply);
-      reply = (redisReply *)redisCommand(c,"GET UTC"); strcpy(gbtstatus->UTC,reply->str); freeReplyObject(reply);
-      reply = (redisReply *)redisCommand(c,"GET EPOCH"); strcpy(gbtstatus->EPOCH,reply->str); freeReplyObject(reply);
-      reply = (redisReply *)redisCommand(c,"GET MAJTYPE"); strcpy(gbtstatus->MAJTYPE,reply->str); freeReplyObject(reply);
-      reply = (redisReply *)redisCommand(c,"GET MINTYPE"); strcpy(gbtstatus->MINTYPE,reply->str); freeReplyObject(reply);
-      reply = (redisReply *)redisCommand(c,"GET MAJOR"); strcpy(gbtstatus->MAJOR,reply->str); freeReplyObject(reply);
-      reply = (redisReply *)redisCommand(c,"GET MINOR"); strcpy(gbtstatus->MINOR,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET LASTUPDT"); s6_strcpy(gbtstatus->LASTUPDT,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET LST"); s6_strcpy(gbtstatus->LST,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET UTC"); s6_strcpy(gbtstatus->UTC,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET EPOCH"); s6_strcpy(gbtstatus->EPOCH,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET MAJTYPE"); s6_strcpy(gbtstatus->MAJTYPE,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET MINTYPE"); s6_strcpy(gbtstatus->MINTYPE,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET MAJOR"); s6_strcpy(gbtstatus->MAJOR,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET MINOR"); s6_strcpy(gbtstatus->MINOR,reply->str); freeReplyObject(reply);
       reply = (redisReply *)redisCommand(c,"GET AZCOMM"); gbtstatus->AZCOMM = atof(reply->str); freeReplyObject(reply); 
       reply = (redisReply *)redisCommand(c,"GET ELCOMM"); gbtstatus->ELCOMM = atof(reply->str); freeReplyObject(reply); 
       reply = (redisReply *)redisCommand(c,"GET AZACTUAL"); gbtstatus->AZACTUAL = atof(reply->str); freeReplyObject(reply); 
       reply = (redisReply *)redisCommand(c,"GET ELACTUAL"); gbtstatus->ELACTUAL = atof(reply->str); freeReplyObject(reply); 
       reply = (redisReply *)redisCommand(c,"GET AZERROR"); gbtstatus->AZERROR = atof(reply->str); freeReplyObject(reply); 
       reply = (redisReply *)redisCommand(c,"GET ELERROR"); gbtstatus->ELERROR = atof(reply->str); freeReplyObject(reply); 
-      reply = (redisReply *)redisCommand(c,"GET LPCS"); strcpy(gbtstatus->LPCS,reply->str); freeReplyObject(reply);
-      reply = (redisReply *)redisCommand(c,"GET FOCUSOFF"); strcpy(gbtstatus->FOCUSOFF,reply->str); freeReplyObject(reply);
-      reply = (redisReply *)redisCommand(c,"GET ANTMOT"); strcpy(gbtstatus->ANTMOT,reply->str); freeReplyObject(reply);
-      reply = (redisReply *)redisCommand(c,"GET RECEIVER"); strcpy(gbtstatus->RECEIVER,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET LPCS"); s6_strcpy(gbtstatus->LPCS,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET FOCUSOFF"); s6_strcpy(gbtstatus->FOCUSOFF,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET ANTMOT"); s6_strcpy(gbtstatus->ANTMOT,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET RECEIVER"); s6_strcpy(gbtstatus->RECEIVER,reply->str); freeReplyObject(reply);
       reply = (redisReply *)redisCommand(c,"GET IFFRQ1ST"); gbtstatus->IFFRQ1ST = atof(reply->str); freeReplyObject(reply); 
       reply = (redisReply *)redisCommand(c,"GET IFFRQRST"); gbtstatus->IFFRQRST = atof(reply->str); freeReplyObject(reply); 
       reply = (redisReply *)redisCommand(c,"GET DCRSCFRQ"); gbtstatus->DCRSCFRQ = atof(reply->str); freeReplyObject(reply); 
       reply = (redisReply *)redisCommand(c,"GET SPRCSFRQ"); gbtstatus->SPRCSFRQ = atof(reply->str); freeReplyObject(reply); 
       reply = (redisReply *)redisCommand(c,"GET FREQ"); gbtstatus->FREQ = atof(reply->str); freeReplyObject(reply); 
-      reply = (redisReply *)redisCommand(c,"GET VELFRAME"); strcpy(gbtstatus->VELFRAME,reply->str); freeReplyObject(reply);
-      reply = (redisReply *)redisCommand(c,"GET VELDEF"); strcpy(gbtstatus->VELDEF,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET VELFRAME"); s6_strcpy(gbtstatus->VELFRAME,reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET VELDEF"); s6_strcpy(gbtstatus->VELDEF,reply->str); freeReplyObject(reply);
       reply = (redisReply *)redisCommand(c,"GET J2000MAJ"); gbtstatus->J2000MAJ = atof(reply->str); freeReplyObject(reply); 
       reply = (redisReply *)redisCommand(c,"GET J2000MIN"); gbtstatus->J2000MIN = atof(reply->str); freeReplyObject(reply); 
 
