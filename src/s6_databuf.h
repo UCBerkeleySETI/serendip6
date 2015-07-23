@@ -124,6 +124,7 @@ typedef struct s6_output_block {
   int   pol         [N_BORS][MAXGPUHITS];
   int   coarse_chan [N_BORS][MAXGPUHITS];
   int   fine_chan   [N_BORS][MAXGPUHITS];
+  float spectra_sums[N_COARSE_CHAN*N_POLS_PER_BEAM];
 } s6_output_block_t;
 
 typedef struct s6_output_databuf {

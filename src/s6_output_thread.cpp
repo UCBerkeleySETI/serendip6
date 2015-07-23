@@ -261,6 +261,12 @@ rv=0;
         hputr4(st.buf, "OUTMXERR", max_error);
         hputi4(st.buf, "OUTERCNT", error_count);
         hputi4(st.buf, "OUTMXECT", max_error_count);
+        hputr4(st.buf, "SSCC000", db->block[block_idx].spectra_sums[0]);
+        hputr4(st.buf, "SSCC100", db->block[block_idx].spectra_sums[100]);
+        hputr4(st.buf, "SSCC200", db->block[block_idx].spectra_sums[200]);
+        hputr4(st.buf, "SSCC300", db->block[block_idx].spectra_sums[300]);
+        hputr4(st.buf, "SSCC400", db->block[block_idx].spectra_sums[400]);
+        hputr4(st.buf, "SSCC511", db->block[block_idx].spectra_sums[511]);
         hashpipe_status_unlock_safe(&st);
 
         // Mark block as free
