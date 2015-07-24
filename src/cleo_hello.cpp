@@ -16,10 +16,19 @@ int main(int argc , char *argv[])
     struct hostent *server_info;    // for address resolution
     char message[10] , server_reply[20000];
 
-    // cmd line args
-    char * server_host_name = argv[1];
-    int portno = atoi(argv[2]);
+    char * server_host_name;
+    int portno;
 
+    // cmd line args
+    if (argc == 3) {
+      server_host_name = argv[1];
+      portno = atoi(argv[2]);
+      }
+    else {
+      fprintf(stderr,"usage: cleo_hello hostname port\n");
+      exit(1);
+      }
+  
     int i;
 
     // resolve server host name
