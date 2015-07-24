@@ -77,10 +77,7 @@ static void *run(hashpipe_thread_args_t * args)
 #endif
 
     // Initialization for etfits file output.
-    hashpipe_status_lock_safe(&st);
-    hgets(st.buf, "BINDHOST", 80, hostname);
-    hashpipe_status_unlock_safe(&st);
-    strcpy(etf.hostname, strtok(hostname, "."));    // just use the host portion
+    gethostname(etf.hostname, sizeof(etf.hostname));   
     int file_num_start = -1;
     if(file_num_start == -1) file_num_start = 0;
     init_etfits(&etf, file_num_start+1);
