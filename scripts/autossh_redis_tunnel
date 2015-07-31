@@ -1,0 +1,26 @@
+#! /bin/csh
+
+set THISHOST = `/bin/hostname`
+
+set GBTHOST = asa6
+set AOHOST = asa10
+
+set GBTPORT = 6479
+set AOPORT = 6579
+
+set USEPORT = 0
+ 
+if ($THISHOST == $GBTHOST) then
+  set USEPORT = $GBTPORT
+endif
+if ($THISHOST == $AOHOST) then
+  set USEPORT = $AOPORT
+endif
+
+if ($USEPORT == 0) then
+  echo "unknown host: $THISHOST"
+  exit 0
+endif
+  
+# to nikola/seti.berkeley.edu
+su -s /bin/sh seti -c 'autossh -M 0 -q -f -N -o "ServerAliveInterval 60" -o "ServerAliveCountMax 3" -R nikola.ssl.berkeley.edu:'${USEPORT}':localhost:6379 seti@nikola.ssl.berkeley.edu'
