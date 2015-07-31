@@ -1,17 +1,35 @@
 #! /bin/csh
 
+set TMPFILE = /tmp/redis_dump.tmp.$$
+
 foreach KEY (`redis-cli keys "*" | sort`)
   echo -n $KEY" "
   set TYPE = `redis-cli type $KEY`
   if ($TYPE == "string") then
-    set VALUE = `redis-cli get $KEY`
-    echo $VALUE
+    redis-cli get $KEY > $TMPFILE
+    set ISTEXT = `file $TMPFILE | grep -c text`
+    if ($ISTEXT == 0) then
+      echo "<binary> "
+    else
+      set VALUE = `redis-cli get $KEY`
+      echo "'$VALUE' "
+    endif 
   else
     foreach HKEY (`redis-cli hkeys $KEY`)
-      set VALUE = `redis-cli hmget $KEY $HKEY`
-      echo -n "$HKEY $VALUE "
+      echo -n "$HKEY "
+      redis-cli hmget $KEY $HKEY > $TMPFILE
+      set ISTEXT = `file $TMPFILE | grep -c text`
+      # echo "DEBUG: $KEY $HKEY "
+      # file $TMPFILE
+      if ($ISTEXT == 0) then
+        echo -n "<binary> "
+      else
+        set VALUE = `redis-cli hmget $KEY $HKEY`
+        echo -n "'$VALUE' "
+      endif 
     end
     echo " "
   endif
 end
 
+/bin/rm $TMPFILE
