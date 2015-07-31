@@ -57,6 +57,7 @@ static void *run(hashpipe_thread_args_t * args)
 #endif    
 
     int run_always, prior_run_always=0;                 // 1 = run even if no receiver
+    int file_num = 0;
 
     size_t num_coarse_chan = 0;
 
@@ -82,7 +83,7 @@ static void *run(hashpipe_thread_args_t * args)
     if(file_num_start == -1) file_num_start = 0;
     init_etfits(&etf, file_num_start+1);
 
-    int i, rv, debug=20;
+    int i, rv=0, debug=20;
     int block_idx=0;
     int error_count, max_error_count = 0;
     float error, max_error = 0.0;
@@ -123,7 +124,6 @@ static void *run(hashpipe_thread_args_t * args)
 #elif SOURCE_DIBAS
         rv = get_obs_gbt_info_from_redis(gbtstatus_p, (char *)"redishost", 6379);
 #endif
-rv=0;
         if(rv) {
             hashpipe_error(__FUNCTION__, "error returned from get_obs_info_from_redis()");
             pthread_exit(NULL);
@@ -265,6 +265,18 @@ rv=0;
         hputr4(st.buf, "SSCC400", db->block[block_idx].spectra_sums[400]);
         hputr4(st.buf, "SSCC511", db->block[block_idx].spectra_sums[511]);
         hashpipe_status_unlock_safe(&st);
+
+#ifdef SOURCE_DIBAS
+        if(etf.file_open && file_num != etf.file_num) {     // check for an open, new, file
+            hashpipe_info(__FUNCTION__, "New file : %s", etf.filename_working);
+            rv = put_obs_gbt_info_to_redis(etf.filename_working, st.instance_id, (char *)"redishost", 6379);
+            if(rv) {
+                hashpipe_error(__FUNCTION__, "error returned from put_obs_info_to_redis()");
+                pthread_exit(NULL);
+            }
+            file_num = etf.file_num;
+        }
+#endif
 
         // Mark block as free
         memset((void *)&db->block[block_idx], 0, sizeof(s6_output_block_t));   
