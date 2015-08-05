@@ -175,6 +175,7 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
 
       // cleo values
 
+#if 0
       reply = (redisReply *)redisCommand(c,"HMGET ATBOT1EO VALUE"); s6_strcpy(gbtstatus->ATBOT1EO,reply->element[0]->str); freeReplyObject(reply);
       reply = (redisReply *)redisCommand(c,"HMGET ATBOT1EO STIME"); gbtstatus->ATBOT1EOSTIME = atol(reply->element[0]->str); freeReplyObject(reply);
       reply = (redisReply *)redisCommand(c,"HMGET ATBOT1EO MJD"); gbtstatus->ATBOT1EOSTIME = atof(reply->element[0]->str); freeReplyObject(reply);
@@ -412,6 +413,7 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
       reply = (redisReply *)redisCommand(c,"HMGET VEGSSBHM VALUE"); s6_strcpy(gbtstatus->VEGSSBHM,reply->element[0]->str); freeReplyObject(reply);
       reply = (redisReply *)redisCommand(c,"HMGET VEGSSBHM STIME"); gbtstatus->VEGSSBHMSTIME = atol(reply->element[0]->str); freeReplyObject(reply);
       reply = (redisReply *)redisCommand(c,"HMGET VEGSSBHM MJD"); gbtstatus->VEGSSBHMSTIME = atof(reply->element[0]->str); freeReplyObject(reply);
+#endif
       
    
       }
