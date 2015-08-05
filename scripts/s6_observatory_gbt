@@ -14,7 +14,7 @@
 # See how we were called.
 case "$1" in
   start)
-	su seti -c /usr/local/bin/s6_observatory_gbt &
+	su seti -c /usr/local/bin/s6_observatory_gbt -nocleo &
 	;;
   stop)
 	pkill -f s6_observatory_gbt
