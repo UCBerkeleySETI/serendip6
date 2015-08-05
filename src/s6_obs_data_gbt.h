@@ -338,6 +338,7 @@ typedef struct gbtstatus {
 } gbtstatus_t;
 
 int get_obs_gbt_info_from_redis(gbtstatus_t *gbtstatus, char *hostname, int port);
+int put_obs_gbt_info_to_redis(char * fits_filename, int instance, char *hostname, int port);
 
 #endif  // _S6_OBS_DATA_GBT_H
 

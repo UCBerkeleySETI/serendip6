@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
@@ -10,6 +11,27 @@
 #include "s6_obs_data_gbt.h"
 
 //----------------------------------------------------------
+redisContext * redis_connect(char *hostname, int port) {
+//----------------------------------------------------------
+    redisContext *c;
+    struct timeval timeout = { 1, 500000 }; // 1.5 seconds
+
+    c = redisConnectWithTimeout(hostname, port, timeout);
+    if (c == NULL || c->err) {
+        if (c) {
+            hashpipe_error(__FUNCTION__, c->errstr);
+            redisFree(c);
+        } else {
+            hashpipe_error(__FUNCTION__, "Connection error: can't allocate redis context");
+        }
+        exit(1);
+    }
+
+    return(c);
+
+}
+
+//----------------------------------------------------------
 int s6_strcpy(char * dest, char * src) {
 //----------------------------------------------------------
 
@@ -18,6 +40,33 @@ int s6_strcpy(char * dest, char * src) {
         dest[GBTSTATUS_STRING_SIZE-1] = '\0';
         hashpipe_error(__FUNCTION__, "GBT status string exceeded buffer size, truncated");
     }
+}
+
+//----------------------------------------------------------
+int put_obs_gbt_info_to_redis(char * fits_filename, int instance, char *hostname, int port) {
+//----------------------------------------------------------
+    redisContext *c;
+    redisReply *reply;
+    char key[200];
+    int rv;
+
+    // TODO - sane rv
+
+    // TODO make c static?
+    c = redis_connect(hostname, port);
+
+    // update current filename
+    char my_hostname[200];
+    // On success, zero is returned.  On error, -1 is returned, and errno is set appropriately.
+    rv =  gethostname(my_hostname, sizeof(my_hostname));
+    sprintf(key, "FN%s_%02d", my_hostname, instance);
+    //fprintf(stderr, "redis SET: %s %s %ld\n", key, fits_filename, strlen(fits_filename));
+    reply = (redisReply *)redisCommand(c,"SET %s %s", key, fits_filename);
+    freeReplyObject(reply);
+
+    redisFree(c);       // TODO do I really want to free each time?
+
+    return(rv);
 }
 
 //----------------------------------------------------------
@@ -34,19 +83,8 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
     static int no_time_change_count=0;
     int no_time_change_limit=2;
 
-    struct timeval timeout = { 1, 500000 }; // 1.5 seconds
-
     // TODO make c static?
-    c = redisConnectWithTimeout(hostname, port, timeout);
-    if (c == NULL || c->err) {
-        if (c) {
-            hashpipe_error(__FUNCTION__, c->errstr);
-            redisFree(c);
-        } else {
-            hashpipe_error(__FUNCTION__, "Connection error: can't allocate redis context");
-        }
-        exit(1);
-    }
+    c = redis_connect(hostname, port);
 
     reply = (redisReply *)redisCommand(c,"GET MJD"); gbtstatus->MJD = atof(reply->str); freeReplyObject(reply); 
 // TODO - re-enable this
