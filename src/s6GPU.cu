@@ -235,6 +235,54 @@ struct linear_index_to_row_index : public thrust::unary_function<T,T>
   }
 };
 
+template <typename Iterator>
+class strided_range
+{
+    public:
+
+    typedef typename thrust::iterator_difference<Iterator>::type difference_type;
+
+    struct stride_functor : public thrust::unary_function<difference_type,difference_type>
+    {
+        difference_type stride;
+
+        stride_functor(difference_type stride)
+            : stride(stride) {}
+
+        __host__ __device__
+        difference_type operator()(const difference_type& i) const
+        { 
+            return stride * i;
+        }
+    };
+
+    typedef typename thrust::counting_iterator<difference_type>                   CountingIterator;
+    typedef typename thrust::transform_iterator<stride_functor, CountingIterator> TransformIterator;
+    typedef typename thrust::permutation_iterator<Iterator,TransformIterator>     PermutationIterator;
+
+    // type of the strided_range iterator
+    typedef PermutationIterator iterator;
+
+    // construct strided_range for the range [first,last)
+    strided_range(Iterator first, Iterator last, difference_type stride)
+        : first(first), last(last), stride(stride) {}
+   
+    iterator begin(void) const
+    {
+        return PermutationIterator(first, TransformIterator(CountingIterator(0), stride_functor(stride)));
+    }
+
+    iterator end(void) const
+    {
+        return begin() + ((last - first) + (stride - 1)) / stride;
+    }
+    
+    protected:
+    Iterator first;
+    Iterator last;
+    difference_type stride;
+};
+
 void do_fft(cufftHandle *fft_plan, float2* &fft_input_ptr, float2* &fft_output_ptr) {
     Stopwatch timer;
     if(use_timer) timer.start();
@@ -482,18 +530,24 @@ int spectroscopy(int n_subband,         // N coarse chan
     do_fft                      (fft_plan, fft_input_ptr, fft_output_ptr);
     compute_power_spectrum      (dv_p);
 
-    // reduce coarse channels to mean power
+    // reduce coarse channels to mean power...
     // allocate working vectors
     dv_p->spectra_sums_p      = new thrust::device_vector<float>(n_subband*n_input);
     dv_p->spectra_indices_p   = new thrust::device_vector<int>(n_subband*n_input);
     // do the reduce
     reduce_power_spectra(dv_p, n_subband*n_input, n_chan);
-    // copy the result to the output buffer
-    thrust::copy(dv_p->spectra_sums_p->begin(), dv_p->spectra_sums_p->end(), 
-                 &s6_output_block->spectra_sums[bors*n_subband*n_input]);      
+    // copy the result to the output buffer, separating the pols
+    typedef thrust::device_vector<float>::iterator Iterator;
+    // polX
+    strided_range<Iterator> polX(dv_p->spectra_sums_p->begin(),     dv_p->spectra_sums_p->end(), 2);
+    thrust::copy(polX.begin(), polX.end(), &s6_output_block->cc_means_x[bors*n_subband]);      
+    // polY
+    strided_range<Iterator> polY(dv_p->spectra_sums_p->begin() + 1, dv_p->spectra_sums_p->end(), 2);
+    thrust::copy(polY.begin(), polY.end(), &s6_output_block->cc_means_y[bors*n_subband]);      
     // delete working vectors
     delete(dv_p->spectra_sums_p);
     delete(dv_p->spectra_indices_p);
+    // ...end reduce coarse channels to mean power
 
     // done with the timeseries and FFTs - delete the associated GPU memory
     delete(dv_p->raw_timeseries_p);         
