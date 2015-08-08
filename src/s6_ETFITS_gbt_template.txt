@@ -105,7 +105,43 @@ BIRDILOC=                    *  / 1 = synth is locked, 0 = synth is not locked (
 #
 END
 ##################################################################
-# ETFITS Binary Table Header Block - 1 per beam/pol per integration
+# ETFITS Coarse Channel Powers Binary Table Header Block - 1 per per integration
+##################################################################
+#
+### Mandatory ETFITS header fields ###
+#
+XTENSION= BINTABLE             / FITS binary table
+BITPIX  =                    8  / Binary data
+NAXIS   =                    2 / 2-dimensional binary table
+NAXIS1  =                    * / width of table in bytes
+NAXIS2  =                    * / Number of rows in table
+PCOUNT  =                    0 / size of special data area
+GCOUNT  =                    1 / one data group (required keyword)
+TFIELDS =                    * / Number of fields per row
+EXTNAME = 'CCPWRS'             / name of this binary table extension
+NMATRIX =                    1 / 1 dataset per row
+#
+### ETFITS hits metadata ###
+#
+TIME    =                    * / unix time of this integration - is this fine enough res? (TINT)
+RA      =                    * / derived from corrected scram azza (TDOUBLE)
+DEC     =                    * / derived from corrected scram azza (TDOUBLE)
+#
+END
+##################################################################
+# Data table rows
+#####################################################################
+#
+### ETFITS coarse channel power columns ###
+#
+TTYPE#  = 'POLX    '           / coarse channel powers for X polarization
+TFORM#  = '1E      '           / 4-byte real
+TTYPE#  = 'POLY    '           / coarse channel powers for Y polarization
+TFORM#  = '1E      '           / 4-byte real
+#
+END
+##################################################################
+# ETFITS Binary Table Header Block - 1 per bors/pol per integration
 ##################################################################
 #
 ### Mandatory ETFITS header fields ###

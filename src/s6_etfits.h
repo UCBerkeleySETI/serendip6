@@ -83,6 +83,8 @@ int etfits_close(etfits_t *etf);
 int write_primary_header(etfits_t *etf);
 int write_integration_header(etfits_t *etf, scram_t *scram);
 int write_integration_header_gbt(etfits_t *etf, gbtstatus_t *gbtstatus);
+int write_ccpwrs_header(etfits_t *etf);
+int write_ccpwrs(s6_output_databuf_t *db, int block_idx, etfits_t *etf);
 int write_hits_header(etfits_t *etf, size_t nhits);
 int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf);
 

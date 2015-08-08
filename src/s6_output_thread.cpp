@@ -258,18 +258,18 @@ static void *run(hashpipe_thread_args_t * args)
         hputr4(st.buf, "OUTMXERR", max_error);
         hputi4(st.buf, "OUTERCNT", error_count);
         hputi4(st.buf, "OUTMXECT", max_error_count);
-        hputr4(st.buf, "CCAV000X", db->block[block_idx].cc_means_x[0]);
-        hputr4(st.buf, "CCAV000Y", db->block[block_idx].cc_means_y[0]);
-        hputr4(st.buf, "CCAV100X", db->block[block_idx].cc_means_x[100]);
-        hputr4(st.buf, "CCAV100Y", db->block[block_idx].cc_means_y[100]);
-        hputr4(st.buf, "CCAV200X", db->block[block_idx].cc_means_x[200]);
-        hputr4(st.buf, "CCAV200Y", db->block[block_idx].cc_means_y[200]);
-        hputr4(st.buf, "CCAV300X", db->block[block_idx].cc_means_x[300]);
-        hputr4(st.buf, "CCAV300Y", db->block[block_idx].cc_means_y[300]);
-        hputr4(st.buf, "CCAV400X", db->block[block_idx].cc_means_x[400]);
-        hputr4(st.buf, "CCAV400Y", db->block[block_idx].cc_means_y[400]);
-        hputr4(st.buf, "CCAV511X", db->block[block_idx].cc_means_x[511]);
-        hputr4(st.buf, "CCAV511Y", db->block[block_idx].cc_means_y[511]);
+        hputr4(st.buf, "CCAV000X", db->block[block_idx].cc_pwrs_x[0]);
+        hputr4(st.buf, "CCAV000Y", db->block[block_idx].cc_pwrs_y[0]);
+        hputr4(st.buf, "CCAV100X", db->block[block_idx].cc_pwrs_x[100]);
+        hputr4(st.buf, "CCAV100Y", db->block[block_idx].cc_pwrs_y[100]);
+        hputr4(st.buf, "CCAV200X", db->block[block_idx].cc_pwrs_x[200]);
+        hputr4(st.buf, "CCAV200Y", db->block[block_idx].cc_pwrs_y[200]);
+        hputr4(st.buf, "CCAV300X", db->block[block_idx].cc_pwrs_x[300]);
+        hputr4(st.buf, "CCAV300Y", db->block[block_idx].cc_pwrs_y[300]);
+        hputr4(st.buf, "CCAV400X", db->block[block_idx].cc_pwrs_x[400]);
+        hputr4(st.buf, "CCAV400Y", db->block[block_idx].cc_pwrs_y[400]);
+        hputr4(st.buf, "CCAV511X", db->block[block_idx].cc_pwrs_x[511]);
+        hputr4(st.buf, "CCAV511Y", db->block[block_idx].cc_pwrs_y[511]);
         hashpipe_status_unlock_safe(&st);
 
 #ifdef SOURCE_DIBAS

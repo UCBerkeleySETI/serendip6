@@ -540,10 +540,10 @@ int spectroscopy(int n_subband,         // N coarse chan
     typedef thrust::device_vector<float>::iterator Iterator;
     // polX
     strided_range<Iterator> polX(dv_p->spectra_sums_p->begin(),     dv_p->spectra_sums_p->end(), 2);
-    thrust::copy(polX.begin(), polX.end(), &s6_output_block->cc_means_x[bors*n_subband]);      
+    thrust::copy(polX.begin(), polX.end(), &s6_output_block->cc_pwrs_x[bors*n_subband]);      
     // polY
     strided_range<Iterator> polY(dv_p->spectra_sums_p->begin() + 1, dv_p->spectra_sums_p->end(), 2);
-    thrust::copy(polY.begin(), polY.end(), &s6_output_block->cc_means_y[bors*n_subband]);      
+    thrust::copy(polY.begin(), polY.end(), &s6_output_block->cc_pwrs_y[bors*n_subband]);      
     // delete working vectors
     delete(dv_p->spectra_sums_p);
     delete(dv_p->spectra_indices_p);

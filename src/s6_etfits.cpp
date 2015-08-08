@@ -192,6 +192,8 @@ int write_etfits_gbt(s6_output_databuf_t *db, int block_idx, etfits_t *etf, gbts
 
     if(! *status_p) write_integration_header_gbt(etf, gbtstatus_p);
 
+    if(! *status_p) nhits = write_ccpwrs(db, block_idx, etf);
+
     if(! *status_p) nhits = write_hits(db, block_idx, etf);
 
     etf->integration_cnt++;
@@ -528,10 +530,72 @@ int write_integration_header(etfits_t * etf, scram_t *scram) {
 }
 
 //----------------------------------------------------------
+int write_ccpwrs_header(etfits_t * etf) {
+//----------------------------------------------------------
+
+    const int TFIELDS = 2;
+    int * status_p = &(etf->status);
+    *status_p = 0;
+
+    int tbltype                = BINARY_TBL;
+    long long naxis2           = 0;
+    //const int tfields          = 3;
+    // TODO check chan types!
+    const char *ttype[TFIELDS] = {"POLX  ", "POLY "};
+    const char *tform[TFIELDS] = {"1E",       "1E"};     // cfitsio format codes 
+                             //     32-bit floats       
+    if(etf->integration_cnt == 0) {
+        // at start of file go to the template created HDU for this set of beampols
+        if(! *status_p) fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"CCPWRS", 0, status_p);
+    } else {
+        // otherwise create new HDU for this set of beampols
+        if(! *status_p) fits_create_tbl(etf->fptr, BINARY_TBL, 0, TFIELDS, (char **)&ttype, (char **)&tform, NULL, (char *)"CCPWRS", status_p);
+    }
+
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "TIME",    &(etf->hits_hdr[0].time),    NULL, status_p);    // TODO - right for GBT, but for AO...
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "RA",      &(etf->hits_hdr[0].ra),      NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr[0].dec),     NULL, status_p);
+
+    if (*status_p) {
+        hashpipe_error(__FUNCTION__, "Error writing hits header");
+        fits_report_error(stderr, *status_p);
+    }
+}
+
+//----------------------------------------------------------
+int write_ccpwrs(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
+//----------------------------------------------------------
+
+    //long firstrow, firstelem, colnum;
+    long firstrow, firstelem, colnum;
+
+
+    int * status_p = &(etf->status);
+    *status_p = 0;
+
+    firstrow  = 1;
+    firstelem = 1;
+    write_ccpwrs_header(etf);
+
+    // write the hits for this input
+    colnum      = 1;
+    if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, N_COARSE_CHAN, db->block[block_idx].cc_pwrs_x, status_p);
+    colnum      = 2;
+    if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, N_COARSE_CHAN, db->block[block_idx].cc_pwrs_y, status_p);
+
+    if (*status_p) {
+        hashpipe_error(__FUNCTION__, "Error writing coarse channel powers");
+        fits_report_error(stderr, *status_p);
+    }
+
+    return(*status_p);
+}
+
+//----------------------------------------------------------
 int write_hits_header(etfits_t * etf, int borspol, size_t nhits, size_t missed_pkts) {
 //----------------------------------------------------------
 
-#define TFIELDS 4
+    const int TFIELDS = 4;
     int * status_p = &(etf->status);
     *status_p = 0;
 

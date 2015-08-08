@@ -86,7 +86,7 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
     // TODO make c static?
     c = redis_connect(hostname, port);
 
-    reply = (redisReply *)redisCommand(c,"GET MJD"); gbtstatus->MJD = atof(reply->str); freeReplyObject(reply); 
+    reply = (redisReply *)redisCommand(c,"HMGET MJD VALUE"); gbtstatus->MJD = atof(reply->element[0]->str); freeReplyObject(reply); 
 // TODO - re-enable this
 #if 0
     if (gbtstatus->MJD == prior_mjd) {
