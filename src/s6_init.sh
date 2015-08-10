@@ -18,16 +18,16 @@ myip=$(getip $(hostname))
 # Determine which, if any, s6cN alias maps to IP of current host.
 # If a s6cN match is found, mys6cn gets set to N (i.e. just the numeric part).
 # If no match is found, mys6cn will be empty.
-mys6gbcn=
+mys6cn=
 for s in {0..3}
 do
-  ip=$(getip s6gbc${s}.s6.pvt)
+  ip=$(getip s6c${s}.s6.pvt)
   [ "${myip}" == "${ip}" ] || continue
-  mys6gbcn=$s
+  mys6cn=$s
 done
 
 # If no s6cN alias maps to IP of current host, abort
-if [ -z ${mys6gbcn} ]
+if [ -z ${mys6cn} ]
 then
   echo "$(hostname) is not aliased to a s6cN name"
   exit 1
@@ -109,8 +109,8 @@ function init() {
     -c $gpucpu s6_gpu_thread           \
     -c $outcpu s6_output_thread        \
      < /dev/null                       \
-    1> s6gbc${mys6gbcn}.out.$log_timestamp.$instance \
-    2> s6gbc${mys6gbcn}.err.$log_timestamp.$instance &
+    1> s6c${mys6cn}.out.$log_timestamp.$instance \
+    2> s6c${mys6cn}.err.$log_timestamp.$instance &
 }
 
 # Start all instances
@@ -120,9 +120,9 @@ do
   if [ -n "${args}" ]
   then
     echo
-    echo Starting instance s6gbc$mys6gbcn/$instidx
+    echo Starting instance s6c$mys6cn/$instidx
     init $instidx $args
-    echo Instance s6gbc$mys6gbcn/$instidx pid $!
+    echo Instance s6c$mys6cn/$instidx pid $!
     # Sleep to let instance come up
     sleep 10
   else
@@ -137,7 +137,7 @@ then
   do
     for key in MISSEDPK NETDRPTL
     do
-      echo Resetting $key count for s6gbc$mys6gbcn/$instidx
+      echo Resetting $key count for s6c$mys6cn/$instidx
       hashpipe_check_status -I $instidx -k $key -s 0
     done
   done
@@ -145,14 +145,14 @@ else
   # Zero out MISSPKTL counts
   for instidx in ${instance_i[@]}
   do
-    echo Resetting MISSPKTL count for s6gbc$mys6gbcn/$instidx
+    echo Resetting MISSPKTL count for s6c$mys6cn/$instidx
     hashpipe_check_status -I $instidx -k MISSPKTL -s 0
   done
 
   # Release NETHOLD
   for instidx in ${instance_i[@]}
   do
-    echo Releasing NETHOLD for s6gbc$mys6gbcn/$instidx
+    echo Releasing NETHOLD for s6c$mys6cn/$instidx
     hashpipe_check_status -I $instidx -k NETHOLD -s 0
   done
 fi
