@@ -321,18 +321,19 @@ struct printf_functor {
 };
 
 using namespace thrust::placeholders;
-void reduce_power_spectra(device_vectors_t *dv_p, int n_subband, int n_chan) {
+void reduce_power_spectra(device_vectors_t *dv_p, int n_subband_pols, int n_chan) {
 
-    // first, sum all of the fine (time) channels for each coarse channel (subband)
-    thrust::reduce_by_key(thrust::make_transform_iterator(thrust::counting_iterator<int>(0), 
-                            linear_index_to_row_index<int>(n_chan)),
-                          thrust::make_transform_iterator(thrust::counting_iterator<int>(0), 
-                            linear_index_to_row_index<int>(n_chan)) + (n_subband*n_chan),
-                          dv_p->powspec_p->begin(),
-                          dv_p->spectra_indices_p->begin(),
-                          dv_p->spectra_sums_p->begin(),
-                          thrust::equal_to<int>(),              
-                          thrust::plus<float>());             
+    // first, sum all of the fine (time) channels for each coarse channel (subband_pol)
+    thrust::reduce_by_key(thrust::make_transform_iterator(thrust::counting_iterator<int>(0),    // beginning of the input key range 
+                            linear_index_to_row_index<int>(n_chan)),                            //  (keyed by row (spectra) index)
+                          thrust::make_transform_iterator(thrust::counting_iterator<int>(0),    // end of the input key range
+                            linear_index_to_row_index<int>(n_chan)) + (n_subband_pols*n_chan),      
+                          dv_p->powspec_p->begin(),                                             // beginning of the input (spectra) value range
+                          dv_p->spectra_indices_p->begin(),                                     // beginning of the output (power sums) key range
+                          dv_p->spectra_sums_p->begin(),                                        // beginning of the output (power sums) value range
+                          thrust::equal_to<int>(),                                              // binary predicate used to determine equality of key
+                          thrust::plus<float>());                                               // binary function used to accumulate values
+    //thrust::for_each(dv_p->spectra_sums_p->begin(), dv_p->spectra_sums_p->end(), printf_functor());
     // now find the mean of each (TODO why won't the divide_by functor work here?)
     thrust::for_each(dv_p->spectra_sums_p->begin(), dv_p->spectra_sums_p->end(), _1 /= n_chan);
     //thrust::for_each(dv_p->spectra_sums_p->begin(), dv_p->spectra_sums_p->end(), printf_functor());
