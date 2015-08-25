@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <math.h>
@@ -16,11 +17,13 @@
 #include "s6_obsaux.h"
 
 //----------------------------------------------------------
-int init_etfits(etfits_t *etf, int start_file_num) {
+int init_etfits(etfits_t *etf) {
 //----------------------------------------------------------
 
+    gethostname(etf->hostname, sizeof(etf->hostname));
     strcpy(etf->basefilename, "serendip6");     // TODO where to get file name?
-    etf->file_num              = start_file_num;
+    etf->filename_working[0]   = '\0';          // null until we form the first filename  
+    etf->file_num              = 1;
     etf->file_cnt              = 0;
     etf->new_run               = 1;
     etf->new_file              = 1;
@@ -220,6 +223,8 @@ int etfits_create(etfits_t * etf) {
     int * status_p = &(etf->status);
     *status_p = 0;
 
+    int rv;
+
     struct tm tm_now;
     time_t time_now;
 
@@ -243,7 +248,11 @@ int etfits_create(etfits_t * etf) {
             printf("Using directory '%s' for output.\n", datadir);
             char cmd[1024];
             sprintf(cmd, "mkdir -m 1777 -p %s", datadir);
-            system(cmd);
+            rv = system(cmd);
+            if(rv) {
+                hashpipe_error(__FUNCTION__, "error making output dirtectory %s", datadir);
+                // TODO - exit here?
+            }
         }
     }   // end first time writing this run
 
@@ -297,6 +306,7 @@ int etfits_close(etfits_t *etf) {
 
     if(rv) {
         hashpipe_error(__FUNCTION__, "file rename error : %d %s", errno, strerror(errno));
+        // TODO - exit here?
     } else {
         hashpipe_info(__FUNCTION__, "Done.  %s %ld data rows into %s (status = %d).\n",
                 etf->mode=='r' ? "Read" : "Wrote", 

@@ -57,13 +57,10 @@ static void *run(hashpipe_thread_args_t * args)
 #endif    
 
     int run_always, prior_run_always=0;                 // 1 = run even if no receiver
-    int file_num = 0;
 
     size_t num_coarse_chan = 0;
 
     extern const char *receiver[];
-
-    char hostname[200];
 
 #if 0
     // raise this thread to maximum scheduling priority
@@ -77,16 +74,14 @@ static void *run(hashpipe_thread_args_t * args)
     }
 #endif
 
-    // Initialization for etfits file output.
-    gethostname(etf.hostname, sizeof(etf.hostname));   
-    int file_num_start = -1;
-    if(file_num_start == -1) file_num_start = 0;
-    init_etfits(&etf, file_num_start+1);
-
     int i, rv=0, debug=20;
     int block_idx=0;
     int error_count, max_error_count = 0;
     float error, max_error = 0.0;
+
+    char current_filename[200] = "\0";  // init as a null string
+
+    init_etfits(&etf);                  // init for ETFITS output 
 
     /* Main loop */
     while (run_threads()) {
@@ -273,14 +268,14 @@ static void *run(hashpipe_thread_args_t * args)
         hashpipe_status_unlock_safe(&st);
 
 #ifdef SOURCE_DIBAS
-        if(etf.file_open && file_num != etf.file_num) {     // check for an open, new, file
-            hashpipe_info(__FUNCTION__, "New file : %s", etf.filename_working);
-            rv = put_obs_gbt_info_to_redis(etf.filename_working, st.instance_id, (char *)"redishost", 6379);
+        if(strcmp(etf.filename_working, current_filename) != 0) {     // check for filename change
+            strcpy(current_filename, etf.filename_working);
+            hashpipe_info(__FUNCTION__, "New file : %s", current_filename);
+            rv = put_obs_gbt_info_to_redis(current_filename, st.instance_id, (char *)"redishost", 6379);
             if(rv) {
                 hashpipe_error(__FUNCTION__, "error returned from put_obs_info_to_redis()");
                 pthread_exit(NULL);
             }
-            file_num = etf.file_num;
         }
 #endif
 
