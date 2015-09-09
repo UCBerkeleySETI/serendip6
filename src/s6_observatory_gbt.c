@@ -235,7 +235,7 @@ int main(int argc, char ** argv) {
   
       //Connect to remote server
     if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0) {
-        fprintf(stderr,"Connect to cleo socket failed. Error");
+        fprintf(stderr,"Connect to cleo socket failed.\n");
         exit(1);
         }
 
@@ -365,7 +365,7 @@ int main(int argc, char ** argv) {
         server_reply[bytes_read] = '\0';
         // fprintf(stderr, "\n#####DEBUG\nServer reply (%d) :\n%s\n#####END DEBUG\n",bytes_read, server_reply);
         byte_at = 0;
-        while (sscanf(server_reply+byte_at,"%s %s %s\n%n",timestamp,key,value,&bytes_in) == 3) {
+        while (sscanf(server_reply+byte_at,"%s %s %[^\n]%n",timestamp,key,value,&bytes_in) == 3) {
           // act on timestamp/key/value 
           found = 0;
           // fprintf(stderr,"DEBUG: %s %s %s\n",timestamp,key,value);
@@ -377,12 +377,13 @@ int main(int argc, char ** argv) {
                 freeReplyObject(reply); 
                 }
               if (dostdout) {
-                printf("   %8s (%32s) : %s (time: %s)\n",cleofitskeys[i],cleokeys[i],value,timestamp);
+                printf("   %8s (%60s) : %s (time: %s)\n",cleofitskeys[i],cleokeys[i],value,timestamp);
                 }
               }
             }
           if (found == 0) { fprintf(stderr,"warning: can't look up cleo key: %s\n",key); }
           // fprintf(stderr, "PARSED: timestamp %s key %s value %s (bytes_in %d, byte_at %d)\n", timestamp, key, value,bytes_in,byte_at);
+          // fprintf(stderr, "CLEO KEY: %s\n",key);
           byte_at += bytes_in;
           }
 

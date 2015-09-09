@@ -6,6 +6,7 @@
 #define N_ADCS_PER_ROACH2 8     // should this be N_BEAM_SLOTS/2 ?
 
 #define GBTSTATUS_STRING_SIZE 32
+#define GBTSTATUS_BIG_STRING_SIZE 256
 
 typedef struct gbtstatus {
 
@@ -81,243 +82,396 @@ typedef struct gbtstatus {
 
    // cleo server fields 
 
-   char ATBOT1EO[GBTSTATUS_STRING_SIZE]; 		// Antenna,beamOffsetTable,1,beamElOffset
-   long ATBOT1EOSTIME;
-   double ATBOT1EOMJD;
-   char ATBOT1XO[GBTSTATUS_STRING_SIZE]; 		// Antenna,beamOffsetTable,1,beamXelOffset
-   long ATBOT1XOSTIME;
-   double ATBOT1XOMJD;
-   char ATBOT1NM[GBTSTATUS_STRING_SIZE]; 		// Antenna,beamOffsetTable,1,name
-   long ATBOT1NMSTIME;
-   double ATBOT1NMMJD;
-   char ATBOT1F1[GBTSTATUS_STRING_SIZE]; 		// Antenna,beamOffsetTable,1,SRFeed1
-   long ATBOT1F1STIME;
-   double ATBOT1F1MJD;
-   char ATBOT1F2[GBTSTATUS_STRING_SIZE]; 		// Antenna,beamOffsetTable,1,SRFeed2
-   long ATBOT1F2STIME;
-   double ATBOT1F2MJD;
-   char ATFCTRMD[GBTSTATUS_STRING_SIZE]; 		// Antenna,focusTrackingMode
-   long ATFCTRMDSTIME;
-   double ATFCTRMDMJD;
-   char ATLFCX[GBTSTATUS_STRING_SIZE]; 		// Antenna,local_focus_correction,X
-   long ATLFCXSTIME;
-   double ATLFCXMJD;
-   char ATLFCXT[GBTSTATUS_STRING_SIZE]; 		// Antenna,local_focus_correction,Xt
-   long ATLFCXTSTIME;
-   double ATLFCXTMJD;
-   char ATLFCY[GBTSTATUS_STRING_SIZE]; 		// Antenna,local_focus_correction,Y
-   long ATLFCYSTIME;
-   double ATLFCYMJD;
-   char ATLFCYT[GBTSTATUS_STRING_SIZE]; 		// Antenna,local_focus_correction,Yt
-   long ATLFCYTSTIME;
-   double ATLFCYTMJD;
-   char ATLFCZ[GBTSTATUS_STRING_SIZE]; 		// Antenna,local_focus_correction,Z
-   long ATLFCZSTIME;
-   double ATLFCZMJD;
-   char ATLFCZT[GBTSTATUS_STRING_SIZE]; 		// Antenna,local_focus_correction,Zt
-   long ATLFCZTSTIME;
-   double ATLFCZTMJD;
-   char ATLPOAZ1[GBTSTATUS_STRING_SIZE]; 		// Antenna,localPointingOffsets,azOffset1
-   long ATLPOAZ1STIME;
-   double ATLPOAZ1MJD;
-   char ATLPOAZ2[GBTSTATUS_STRING_SIZE]; 		// Antenna,localPointingOffsets,azOffset2
-   long ATLPOAZ2STIME;
-   double ATLPOAZ2MJD;
-   char ATLPOEL[GBTSTATUS_STRING_SIZE]; 		// Antenna,localPointingOffsets,elOffset
-   long ATLPOELSTIME;
-   double ATLPOELMJD;
-   char ATMCRAJ2[GBTSTATUS_STRING_SIZE]; 		// AntennaManager,ccuData,RaJ2000,indicated
-   long ATMCRAJ2STIME;
-   double ATMCRAJ2MJD;
-   char ATMCDCJ2[GBTSTATUS_STRING_SIZE]; 		// AntennaManager,ccuData,DcJ2000,indicated
-   long ATMCDCJ2STIME;
-   double ATMCDCJ2MJD;
-   char ATOPTMOD[GBTSTATUS_STRING_SIZE]; 		// Antenna,opticsMode
-   long ATOPTMODSTIME;
-   double ATOPTMODMJD;
-   char ATRECVR[GBTSTATUS_STRING_SIZE]; 		// Antenna,receiver
-   long ATRECVRSTIME;
-   double ATRECVRMJD;
-   char ATRXOCTA[GBTSTATUS_STRING_SIZE]; 		// Antenna,rxOpticsConfig,turretAngle
-   long ATRXOCTASTIME;
-   double ATRXOCTAMJD;
-   char BAMMPWR1[GBTSTATUS_STRING_SIZE]; 		// BankAMgr,measpwr1
-   long BAMMPWR1STIME;
-   double BAMMPWR1MJD;
-   char BAMMPWR2[GBTSTATUS_STRING_SIZE]; 		// BankAMgr,measpwr2
-   long BAMMPWR2STIME;
-   double BAMMPWR2MJD;
-   char LO1APSFQ[GBTSTATUS_STRING_SIZE]; 		// LO1A,phaseState,frequency
-   long LO1APSFQSTIME;
-   double LO1APSFQMJD;
-   char LO1BPSFQ[GBTSTATUS_STRING_SIZE]; 		// LO1B,phaseState,frequency
-   long LO1BPSFQSTIME;
-   double LO1BPSFQMJD;
-   char SCPROJID[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,projectId
-   long SCPROJIDSTIME;
-   double SCPROJIDMJD;
-   char SCSNUMBR[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,scanNumber
-   long SCSNUMBRSTIME;
-   double SCSNUMBRMJD;
-   char SCSOURCE[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,source
-   long SCSOURCESTIME;
-   double SCSOURCEMJD;
-   char SCSTATE[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,state
-   long SCSTATESTIME;
-   double SCSTATEMJD;
-   char SCSACTSF[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,ActiveSurface
-   long SCSACTSFSTIME;
-   double SCSACTSFMJD;
-   char SCSANAFR[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,AnalogFilterRack
-   long SCSANAFRSTIME;
-   double SCSANAFRMJD;
-   char SCSANTEN[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,Antenna
-   long SCSANTENSTIME;
-   double SCSANTENMJD;
-   char SCSARCHI[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,Archivist
-   long SCSARCHISTIME;
-   double SCSARCHIMJD;
-   char SCSBCPM[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,BCPM
-   long SCSBCPMSTIME;
-   double SCSBCPMMJD;
-   char SCSCCB26[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,CCB26_40
-   long SCSCCB26STIME;
-   double SCSCCB26MJD;
-   char SCSCRACK[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,ConverterRack
-   long SCSCRACKSTIME;
-   double SCSCRACKMJD;
-   char SCSDCR[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,DCR
-   long SCSDCRSTIME;
-   double SCSDCRMJD;
-   char SCSGUPPI[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,GUPPI
-   long SCSGUPPISTIME;
-   double SCSGUPPIMJD;
-   char SCSHOLOG[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,Holography
-   long SCSHOLOGSTIME;
-   double SCSHOLOGMJD;
-   char SCSIFM[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,IFManager
-   long SCSIFMSTIME;
-   double SCSIFMMJD;
-   char SCSIFR[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,IFRack
-   long SCSIFRSTIME;
-   double SCSIFRMJD;
-   char SCSLO1[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,LO1
-   long SCSLO1STIME;
-   double SCSLO1MJD;
-   char SCSMEASUR[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,Measurements
-   long SCSMEASURSTIME;
-   double SCSMEASURMJD;
-   char SCSQUADRD[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,QuadrantDetector
-   long SCSQUADRDSTIME;
-   double SCSQUADRDMJD;
-   char SCSR1[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,Rcvr1_2
-   long SCSR1STIME;
-   double SCSR1MJD;
-   char SCSR12[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,Rcvr12_18
-   long SCSR12STIME;
-   double SCSR12MJD;
-   char SCSR18[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Rcvr18_26
-   long SCSR18STIME;
-   double SCSR18MJD;
-   char SCSR2[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,Rcvr2_3
-   long SCSR2STIME;
-   double SCSR2MJD;
-   char SCSR26[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,Rcvr26_40
-   long SCSR26STIME;
-   double SCSR26MJD;
-   char SCSR40[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,Rcvr40_52
-   long SCSR40STIME;
-   double SCSR40MJD;
-   char SCSR4[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,Rcvr4_6
-   long SCSR4STIME;
-   double SCSR4MJD;
-   char SCSR68[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,Rcvr68_92
-   long SCSR68STIME;
-   double SCSR68MJD;
-   char SCSR8[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,Rcvr8_10
-   long SCSR8STIME;
-   double SCSR8MJD;
-   char SCSRA1[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,RcvrArray1_2
-   long SCSRA1STIME;
-   double SCSRA1MJD;
-   char SCSRA18[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,RcvrArray18_26
-   long SCSRA18STIME;
-   double SCSRA18MJD;
-   char SCSRMBA1[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,Rcvr_MBA1_5
-   long SCSRMBA1STIME;
-   double SCSRMBA1MJD;
-   char SCSRPAR[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,Rcvr_PAR
-   long SCSRPARSTIME;
-   double SCSRPARMJD;
-   char SCSRPF1[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,RcvrPF_1
-   long SCSRPF1STIME;
-   double SCSRPF1MJD;
-   char SCSRPF2[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,RcvrPF_2
-   long SCSRPF2STIME;
-   double SCSRPF2MJD;
-   char SCSSPROC[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,SpectralProcessor
-   long SCSSPROCSTIME;
-   double SCSSPROCMJD;
-   char SCSSPECT[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,Spectrometer
-   long SCSSPECTSTIME;
-   double SCSSPECTMJD;
-   char SCSSWSS[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,SwitchingSignalSelector
-   long SCSSWSSSTIME;
-   double SCSSWSSMJD;
-   char SCSVEGAS[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,VEGAS
-   long SCSVEGASSTIME;
-   double SCSVEGASMJD;
-   char SCSZPECT[GBTSTATUS_STRING_SIZE]; 		// ScanCoordinator,subsystemSelect,Zpectrometer
-   long SCSZPECTSTIME;
-   double SCSZPECTMJD;
-   char VEGSFBW1[GBTSTATUS_STRING_SIZE]; 		// VEGAS,filter_bw,1
-   long VEGSFBW1STIME;
-   double VEGSFBW1MJD;
-   char VEGSFBW2[GBTSTATUS_STRING_SIZE]; 		// VEGAS,filter_bw,2
-   long VEGSFBW2STIME;
-   double VEGSFBW2MJD;
-   char VEGSFBW3[GBTSTATUS_STRING_SIZE]; 		// VEGAS,filter_bw,3
-   long VEGSFBW3STIME;
-   double VEGSFBW3MJD;
-   char VEGSFBW4[GBTSTATUS_STRING_SIZE]; 		// VEGAS,filter_bw,4
-   long VEGSFBW4STIME;
-   double VEGSFBW4MJD;
-   char VEGSFBW5[GBTSTATUS_STRING_SIZE]; 		// VEGAS,filter_bw,5
-   long VEGSFBW5STIME;
-   double VEGSFBW5MJD;
-   char VEGSFBW6[GBTSTATUS_STRING_SIZE]; 		// VEGAS,filter_bw,6
-   long VEGSFBW6STIME;
-   double VEGSFBW6MJD;
-   char VEGSFBW7[GBTSTATUS_STRING_SIZE]; 		// VEGAS,filter_bw,7
-   long VEGSFBW7STIME;
-   double VEGSFBW7MJD;
-   char VEGSFBW8[GBTSTATUS_STRING_SIZE]; 		// VEGAS,filter_bw,8
-   long VEGSFBW8STIME;
-   double VEGSFBW8MJD;
-   char VEGSSBAM[GBTSTATUS_STRING_SIZE]; 		// VEGAS,subsystemSelect,BankAMgr
-   long VEGSSBAMSTIME;
-   double VEGSSBAMMJD;
-   char VEGSSBBM[GBTSTATUS_STRING_SIZE]; 		// VEGAS,subsystemSelect,BankBMgr
-   long VEGSSBBMSTIME;
-   double VEGSSBBMMJD;
-   char VEGSSBCM[GBTSTATUS_STRING_SIZE]; 		// VEGAS,subsystemSelect,BankCMgr
-   long VEGSSBCMSTIME;
-   double VEGSSBCMMJD;
-   char VEGSSBDM[GBTSTATUS_STRING_SIZE]; 		// VEGAS,subsystemSelect,BankDMgr
-   long VEGSSBDMSTIME;
-   double VEGSSBDMMJD;
-   char VEGSSBEM[GBTSTATUS_STRING_SIZE]; 		// VEGAS,subsystemSelect,BankEMgr
-   long VEGSSBEMSTIME;
-   double VEGSSBEMMJD;
-   char VEGSSBFM[GBTSTATUS_STRING_SIZE]; 		// VEGAS,subsystemSelect,BankFMgr
-   long VEGSSBFMSTIME;
-   double VEGSSBFMMJD;
-   char VEGSSBGM[GBTSTATUS_STRING_SIZE]; 		// VEGAS,subsystemSelect,BankGMgr
-   long VEGSSBGMSTIME;
-   double VEGSSBGMMJD;
-   char VEGSSBHM[GBTSTATUS_STRING_SIZE]; 		// VEGAS,subsystemSelect,BankHMgr
-   long VEGSSBHMSTIME;
-   double VEGSSBHMMJD;
+    char ATATCOTM[GBTSTATUS_STRING_SIZE]; // Antenna,Antenna,ConnectionToManager
+    long ATATCOTMSTIME;
+    double ATATCOTMMJD;
+    char ATBEELOF[GBTSTATUS_STRING_SIZE]; // Antenna,beamElOffset
+    long ATBEELOFSTIME;
+    double ATBEELOFMJD;
+    char ATBOT1EO[GBTSTATUS_STRING_SIZE]; // Antenna,beamOffsetTable,1,beamElOffset
+    long ATBOT1EOSTIME;
+    double ATBOT1EOMJD;
+    char ATBOT1XO[GBTSTATUS_STRING_SIZE]; // Antenna,beamOffsetTable,1,beamXelOffset
+    long ATBOT1XOSTIME;
+    double ATBOT1XOMJD;
+    char ATBOT1NM[GBTSTATUS_STRING_SIZE]; // Antenna,beamOffsetTable,1,name
+    long ATBOT1NMSTIME;
+    double ATBOT1NMMJD;
+    char ATBOT1F1[GBTSTATUS_STRING_SIZE]; // Antenna,beamOffsetTable,1,SRFeed1
+    long ATBOT1F1STIME;
+    double ATBOT1F1MJD;
+    char ATBOT1F2[GBTSTATUS_STRING_SIZE]; // Antenna,beamOffsetTable,1,SRFeed2
+    long ATBOT1F2STIME;
+    double ATBOT1F2MJD;
+    char ATBEXLOF[GBTSTATUS_STRING_SIZE]; // Antenna,beamXelOffset
+    long ATBEXLOFSTIME;
+    double ATBEXLOFMJD;
+    char ATFCTRMD[GBTSTATUS_STRING_SIZE]; // Antenna,focusTrackingMode
+    long ATFCTRMDSTIME;
+    double ATFCTRMDMJD;
+    char ATGREGRC[GBTSTATUS_STRING_SIZE]; // Antenna,gregorianReceiver
+    long ATGREGRCSTIME;
+    double ATGREGRCMJD;
+    char ATLFCX[GBTSTATUS_STRING_SIZE]; // Antenna,local_focus_correction,X
+    long ATLFCXSTIME;
+    double ATLFCXMJD;
+    char ATLFCXT[GBTSTATUS_STRING_SIZE]; // Antenna,local_focus_correction,Xt
+    long ATLFCXTSTIME;
+    double ATLFCXTMJD;
+    char ATLFCY[GBTSTATUS_STRING_SIZE]; // Antenna,local_focus_correction,Y
+    long ATLFCYSTIME;
+    double ATLFCYMJD;
+    char ATLFCYT[GBTSTATUS_STRING_SIZE]; // Antenna,local_focus_correction,Yt
+    long ATLFCYTSTIME;
+    double ATLFCYTMJD;
+    char ATLFCZ[GBTSTATUS_STRING_SIZE]; // Antenna,local_focus_correction,Z
+    long ATLFCZSTIME;
+    double ATLFCZMJD;
+    char ATLFCZT[GBTSTATUS_STRING_SIZE]; // Antenna,local_focus_correction,Zt
+    long ATLFCZTSTIME;
+    double ATLFCZTMJD;
+    char ATLPOAZ1[GBTSTATUS_STRING_SIZE]; // Antenna,localPointingOffsets,azOffset1
+    long ATLPOAZ1STIME;
+    double ATLPOAZ1MJD;
+    char ATLPOAZ2[GBTSTATUS_STRING_SIZE]; // Antenna,localPointingOffsets,azOffset2
+    long ATLPOAZ2STIME;
+    double ATLPOAZ2MJD;
+    char ATLPOEL[GBTSTATUS_STRING_SIZE]; // Antenna,localPointingOffsets,elOffset
+    long ATLPOELSTIME;
+    double ATLPOELMJD;
+    char ATMATMCA[GBTSTATUS_STRING_SIZE]; // AntennaManager,AntennaManager,ConnectionToAccessor
+    long ATMATMCASTIME;
+    double ATMATMCAMJD;
+    char ATMATMCM[GBTSTATUS_STRING_SIZE]; // AntennaManager,AntennaManager,ConnectionToManager
+    long ATMATMCMSTIME;
+    double ATMATMCMMJD;
+    char ATMATMCT[GBTSTATUS_STRING_SIZE]; // AntennaManager,AntennaManager,ConnectionToTransporter
+    long ATMATMCTSTIME;
+    double ATMATMCTMJD;
+    char ATMCDCJ2[GBTSTATUS_STRING_SIZE]; // AntennaManager,ccuData,DcJ2000,indicated
+    long ATMCDCJ2STIME;
+    double ATMCDCJ2MJD;
+    char ATMCRAJ2[GBTSTATUS_STRING_SIZE]; // AntennaManager,ccuData,RaJ2000,indicated
+    long ATMCRAJ2STIME;
+    double ATMCRAJ2MJD;
+    char ATMFBS[GBTSTATUS_STRING_SIZE]; // AntennaManager,feedBoomState
+    long ATMFBSSTIME;
+    double ATMFBSMJD;
+    char ATMTLS[GBTSTATUS_STRING_SIZE]; // AntennaManager,turretLockState
+    long ATMTLSSTIME;
+    double ATMTLSMJD;
+    char ATOPTMOD[GBTSTATUS_STRING_SIZE]; // Antenna,opticsMode
+    long ATOPTMODSTIME;
+    double ATOPTMODMJD;
+    char ATRECVR[GBTSTATUS_STRING_SIZE]; // Antenna,receiver
+    long ATRECVRSTIME;
+    double ATRECVRMJD;
+    char ATRXOCTA[GBTSTATUS_STRING_SIZE]; // Antenna,rxOpticsConfig,turretAngle
+    long ATRXOCTASTIME;
+    double ATRXOCTAMJD;
+    char ATTRBEAM[GBTSTATUS_STRING_SIZE]; // Antenna,trackBeam
+    long ATTRBEAMSTIME;
+    double ATTRBEAMMJD;
+    char ATTURLOC[GBTSTATUS_BIG_STRING_SIZE]; // Antenna,TurretLocations
+    long ATTURLOCSTIME;
+    double ATTURLOCMJD;
+    char BAMBAMCA[GBTSTATUS_STRING_SIZE]; // BankAMgr,BankAMgr,ConnectionToAccessor
+    long BAMBAMCASTIME;
+    double BAMBAMCAMJD;
+    char BAMBAMCM[GBTSTATUS_STRING_SIZE]; // BankAMgr,BankAMgr,ConnectionToManager
+    long BAMBAMCMSTIME;
+    double BAMBAMCMMJD;
+    char BAMBAMCT[GBTSTATUS_STRING_SIZE]; // BankAMgr,BankAMgr,ConnectionToTransporter
+    long BAMBAMCTSTIME;
+    double BAMBAMCTMJD;
+    char BAMMPWR1[GBTSTATUS_STRING_SIZE]; // BankAMgr,measpwr1
+    long BAMMPWR1STIME;
+    double BAMMPWR1MJD;
+    char BAMMPWR2[GBTSTATUS_STRING_SIZE]; // BankAMgr,measpwr2
+    long BAMMPWR2STIME;
+    double BAMMPWR2MJD;
+    char CLEOPID[GBTSTATUS_STRING_SIZE]; // CleoSetiServer,PID
+    long CLEOPIDSTIME;
+    double CLEOPIDMJD;
+    char CLEOREV[GBTSTATUS_STRING_SIZE]; // CleoSetiServer,Revision
+    long CLEOREVSTIME;
+    double CLEOREVMJD;
+    char IFMIFMCM[GBTSTATUS_STRING_SIZE]; // IFManager,IFManager,ConnectionToManager
+    long IFMIFMCMSTIME;
+    double IFMIFMCMMJD;
+    char IFV1BW[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J1,bandwidth
+    long IFV1BWSTIME;
+    double IFV1BWMJD;
+    char IFV1CSFQ[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J1,CorrectedSkyFrequency
+    long IFV1CSFQSTIME;
+    double IFV1CSFQMJD;
+    char IFV1LVL[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J1,level
+    long IFV1LVLSTIME;
+    double IFV1LVLMJD;
+    char IFV1IFFQ[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J1,spectrum,IF,centerFrequency
+    long IFV1IFFQSTIME;
+    double IFV1IFFQMJD;
+    char IFV1SSB[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J1,spectrum,sideband
+    long IFV1SSBSTIME;
+    double IFV1SSBMJD;
+    char IFV1SKFQ[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J1,spectrum,sky,centerFrequency
+    long IFV1SKFQSTIME;
+    double IFV1SKFQMJD;
+    char IFV1TH[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J1,transform,1,horn
+    long IFV1THSTIME;
+    double IFV1THMJD;
+    char IFV1TNCI[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J1,transform,1,name,circuit
+    long IFV1TNCISTIME;
+    double IFV1TNCIMJD;
+    char IFV1TNCO[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J1,transform,1,name,component
+    long IFV1TNCOSTIME;
+    double IFV1TNCOMJD;
+    char IFV1TT[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J1,transform,1,type
+    long IFV1TTSTIME;
+    double IFV1TTMJD;
+    char IFV2BW[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J2,bandwidth
+    long IFV2BWSTIME;
+    double IFV2BWMJD;
+    char IFV2CSFQ[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J2,CorrectedSkyFrequency
+    long IFV2CSFQSTIME;
+    double IFV2CSFQMJD;
+    char IFV2LVL[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J2,level
+    long IFV2LVLSTIME;
+    double IFV2LVLMJD;
+    char IFV2IFFQ[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J2,spectrum,IF,centerFrequency
+    long IFV2IFFQSTIME;
+    double IFV2IFFQMJD;
+    char IFV2SSB[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J2,spectrum,sideband
+    long IFV2SSBSTIME;
+    double IFV2SSBMJD;
+    char IFV2SKFQ[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J2,spectrum,sky,centerFrequency
+    long IFV2SKFQSTIME;
+    double IFV2SKFQMJD;
+    char IFV2TH[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J2,transform,1,horn
+    long IFV2THSTIME;
+    double IFV2THMJD;
+    char IFV2TNCI[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J2,transform,1,name,circuit
+    long IFV2TNCISTIME;
+    double IFV2TNCIMJD;
+    char IFV2TNCO[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J2,transform,1,name,component
+    long IFV2TNCOSTIME;
+    double IFV2TNCOMJD;
+    char IFV2TT[GBTSTATUS_STRING_SIZE]; // IFManager,VEGAS_J2,transform,1,type
+    long IFV2TTSTIME;
+    double IFV2TTMJD;
+    char LO1ACA[GBTSTATUS_STRING_SIZE]; // LO1A,LO1A,ConnectionToAccessor
+    long LO1ACASTIME;
+    double LO1ACAMJD;
+    char LO1ACM[GBTSTATUS_STRING_SIZE]; // LO1A,LO1A,ConnectionToManager
+    long LO1ACMSTIME;
+    double LO1ACMMJD;
+    char LO1ACT[GBTSTATUS_STRING_SIZE]; // LO1A,LO1A,ConnectionToTransporter
+    long LO1ACTSTIME;
+    double LO1ACTMJD;
+    char LO1APSFQ[GBTSTATUS_STRING_SIZE]; // LO1A,phaseState,frequency
+    long LO1APSFQSTIME;
+    double LO1APSFQMJD;
+    char LO1ACA[GBTSTATUS_STRING_SIZE]; // LO1B,LO1B,ConnectionToAccessor
+    long LO1ACASTIME;
+    double LO1ACAMJD;
+    char LO1ACM[GBTSTATUS_STRING_SIZE]; // LO1B,LO1B,ConnectionToManager
+    long LO1ACMSTIME;
+    double LO1ACMMJD;
+    char LO1ACT[GBTSTATUS_STRING_SIZE]; // LO1B,LO1B,ConnectionToTransporter
+    long LO1ACTSTIME;
+    double LO1ACTMJD;
+    char LO1BPSFQ[GBTSTATUS_STRING_SIZE]; // LO1B,phaseState,frequency
+    long LO1BPSFQSTIME;
+    double LO1BPSFQMJD;
+    char LO1FQSW[GBTSTATUS_STRING_SIZE]; // LO1,FrequencySwitching
+    long LO1FQSWSTIME;
+    double LO1FQSWMJD;
+    char LO1CM[GBTSTATUS_STRING_SIZE]; // LO1,LO1,ConnectionToManager
+    long LO1CMSTIME;
+    double LO1CMMJD;
+    char LO1CFG[GBTSTATUS_STRING_SIZE]; // LO1,loConfig
+    long LO1CFGSTIME;
+    double LO1CFGMJD;
+    char LO1PHCAL[GBTSTATUS_STRING_SIZE]; // LO1,phaseCalCtl
+    long LO1PHCALSTIME;
+    double LO1PHCALMJD;
+    char OPTGREG[GBTSTATUS_STRING_SIZE]; // OpticsOK,Gregorian
+    long OPTGREGSTIME;
+    double OPTGREGMJD;
+    char OPTPRIME[GBTSTATUS_STRING_SIZE]; // OpticsOK,PrimeFocus
+    long OPTPRIMESTIME;
+    double OPTPRIMEMJD;
+    char SCPROJID[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,projectId
+    long SCPROJIDSTIME;
+    double SCPROJIDMJD;
+    char SCSCCM[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,ScanCoordinator,ConnectionToManager
+    long SCSCCMSTIME;
+    double SCSCCMMJD;
+    char SCSNUMBR[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,scanNumber
+    long SCSNUMBRSTIME;
+    double SCSNUMBRMJD;
+    char SCSOURCE[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,source
+    long SCSOURCESTIME;
+    double SCSOURCEMJD;
+    char SCSTATE[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,state
+    long SCSTATESTIME;
+    double SCSTATEMJD;
+    char SCSACTSF[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,ActiveSurface
+    long SCSACTSFSTIME;
+    double SCSACTSFMJD;
+    char SCSANAFR[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,AnalogFilterRack
+    long SCSANAFRSTIME;
+    double SCSANAFRMJD;
+    char SCSANTEN[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Antenna
+    long SCSANTENSTIME;
+    double SCSANTENMJD;
+    char SCSARCHI[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Archivist
+    long SCSARCHISTIME;
+    double SCSARCHIMJD;
+    char SCSBCPM[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,BCPM
+    long SCSBCPMSTIME;
+    double SCSBCPMMJD;
+    char SCSCCB26[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,CCB26_40
+    long SCSCCB26STIME;
+    double SCSCCB26MJD;
+    char SCSCRACK[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,ConverterRack
+    long SCSCRACKSTIME;
+    double SCSCRACKMJD;
+    char SCSDCR[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,DCR
+    long SCSDCRSTIME;
+    double SCSDCRMJD;
+    char SCSGUPPI[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,GUPPI
+    long SCSGUPPISTIME;
+    double SCSGUPPIMJD;
+    char SCSHOLOG[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Holography
+    long SCSHOLOGSTIME;
+    double SCSHOLOGMJD;
+    char SCSIFM[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,IFManager
+    long SCSIFMSTIME;
+    double SCSIFMMJD;
+    char SCSIFR[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,IFRack
+    long SCSIFRSTIME;
+    double SCSIFRMJD;
+    char SCSLO1[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,LO1
+    long SCSLO1STIME;
+    double SCSLO1MJD;
+    char SCSMEASUR[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Measurements
+    long SCSMEASURSTIME;
+    double SCSMEASURMJD;
+    char SCSQUADRD[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,QuadrantDetector
+    long SCSQUADRDSTIME;
+    double SCSQUADRDMJD;
+    char SCSR1[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Rcvr1_2
+    long SCSR1STIME;
+    double SCSR1MJD;
+    char SCSR12[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Rcvr12_18
+    long SCSR12STIME;
+    double SCSR12MJD;
+    char SCSR18[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Rcvr18_26
+    long SCSR18STIME;
+    double SCSR18MJD;
+    char SCSR2[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Rcvr2_3
+    long SCSR2STIME;
+    double SCSR2MJD;
+    char SCSR26[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Rcvr26_40
+    long SCSR26STIME;
+    double SCSR26MJD;
+    char SCSR40[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Rcvr40_52
+    long SCSR40STIME;
+    double SCSR40MJD;
+    char SCSR4[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Rcvr4_6
+    long SCSR4STIME;
+    double SCSR4MJD;
+    char SCSR68[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Rcvr68_92
+    long SCSR68STIME;
+    double SCSR68MJD;
+    char SCSR8[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Rcvr8_10
+    long SCSR8STIME;
+    double SCSR8MJD;
+    char SCSRA1[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,RcvrArray1_2
+    long SCSRA1STIME;
+    double SCSRA1MJD;
+    char SCSRA18[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,RcvrArray18_26
+    long SCSRA18STIME;
+    double SCSRA18MJD;
+    char SCSRMBA1[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Rcvr_MBA1_5
+    long SCSRMBA1STIME;
+    double SCSRMBA1MJD;
+    char SCSRPAR[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Rcvr_PAR
+    long SCSRPARSTIME;
+    double SCSRPARMJD;
+    char SCSRPF1[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,RcvrPF_1
+    long SCSRPF1STIME;
+    double SCSRPF1MJD;
+    char SCSRPF2[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,RcvrPF_2
+    long SCSRPF2STIME;
+    double SCSRPF2MJD;
+    char SCSSPROC[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,SpectralProcessor
+    long SCSSPROCSTIME;
+    double SCSSPROCMJD;
+    char SCSSPECT[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Spectrometer
+    long SCSSPECTSTIME;
+    double SCSSPECTMJD;
+    char SCSSWSS[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,SwitchingSignalSelector
+    long SCSSWSSSTIME;
+    double SCSSWSSMJD;
+    char SCSVEGAS[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,VEGAS
+    long SCSVEGASSTIME;
+    double SCSVEGASMJD;
+    char SCSZPECT[GBTSTATUS_STRING_SIZE]; // ScanCoordinator,subsystemSelect,Zpectrometer
+    long SCSZPECTSTIME;
+    double SCSZPECTMJD;
+    char VEGSFBW1[GBTSTATUS_STRING_SIZE]; // VEGAS,filter_bw,1
+    long VEGSFBW1STIME;
+    double VEGSFBW1MJD;
+    char VEGSFBW2[GBTSTATUS_STRING_SIZE]; // VEGAS,filter_bw,2
+    long VEGSFBW2STIME;
+    double VEGSFBW2MJD;
+    char VEGSFBW3[GBTSTATUS_STRING_SIZE]; // VEGAS,filter_bw,3
+    long VEGSFBW3STIME;
+    double VEGSFBW3MJD;
+    char VEGSFBW4[GBTSTATUS_STRING_SIZE]; // VEGAS,filter_bw,4
+    long VEGSFBW4STIME;
+    double VEGSFBW4MJD;
+    char VEGSFBW5[GBTSTATUS_STRING_SIZE]; // VEGAS,filter_bw,5
+    long VEGSFBW5STIME;
+    double VEGSFBW5MJD;
+    char VEGSFBW6[GBTSTATUS_STRING_SIZE]; // VEGAS,filter_bw,6
+    long VEGSFBW6STIME;
+    double VEGSFBW6MJD;
+    char VEGSFBW7[GBTSTATUS_STRING_SIZE]; // VEGAS,filter_bw,7
+    long VEGSFBW7STIME;
+    double VEGSFBW7MJD;
+    char VEGSFBW8[GBTSTATUS_STRING_SIZE]; // VEGAS,filter_bw,8
+    long VEGSFBW8STIME;
+    double VEGSFBW8MJD;
+    char VEGSSBAM[GBTSTATUS_STRING_SIZE]; // VEGAS,subsystemSelect,BankAMgr
+    long VEGSSBAMSTIME;
+    double VEGSSBAMMJD;
+    char VEGSSBBM[GBTSTATUS_STRING_SIZE]; // VEGAS,subsystemSelect,BankBMgr
+    long VEGSSBBMSTIME;
+    double VEGSSBBMMJD;
+    char VEGSSBCM[GBTSTATUS_STRING_SIZE]; // VEGAS,subsystemSelect,BankCMgr
+    long VEGSSBCMSTIME;
+    double VEGSSBCMMJD;
+    char VEGSSBDM[GBTSTATUS_STRING_SIZE]; // VEGAS,subsystemSelect,BankDMgr
+    long VEGSSBDMSTIME;
+    double VEGSSBDMMJD;
+    char VEGSSBEM[GBTSTATUS_STRING_SIZE]; // VEGAS,subsystemSelect,BankEMgr
+    long VEGSSBEMSTIME;
+    double VEGSSBEMMJD;
+    char VEGSSBFM[GBTSTATUS_STRING_SIZE]; // VEGAS,subsystemSelect,BankFMgr
+    long VEGSSBFMSTIME;
+    double VEGSSBFMMJD;
+    char VEGSSBGM[GBTSTATUS_STRING_SIZE]; // VEGAS,subsystemSelect,BankGMgr
+    long VEGSSBGMSTIME;
+    double VEGSSBGMMJD;
+    char VEGSSBHM[GBTSTATUS_STRING_SIZE]; // VEGAS,subsystemSelect,BankHMgr
+    long VEGSSBHMSTIME;
+    double VEGSSBHMMJD;
+    char VEGASCM[GBTSTATUS_STRING_SIZE]; // VEGAS,VEGAS,ConnectionToManager
+    long VEGASCMSTIME;
+    double VEGASCMMJD;
 
    // the fields below are other scripts and not from gbtstatus/mysql/cleo
 
