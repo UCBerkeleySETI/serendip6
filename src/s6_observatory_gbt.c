@@ -19,9 +19,9 @@
 #define ftoa(A,B) sprintf(B,"%lf",A);
 
 // file containing redis key/mysql row pairs for which to read from mysql and put into redis
-// const char *status_fields_config = "./status_fields";
+// const char *status_fields_config = "./mysql_status_fields";
 const char *mysql_fields_config = "/usr/local/etc/mysql_status_fields";
-//const char *cleo_fields_config = "/usr/local/etc/mysql_status_fields";
+// const char *cleo_fields_config = "./cleo_status_fields";
 const char *cleo_fields_config = "/usr/local/etc/cleo_status_fields";
 
 const char *usage = "Usage: s6_observatory_gbt [-stdout] [-nodb] [-redishost hostname] [-redisport port]\n -[-cleohost hostname] [-cleoport port]\n  [-nomysql] [-nocleo]\n  -stdout: output packets to stdout (normally quiet)\n  -nodb: don't update redis db\n  redishost/redisport: for redis database (default 127.0.0.1:6379)\n  cleohost/cleoport: for cleo socket connection (default euler.gb.nrao.edu/8030)\n  -nomysql/-nocleo : don't attempt to read from either as specified\n\n";
@@ -44,10 +44,11 @@ int main(int argc, char ** argv) {
   char strbuf[1024];
 
   int lines_allocated = 256; // for reading in from status fields
-  int max_line_len = 50;     // for reading in from status fields
+  int max_line_len = 256;     // for reading in from status fields
   FILE *statusfp;
   int num_mysql_keys;
   int num_cleo_keys;
+  char *comment; // dummy storage for comments
 
   bool nodb = false;
   bool dostdout = false;
@@ -131,6 +132,8 @@ int main(int argc, char ** argv) {
       }
     }
 
+  comment = (char *)malloc(max_line_len);
+
   //### read in mysql status fields (and create mysql "select" command string)
   
   az_actual_index = el_actual_index = last_update_index = lst_index = mjd_index = -1;
@@ -186,7 +189,8 @@ int main(int argc, char ** argv) {
       cleofitskeys[i] = malloc(max_line_len);
       cleokeys[i] = malloc(max_line_len);
       if (cleofitskeys[i]==NULL || cleokeys[i]==NULL) { fprintf(stderr,"Out of memory (getting next line).\n"); exit(1); }
-      if (fscanf(statusfp,"%s %s",cleofitskeys[i],cleokeys[i])!=2) break;
+      if (fscanf(statusfp,"%s %s%[^\n]\n",cleofitskeys[i],cleokeys[i],comment)<2) break;
+      // fprintf(stderr,"DEBUG: fits %s key %s comment %s EOL\n",cleofitskeys[i],cleokeys[i],comment);
       }
 
   num_cleo_keys = i;
