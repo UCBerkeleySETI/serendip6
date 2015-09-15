@@ -150,7 +150,7 @@ int main(int argc, char ** argv) {
       mysqlfitskeys[i] = malloc(max_line_len);
       mysqlkeys[i] = malloc(max_line_len);
       if (mysqlfitskeys[i]==NULL || mysqlkeys[i]==NULL) { fprintf(stderr,"Out of memory (getting next line).\n"); exit(1); }
-      if (fscanf(statusfp,"%s %s",mysqlfitskeys[i],mysqlkeys[i])!=2) break;
+      if (fscanf(statusfp,"%s %s%[^\n]\n",mysqlfitskeys[i],mysqlkeys[i],comment)<2) break;
       if (strcmp(mysqlkeys[i],"az_actual") == 0) az_actual_index = i;
       if (strcmp(mysqlkeys[i],"el_actual") == 0) el_actual_index = i;
       if (strcmp(mysqlkeys[i],"last_update") == 0) last_update_index = i;
@@ -370,6 +370,7 @@ int main(int argc, char ** argv) {
         // fprintf(stderr, "\n#####DEBUG\nServer reply (%d) :\n%s\n#####END DEBUG\n",bytes_read, server_reply);
         byte_at = 0;
         while (sscanf(server_reply+byte_at,"%s %s %[^\n]%n",timestamp,key,value,&bytes_in) == 3) {
+          value[strlen(value)-1] = 0;
           // act on timestamp/key/value 
           found = 0;
           // fprintf(stderr,"DEBUG: %s %s %s\n",timestamp,key,value);

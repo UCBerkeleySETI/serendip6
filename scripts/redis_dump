@@ -33,7 +33,7 @@ foreach KEY (`$REDISCLI keys "*" | sort`)
       echo "'$VALUE' "
     endif 
   else
-    foreach HKEY (`$REDISCLI hkeys $KEY`)
+    foreach HKEY (`$REDISCLI hkeys $KEY | cat`)
       echo -n "$HKEY "
       $REDISCLI hmget $KEY $HKEY > $TMPFILE
       set ISTEXT = `file $TMPFILE | grep -c text`
@@ -42,7 +42,7 @@ foreach KEY (`$REDISCLI keys "*" | sort`)
       if ($ISTEXT == 0) then
         echo -n "<binary> "
       else
-        set VALUE = `$REDISCLI hmget $KEY $HKEY`
+        set VALUE = `$REDISCLI hmget $KEY $HKEY | cat`
         echo -n "'$VALUE' "
       endif 
     end
