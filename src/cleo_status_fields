@@ -61,9 +61,9 @@ LO1ACA LO1A,LO1A,ConnectionToAccessor
 LO1ACM LO1A,LO1A,ConnectionToManager
 LO1ACT LO1A,LO1A,ConnectionToTransporter
 LO1APSFQ LO1A,phaseState,frequency                           # Hz, used to determine Doppler tracking altering center sky freq
-LO1ACA LO1B,LO1B,ConnectionToAccessor
-LO1ACM LO1B,LO1B,ConnectionToManager
-LO1ACT LO1B,LO1B,ConnectionToTransporter
+LO1BCA LO1B,LO1B,ConnectionToAccessor
+LO1BCM LO1B,LO1B,ConnectionToManager
+LO1BCT LO1B,LO1B,ConnectionToTransporter
 LO1BPSFQ LO1B,phaseState,frequency                           # Hz, used to determine Doppler tracking altering center sky freq
 LO1FQSW LO1,FrequencySwitching                               # if TRUE then data should probably be ignored
 LO1CM LO1,LO1,ConnectionToManager

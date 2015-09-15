@@ -271,15 +271,15 @@ typedef struct gbtstatus {
     char LO1APSFQ[GBTSTATUS_STRING_SIZE]; // LO1A,phaseState,frequency
     long LO1APSFQSTIME;
     double LO1APSFQMJD;
-    char LO1ACA[GBTSTATUS_STRING_SIZE]; // LO1B,LO1B,ConnectionToAccessor
-    long LO1ACASTIME;
-    double LO1ACAMJD;
-    char LO1ACM[GBTSTATUS_STRING_SIZE]; // LO1B,LO1B,ConnectionToManager
-    long LO1ACMSTIME;
-    double LO1ACMMJD;
-    char LO1ACT[GBTSTATUS_STRING_SIZE]; // LO1B,LO1B,ConnectionToTransporter
-    long LO1ACTSTIME;
-    double LO1ACTMJD;
+    char LO1BCA[GBTSTATUS_STRING_SIZE]; // LO1B,LO1B,ConnectionToAccessor
+    long LO1BCASTIME;
+    double LO1BCAMJD;
+    char LO1BCM[GBTSTATUS_STRING_SIZE]; // LO1B,LO1B,ConnectionToManager
+    long LO1BCMSTIME;
+    double LO1BCMMJD;
+    char LO1BCT[GBTSTATUS_STRING_SIZE]; // LO1B,LO1B,ConnectionToTransporter
+    long LO1BCTSTIME;
+    double LO1BCTMJD;
     char LO1BPSFQ[GBTSTATUS_STRING_SIZE]; // LO1B,phaseState,frequency
     long LO1BPSFQSTIME;
     double LO1BPSFQMJD;
