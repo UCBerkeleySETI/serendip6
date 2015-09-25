@@ -90,6 +90,42 @@ LSTH_DRV=                    *  / local sidereal time in decimal hours (TDOUBLE)
 RA_DRV  =                    *  / RA in hours (taken from az/el actual, precessed to J2000)
 RADG_DRV=                    *  / RA in degrees (taken from az/el actual, precessed to J2000)
 DEC_DRV =                    *  / DEC in degrees (taken from az/el actual, precessed to J2000)
+### Cleo fields ###
+CLEOREV =                    *  / Cleo server revision #
+ATMCRAJ2=                    *  / RA in degrees (as computed by cleo, precessed to J2000)
+ATMCDCJ2=                    *  / DEC in degrees (as computed by cleo, precessed to J2000)
+IFV1CSFQ=                    *  / server-derived center freq in MHz
+IFV1BW  =                    *  / MHz - estimate of useful BW
+IFV1LVL =                    *  / (unreliable) system set to low of high intensity noise diode
+IFV1IFFQ=                    *  / IF freq corresponding to CorrectedSkyFrequency (MHz)
+IFV1SSB =                    *  / lower/upper - if upper sky freqs increase as IF freqs increase
+IFV1SKFQ=                    *  / sky freq at IF in MHz at start of obs, not correct during a scan if doppler tracking
+IFV2CSFQ=                    *  / server-derived center freq in MHz
+IFV2BW  =                    *  / MHz - estimate of useful BW
+IFV2LVL =                    *  / (unreliable) system set to low of high intensity noise diode
+IFV2IFFQ=                    *  / IF freq corresponding to CorrectedSkyFrequency (MHz)
+IFV2SSB =                    *  / lower/upper - if upper sky freqs increase as IF freqs increase
+IFV2SKFQ=                    *  / sky freq at IF in MHz at start of obs, not correct during a scan if doppler tracking
+LO1APSFQ=                    *  / Hz, used to determine Doppler tracking altering center sky freq
+LO1BPSFQ=                    *  / Hz, used to determine Doppler tracking altering center sky freq
+VEGSFBW1=                    *  / analog filger BW (MHz) just in front of VEGAS inputs
+VEGSFBW2=                    *  / analog filger BW (MHz) just in front of VEGAS inputs
+VEGSFBW3=                    *  / analog filger BW (MHz) just in front of VEGAS inputs
+VEGSFBW4=                    *  / analog filger BW (MHz) just in front of VEGAS inputs
+VEGSFBW5=                    *  / analog filger BW (MHz) just in front of VEGAS inputs
+VEGSFBW6=                    *  / analog filger BW (MHz) just in front of VEGAS inputs
+VEGSFBW7=                    *  / analog filger BW (MHz) just in front of VEGAS inputs
+VEGSFBW8=                    *  / analog filger BW (MHz) just in front of VEGAS inputs
+VEGSSBAM=                    *  / if == 1 and ScanCoordinator == "Running" then observer collecting data with bank A
+VEGSSBBM=                    *  / if == 1 and ScanCoordinator == "Running" then observer collecting data with bank B
+VEGSSBCM=                    *  / if == 1 and ScanCoordinator == "Running" then observer collecting data with bank C
+VEGSSBDM=                    *  / if == 1 and ScanCoordinator == "Running" then observer collecting data with bank D
+VEGSSBEM=                    *  / if == 1 and ScanCoordinator == "Running" then observer collecting data with bank E
+VEGSSBFM=                    *  / if == 1 and ScanCoordinator == "Running" then observer collecting data with bank F
+VEGSSBGM=                    *  / if == 1 and ScanCoordinator == "Running" then observer collecting data with bank G
+VEGSSBHM=                    *  / if == 1 and ScanCoordinator == "Running" then observer collecting data with bank H
+BAMMPWR1=                    *  / power levels in (dBn) of VEGAS samplers (polarization 1)
+BAMMPWR2=                    *  / power levels in (dBn) of VEGAS samplers (polarization 2)
 ### Sample clock synth fields ###
 CLOCKTIM=                    *  / unix time of this clock data (TINT)  
 CLOCKFRQ=                    *  / clock frequency - the sample rate of the instrument (TDOUBLE)
