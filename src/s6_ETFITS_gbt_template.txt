@@ -85,7 +85,7 @@ VELFRAME=                    *  / velocity frame (TSTRING)
 VELDEF  =                    *  / velocity defintion (TSTRING)
 J2000MAJ=                    *  / J2000 major (TDOUBLE)
 J2000MIN=                    *  / J2000 minor (TDOUBLE)
-### Derived fields ###
+### GBTstatus Derived fields ###
 LSTH_DRV=                    *  / local sidereal time in decimal hours (TDOUBLE)
 RA_DRV  =                    *  / RA in hours (taken from az/el actual, precessed to J2000)
 RADG_DRV=                    *  / RA in degrees (taken from az/el actual, precessed to J2000)
@@ -126,6 +126,8 @@ VEGSSBGM=                    *  / if == 1 and ScanCoordinator == "Running" then 
 VEGSSBHM=                    *  / if == 1 and ScanCoordinator == "Running" then observer collecting data with bank H
 BAMMPWR1=                    *  / power levels in (dBn) of VEGAS samplers (polarization 1)
 BAMMPWR2=                    *  / power levels in (dBn) of VEGAS samplers (polarization 2)
+### Cleo derived fields ###
+LCUDSECS=                    *  / seconds since last update of any cleo values from server
 ### Sample clock synth fields ###
 CLOCKTIM=                    *  / unix time of this clock data (TINT)  
 CLOCKFRQ=                    *  / clock frequency - the sample rate of the instrument (TDOUBLE)

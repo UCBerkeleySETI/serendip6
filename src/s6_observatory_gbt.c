@@ -82,6 +82,8 @@ int main(int argc, char ** argv) {
   int cleo_port = 8030;
   char timestamp[256], key[256], value[256];
 
+  long lcudsecs, lcudwhen; // for calculating last cleo update seconds
+
   //### read in command line arguments
 
   for (i = 1; i < argc; i++) {
@@ -253,6 +255,8 @@ int main(int argc, char ** argv) {
   //### any other preparations before main loop?
   
   strcpy(last_last_update,"");
+  lcudsecs = 0;
+  lcudwhen = time(NULL);
 
   //### MAIN LOOP
   
@@ -362,10 +366,12 @@ int main(int argc, char ** argv) {
       // fprintf(stderr,"#####DEBUG: receiving from cleo...\n");
       if( (bytes_read = recv(sock , server_reply , 20000 , 0)) < 0) { 
         if (dostdout) printf("(nothing right now)\n"); 
+        now = time(NULL);
+        lcudsecs = now-lcudwhen;
         }
       else {
-  
         now = time(NULL);
+        lcudwhen = now; lcudsecs = 0;
         server_reply[bytes_read] = '\0';
         // fprintf(stderr, "\n#####DEBUG\nServer reply (%d) :\n%s\n#####END DEBUG\n",bytes_read, server_reply);
         byte_at = 0;
@@ -385,15 +391,27 @@ int main(int argc, char ** argv) {
                 printf("   %8s (%60s) : %s (time: %s)\n",cleofitskeys[i],cleokeys[i],value,timestamp);
                 }
               }
-            }
+            } // end for each key
           if (found == 0) { fprintf(stderr,"warning: can't look up cleo key: %s\n",key); }
           // fprintf(stderr, "PARSED: timestamp %s key %s value %s (bytes_in %d, byte_at %d)\n", timestamp, key, value,bytes_in,byte_at);
           // fprintf(stderr, "CLEO KEY: %s\n",key);
           byte_at += bytes_in;
-          }
+          } // end while
 
         }
-  
+
+      // cleo derived values
+
+      if (!nodb) {
+        reply = redisCommand(c,"HMSET LCUDSECS STIME %ld VALUE %ld",now,lcudsecs);
+        freeReplyObject(reply); 
+        }
+      if (dostdout) {
+        printf("   %8s (%60s) : %ld\n","LCUDSECS","derived",lcudsecs);
+        }
+
+      // end derived values
+
       if (dostdout) { printf("----------- (end cleo)\n"); }
  
       }

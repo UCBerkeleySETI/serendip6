@@ -403,7 +403,7 @@ int write_integration_header_gbt(etfits_t * etf, gbtstatus_t *gbtstatus) {
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "J2000MAJ",  &(gbtstatus->J2000MAJ), NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "J2000MIN",  &(gbtstatus->J2000MIN), NULL, status_p); 
 
-    // the derived fields below are from s6_observatory_gbt but not from gbtstatus/mysql
+    // the gbtstatus-derived fields below are from s6_observatory_gbt or elsewhere but not from gbtstatus/mysql
     
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "LSTH_DRV",  &(gbtstatus->LSTH_DRV), NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "RA_DRV",  &(gbtstatus->RA_DRV), NULL, status_p); 
@@ -457,6 +457,10 @@ int write_integration_header_gbt(etfits_t * etf, gbtstatus_t *gbtstatus) {
     if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VEGSSBHM",  &(gbtstatus->VEGSSBHM), NULL, status_p);
     if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "BAMMPWR1",  &(gbtstatus->BAMMPWR1), NULL, status_p);
     if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "BAMMPWR2",  &(gbtstatus->BAMMPWR2), NULL, status_p);
+
+    // the cleo-related derived fields below are from s6_observatory_gbt but not from cleo
+
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "LCUDSECS",  &(gbtstatus->LCUDSECS), NULL, status_p);
 
 #ifdef SOURCE_S6
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "ADCRMSTM",  &(gbtstatus->ADCRMSTM),   NULL, status_p); 

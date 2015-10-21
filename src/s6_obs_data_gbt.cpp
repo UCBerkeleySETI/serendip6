@@ -395,6 +395,11 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
       reply = (redisReply *)redisCommand(c,"HMGET VEGASCM STIME"); gbtstatus->VEGASCMSTIME = atol(reply->element[0]->str); freeReplyObject(reply);
       reply = (redisReply *)redisCommand(c,"HMGET VEGASCM MJD"); gbtstatus->VEGASCMMJD = atof(reply->element[0]->str); freeReplyObject(reply);
 
+      // values derived from cleo
+
+      reply = (redisReply *)redisCommand(c,"HMGET LCUDSECS VALUE"); gbtstatus->LCUDSECS = atol(reply->element[0]->str); freeReplyObject(reply); 
+      reply = (redisReply *)redisCommand(c,"HMGET LCUDSECS STIME"); gbtstatus->LCUDSECSSTIME = atol(reply->element[0]->str); freeReplyObject(reply); 
+
       }
 
     // Sample clock rate parameters

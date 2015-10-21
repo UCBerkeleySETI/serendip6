@@ -69,7 +69,7 @@ typedef struct gbtstatus {
    double J2000MIN;                            // j2000_minor
    long J2000MINSTIME;
 
-   // the derived fields below are from s6_observatory_gbt but not from gbtstatus/mysql
+   // the gbtstatus-derived fields below are from s6_observatory_gbt but not from gbtstatus/mysql
     
    double LSTH_DRV;         // lst in decimal hours
    long LSTH_DRVSTIME;
@@ -472,6 +472,11 @@ typedef struct gbtstatus {
     char VEGASCM[GBTSTATUS_STRING_SIZE]; // VEGAS,VEGAS,ConnectionToManager
     long VEGASCMSTIME;
     double VEGASCMMJD;
+
+   // the cleo-related derived fields below are from s6_observatory_gbt but not from cleo
+
+   long LCUDSECS; // Last CLEO Update seconds (i.e. how many seconds since last known updated value from cleo
+   long LCUDSECSSTIME;
 
    // the fields below are other scripts and not from gbtstatus/mysql/cleo
 
