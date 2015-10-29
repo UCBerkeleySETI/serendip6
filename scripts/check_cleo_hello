@@ -1,4 +1,4 @@
-#! /bin/csh
+#! /bin/csh -x
 
 # send a "HELLO" to the cleo client (via the cleo_hello program)
 # should get a "GOODDAY" response - report 1 if so, 0 if not
@@ -23,7 +23,7 @@ endif
 redis-cli -h $REDISHOST -p $REDISPORT HMSET CLEOHELLO VALUE $NEWVALUE STIME $STIME >& /dev/null
 
 if ($NEWVALUE == 0 && $CURVALUE == 1) then
-  mail -s "s6@gbt: cleo_hello value changed from 1 to 0" << HERE
+  mail -s "s6@gbt: cleo_hello value changed from 1 to 0" $ADMINS << HERE
 
 current unix time: $STIME
 
