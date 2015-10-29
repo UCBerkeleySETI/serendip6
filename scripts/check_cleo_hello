@@ -1,4 +1,4 @@
-#! /bin/csh -x
+#! /bin/csh
 
 # send a "HELLO" to the cleo client (via the cleo_hello program)
 # should get a "GOODDAY" response - report 1 if so, 0 if not
