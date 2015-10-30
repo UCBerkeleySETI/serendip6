@@ -38,7 +38,7 @@ CLEOPID CleoSetiServer,PID
 CLEOREV CleoSetiServer,Revision                              # cleo revision - should record
 IFMIFMCM IFManager,IFManager,ConnectionToManager
 IFV1BW IFManager,VEGAS_J1,bandwidth                          # MHz - estimate of useful BW
-IFV1CSFQ IFManager,VEGAS_J1,CorrectedSkyFrequency            # server-derviced center freq in MHz
+IFV1CSFQ IFManager,VEGAS_J1,CorrectedSkyFrequency            # server-derived center freq in MHz
 IFV1LVL IFManager,VEGAS_J1,level                             # (unreliable) system set to low of high intensity noise diode
 IFV1IFFQ IFManager,VEGAS_J1,spectrum,IF,centerFrequency      # IF freq corresponding to CorrectedSkyFrequency (MHz)
 IFV1SSB IFManager,VEGAS_J1,spectrum,sideband                 # lower/upper - if upper sky freqs increase as IF freqs increase

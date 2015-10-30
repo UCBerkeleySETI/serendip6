@@ -88,6 +88,9 @@ int main(int argc, char ** argv) {
   bool cleo_connected = false;
 
   int64_t idlestatus;
+  long tmplong;
+  double tmpdouble;
+  char tmpstring[256];
 
   //### read in command line arguments
 
@@ -426,6 +429,58 @@ int main(int argc, char ** argv) {
       if (dostdout) {
         printf("   %8s (%60s) : %ld\n","LCUDSECS","derived",lcudsecs);
         }
+
+      // general derived values
+
+      idlestatus = 0;
+
+ // examples: to delete
+ //     reply = (redisReply *)redisCommand(c,"HMGET LASTUPDT VALUE"); s6_strcpy(gbtstatus->LASTUPDT,reply->element[0]->str); freeReplyObject(reply);
+ //     reply = (redisReply *)redisCommand(c,"HMGET LASTUPDT STIME"); gbtstatus->LASTUPDTSTIME = atol(reply->element[0]->str); freeReplyObject(reply);
+
+/*
+#define idle_atlpoaz1_too_large                 0x000000000000020; // GB - ATLPOAZ1 Antenna,localPointingOffsets,azOffset1 # radians - ignore data if too large
+#define idle_atlpoaz2_too_large                 0x000000000000040; // GB - ATLPOAZ2 Antenna,localPointingOffsets,azOffset1 # radians - ignore data if too large
+#define idle_atlpoel_too_large                  0x000000000000080; // GB - ATLPOEL Antenna,localPointingOffsets,elOffset # radians - ignore data if too large
+
+#define idle_atlfcxt_non_zero                   0x000000000000200; // GB - ATLFCXT Antenna,local_focus_correction,Xt # subreflector tilt degrees - ignore if non-zero
+#define idle_atlfcy_too_large                   0x000000000000400; // GB - ATLFCY Antenna,local_focus_correction,Y # mm - ignore if too large
+#define idle_atlfctr_too_large                  0x000000000000800; // GB - ATLFCYT Antenna,local_focus_correction,Yt # subreflector tilt degrees- ignore if too large
+
+#define idle_atlfcz_non_zero                    0x000000000001000; // GB - ATLFCZ Antenna,local_focus_correction,X # mm - ignore if non-zero
+#define idle_atlfczt_non_zero                   0x000000000002000; // GB - ATLFCZT Antenna,local_focus_correction,Xt # subreflector tilt degrees - ignore if non-zero
+#define idle_atoptmod_not_matched               0x000000000004000; // GB - ATOPTMOD Antenna,opticsMode # should match what IF manager reports
+#define idle_atrecvr_not_matched                0x000000000008000; // GB - ATRECVR Antenna,receiver # should match IF manager, opticsMode, and GregorianReceiver
+
+#define idle_atrxocta_wrong_degrees             0x000000000010000; // GB - ATRXOCTA Antenna,rxOpticsConfig,turretAngle # current rot angle of turrent in degrees (should match what's in TurretLocations)
+#define idle_attrbeam_not_1                     0x000000000020000; // GB - ATTRBEAM Antenna,trackBeam  # if != 1 then using non central beam and data should be ignored
+#define idle_atmfbs_wrong_state                 0x000000000040000; // GB - ATMFBS AntennaManager,feedBoomState # PF receiver && BOOM_EXTENDED || Gregorian && BOOM_RETRACTED
+#define idle_atmtls_not_locked                  0x000000000080000; // GB - ATMTLS AntennaManager,turretLockState # If TURRET_LOCK_LOCKED, otherwise ignore data
+
+#define idle_optgreg_not_true                   0x000000000100000; // GB - OPTGREG OpticsOK,Gregorian # if != TRUE then optics offset or tilted and sky pos and gain may be wrong
+#define idle_optprime_not_true                  0x000000000200000; // GB - OPTPRIME OpticsOK,PrimeFocus # if != TRUE then optics offset or tilted and sky pos and gain may be wrong
+#define idle_lo1fqsw_true                       0x000000000400000; // GB - LO1FQSW LO1,FrequencySwitching # if TRUE then data should probably be ignored
+#define idle_lo1cfg_test_tone                   0x000000000800000; // GB - LO1CFG LO1,loConfig # if != (TrackA_BNotUsed || TrackB_ANotUsed) then good chance test tone injected
+
+#define idle_lo1phcal_on                        0x000000001000000; // GB - LO1PHCAL LO1,phaseCalCtl # if ON the VLB phase cal is on and data should have "rail of lines"
+#define idle_bammpwr1_bad_power                 0x000000002000000; // GB - BAMMPWR1 BankAMgr,measpwr1  # power levels in (dBn) of VEGAS samplers (polarization 1) - too different than -20 system may be non-linear
+#define idle_bammpwr2_bad_power                 0x000000004000000; // GB - BAMMPWR2 BankAMgr,measpwr2  # power levels in (dBn) of VEGAS samplers (polarization 2) - too different than -20 system may be non-linear
+#define idle_lastupdt_old                       0x000000008000000; // GB - last update to gbstatus is > 60 then something is wrong
+*/
+
+      // #define idle_atfctrmd_not_1                     0x000000000000010; // GB - ATFCTRMD Antenna,focusTrackingMode # if not 1 then data should be ignored
+      reply = (redisReply *)redisCommand(c,"HMGET ATFCTRMD VALUE"); tmplong = atol(reply->element[0]->str); freeReplyObject(reply);
+//      if (tmplong != 1) idlestatus |= idle_atfctrmd_not_1;
+
+      // #define idle_atlfcx_non_zero                    0x000000000000100; // GB - ATLFCX Antenna,local_focus_correction,X # mm - ignore if non-zero
+      reply = (redisReply *)redisCommand(c,"HMGET ATFCTRMD VALUE"); tmpdouble = atof(reply->element[0]->str); freeReplyObject(reply);
+      
+
+      // web control  
+      reply = (redisReply *)redisCommand(c,"GET WEBCNTRL"); tmplong = atol(reply->str); freeReplyObject(reply);
+ //     if (tmplong == 0) idlestatus |= idle_webcntrl_off;
+
+
 
       // end derived values
 

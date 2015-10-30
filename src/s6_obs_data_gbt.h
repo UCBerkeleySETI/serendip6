@@ -8,6 +8,82 @@
 #define GBTSTATUS_STRING_SIZE 32
 #define GBTSTATUS_BIG_STRING_SIZE 256
 
+// idle status reasons bitmap
+#define idle_nibble_01_1bit                     0x000000000000001; // saving these 4 for something important
+#define idle_nibble_01_2bit                     0x000000000000002;
+#define idle_nibble_01_4bit                     0x000000000000004;
+#define idle_nibble_01_8bit                     0x000000000000008;
+
+#define idle_atfctrmd_not_1                     0x000000000000010; // GB - ATFCTRMD Antenna,focusTrackingMode # if not 1 then data should be ignored
+#define idle_atlpoaz1_too_large                 0x000000000000020; // GB - ATLPOAZ1 Antenna,localPointingOffsets,azOffset1 # radians - ignore data if too large
+#define idle_atlpoaz2_too_large                 0x000000000000040; // GB - ATLPOAZ2 Antenna,localPointingOffsets,azOffset1 # radians - ignore data if too large
+#define idle_atlpoel_too_large                  0x000000000000080; // GB - ATLPOEL Antenna,localPointingOffsets,elOffset # radians - ignore data if too large
+
+#define idle_atlfcx_non_zero                    0x000000000000100; // GB - ATLFCX Antenna,local_focus_correction,X # mm - ignore if non-zero
+#define idle_atlfcxt_non_zero                   0x000000000000200; // GB - ATLFCXT Antenna,local_focus_correction,Xt # subreflector tilt degrees - ignore if non-zero
+#define idle_atlfcy_too_large                   0x000000000000400; // GB - ATLFCY Antenna,local_focus_correction,Y # mm - ignore if too large
+#define idle_atlfctr_too_large                  0x000000000000800; // GB - ATLFCYT Antenna,local_focus_correction,Yt # subreflector tilt degrees- ignore if too large
+
+#define idle_atlfcz_non_zero                    0x000000000001000; // GB - ATLFCZ Antenna,local_focus_correction,X # mm - ignore if non-zero
+#define idle_atlfczt_non_zero                   0x000000000002000; // GB - ATLFCZT Antenna,local_focus_correction,Xt # subreflector tilt degrees - ignore if non-zero
+#define idle_atoptmod_not_matched               0x000000000004000; // GB - ATOPTMOD Antenna,opticsMode # should match what IF manager reports
+#define idle_atrecvr_not_matched                0x000000000008000; // GB - ATRECVR Antenna,receiver # should match IF manager, opticsMode, and GregorianReceiver
+
+#define idle_atrxocta_wrong_degrees             0x000000000010000; // GB - ATRXOCTA Antenna,rxOpticsConfig,turretAngle # current rot angle of turrent in degrees (should match what's in TurretLocations)
+#define idle_attrbeam_not_1                     0x000000000020000; // GB - ATTRBEAM Antenna,trackBeam  # if != 1 then using non central beam and data should be ignored
+#define idle_atmfbs_wrong_state                 0x000000000040000; // GB - ATMFBS AntennaManager,feedBoomState # PF receiver && BOOM_EXTENDED || Gregorian && BOOM_RETRACTED
+#define idle_atmtls_not_locked                  0x000000000080000; // GB - ATMTLS AntennaManager,turretLockState # If TURRET_LOCK_LOCKED, otherwise ignore data
+
+#define idle_optgreg_not_true                   0x000000000100000; // GB - OPTGREG OpticsOK,Gregorian # if != TRUE then optics offset or tilted and sky pos and gain may be wrong
+#define idle_optprime_not_true                  0x000000000200000; // GB - OPTPRIME OpticsOK,PrimeFocus # if != TRUE then optics offset or tilted and sky pos and gain may be wrong
+#define idle_lo1fqsw_true                       0x000000000400000; // GB - LO1FQSW LO1,FrequencySwitching # if TRUE then data should probably be ignored
+#define idle_lo1cfg_test_tone                   0x000000000800000; // GB - LO1CFG LO1,loConfig # if != (TrackA_BNotUsed || TrackB_ANotUsed) then good chance test tone injected
+
+#define idle_lo1phcal_on                        0x000000001000000; // GB - LO1PHCAL LO1,phaseCalCtl # if ON the VLB phase cal is on and data should have "rail of lines"
+#define idle_bammpwr1_bad_power                 0x000000002000000; // GB - BAMMPWR1 BankAMgr,measpwr1  # power levels in (dBn) of VEGAS samplers (polarization 1) - too different than -20 system may be non-linear
+#define idle_bammpwr2_bad_power                 0x000000004000000; // GB - BAMMPWR2 BankAMgr,measpwr2  # power levels in (dBn) of VEGAS samplers (polarization 2) - too different than -20 system may be non-linear
+#define idle_lastupdt_old                       0x000000008000000; // GB - last update to gbstatus is > 60 then something is wrong
+
+#define idle_webcntrl_off                       0x000000010000000; // GB - webcontrol = 0, i.e. operators turned us off
+#define idle_runalways_off                      0x000000020000000; // GB - runalways = 0
+#define idle_nibble_08_4bit                     0x000000040000000;
+#define idle_nibble_08_8bit                     0x000000080000000;
+
+#define idle_nibble_09_1bit                     0x000000100000000;
+#define idle_nibble_09_2bit                     0x000000200000000;
+#define idle_nibble_09_4bit                     0x000000400000000;
+#define idle_nibble_09_8bit                     0x000000800000000;
+
+#define idle_nibble_10_1bit                     0x000001000000000;
+#define idle_nibble_10_2bit                     0x000002000000000;
+#define idle_nibble_10_4bit                     0x000004000000000;
+#define idle_nibble_10_8bit                     0x000008000000000;
+
+#define idle_nibble_11_1bit                     0x000010000000000;
+#define idle_nibble_11_2bit                     0x000020000000000;
+#define idle_nibble_11_4bit                     0x000040000000000;
+#define idle_nibble_11_8bit                     0x000080000000000;
+
+#define idle_nibble_12_1bit                     0x000100000000000;
+#define idle_nibble_12_2bit                     0x000200000000000;
+#define idle_nibble_12_4bit                     0x000400000000000;
+#define idle_nibble_12_8bit                     0x000800000000000;
+
+#define idle_nibble_13_1bit                     0x001000000000000;
+#define idle_nibble_13_2bit                     0x002000000000000;
+#define idle_nibble_13_4bit                     0x004000000000000;
+#define idle_nibble_13_8bit                     0x008000000000000;
+
+#define idle_nibble_14_1bit                     0x010000000000000;
+#define idle_nibble_14_2bit                     0x020000000000000;
+#define idle_nibble_14_4bit                     0x040000000000000;
+#define idle_nibble_14_8bit                     0x080000000000000;
+
+#define idle_nibble_15_1bit                     0x100000000000000;
+#define idle_nibble_15_2bit                     0x200000000000000;
+#define idle_nibble_15_4bit                     0x400000000000000;
+#define idle_nibble_15_8bit                     0x800000000000000;
+
 typedef struct gbtstatus {
 
    // actually from gbtstatus, i.e. the mysql database
@@ -477,6 +553,11 @@ typedef struct gbtstatus {
 
    long LCUDSECS; // Last CLEO Update seconds (i.e. how many seconds since last known updated value from cleo
    long LCUDSECSSTIME;
+
+   // idle status derived from all possible inputs 
+
+   long IDLESTATUS; // 0 == we should take data, >0 we're idling due to set bit field values  
+   long IDLESTATUSSTIME;   
 
    // the fields below are other scripts and not from gbtstatus/mysql/cleo
 

@@ -460,7 +460,7 @@ int write_integration_header_gbt(etfits_t * etf, gbtstatus_t *gbtstatus) {
 
     // the cleo-related derived fields below are from s6_observatory_gbt but not from cleo
 
-    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "LCUDSECS",  &(gbtstatus->LCUDSECS), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TINT,  "LCUDSECS",  &(gbtstatus->LCUDSECS), NULL, status_p);
 
 #ifdef SOURCE_S6
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "ADCRMSTM",  &(gbtstatus->ADCRMSTM),   NULL, status_p); 
