@@ -84,6 +84,11 @@ int main(int argc, char ** argv) {
 
   long lcudsecs, lcudwhen; // for calculating last cleo update seconds
 
+  bool found_any_key;
+  bool cleo_connected = false;
+
+  int64_t idlestatus;
+
   //### read in command line arguments
 
   for (i = 1; i < argc; i++) {
@@ -223,32 +228,6 @@ int main(int argc, char ** argv) {
       }
     }
 
-  //### connect to cleo socket
-
-  if (!nocleo) {
-      //Create socket
-    sock = socket(AF_INET , SOCK_STREAM , 0);
-    if (sock == -1) { fprintf(stderr, "Could not create socket\n"); exit(1); }
-    fprintf(stderr, "Socket created\n");
-  
-      // populate server struct
-    memset((char *) &server, 0, sizeof(server));
-    server.sin_family = AF_INET;
-    memcpy((char *)&server.sin_addr.s_addr,
-           (char *)server_info->h_addr,
-           server_info->h_length);
-    server.sin_port = htons(cleo_port);            // network byte order
-  
-      //Connect to remote server
-    if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0) {
-        fprintf(stderr,"Connect to cleo socket failed.\n");
-        exit(1);
-        }
-
-    // fprintf(stderr, "Connected\n");
-
-    }
-
   int saved_flags = fcntl(sock, F_GETFL);
   fcntl(sock, F_SETFL, saved_flags | O_NONBLOCK);
 
@@ -261,6 +240,37 @@ int main(int argc, char ** argv) {
   //### MAIN LOOP
   
   while (1) {
+
+    //### if not already, connect to cleo socket
+
+    if (!nocleo && !cleo_connected) {
+
+      //Create socket
+      sock = socket(AF_INET , SOCK_STREAM , 0);
+      if (sock == -1) { fprintf(stderr, "Could not create socket\n"); exit(1); }
+      fprintf(stderr, "Socket created\n");
+    
+      // populate server struct
+      memset((char *) &server, 0, sizeof(server));
+      server.sin_family = AF_INET;
+      memcpy((char *)&server.sin_addr.s_addr,
+             (char *)server_info->h_addr,
+             server_info->h_length);
+      server.sin_port = htons(cleo_port);            // network byte order
+    
+      //Connect to remote server
+      if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0) {
+          fprintf(stderr,"Connect to cleo socket failed.\n");
+          exit(1);
+          }
+
+      cleo_connected = true;
+  
+      // fprintf(stderr, "Connected\n");
+  
+      }
+
+    //### okay, now onto the various data collections
 
     if (!nomysql) {
 
@@ -371,10 +381,10 @@ int main(int argc, char ** argv) {
         }
       else {
         now = time(NULL);
-        lcudwhen = now; lcudsecs = 0;
         server_reply[bytes_read] = '\0';
         // fprintf(stderr, "\n#####DEBUG\nServer reply (%d) :\n%s\n#####END DEBUG\n",bytes_read, server_reply);
         byte_at = 0;
+        found_any_key = false;
         while (sscanf(server_reply+byte_at,"%s %s %[^\n]%n",timestamp,key,value,&bytes_in) == 3) {
           value[strlen(value)-1] = 0;
           // act on timestamp/key/value 
@@ -383,6 +393,7 @@ int main(int argc, char ** argv) {
           for (i = 0; i < num_cleo_keys; i++) {
             if (strcmp(key,cleokeys[i]) == 0) {
               found = 1;
+              found_any_key = true;
               if (!nodb) {
                 reply = redisCommand(c,"HMSET %s STIME %ld VALUE %s MJD %s",cleofitskeys[i],now,value,timestamp);
                 freeReplyObject(reply); 
@@ -397,7 +408,13 @@ int main(int argc, char ** argv) {
           // fprintf(stderr, "CLEO KEY: %s\n",key);
           byte_at += bytes_in;
           } // end while
-
+        if (found_any_key) { lcudwhen = now; lcudsecs = 0; }
+        else {
+          //fprintf(stderr, "\n#####DEBUG (found_any_key == false)\nServer reply (%d) :\n%s\n#####END DEBUG\n",bytes_read, server_reply);
+          fprintf(stderr, "warning: weird cleo state - will attempt to restart socket\n");
+          close(sock);
+          cleo_connected = false; 
+          }     
         }
 
       // cleo derived values

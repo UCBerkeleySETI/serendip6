@@ -48,32 +48,35 @@ int main(int argc , char *argv[])
     server.sin_port = htons(portno);            // network byte order
  
     //Connect to remote server
-    if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0) { fprintf(stderr,"Connect to cleo failed\n"); exit(1); }
+    if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0) { fprintf(stderr,"Connect to cleo failed\n"); close(sock); exit(1); }
      
     strcpy(message,"HELLO\n");
 
     // fprintf(stderr,"sending message: --%s--\n",message);
 
     //Send some data
-    if( send(sock , message , strlen(message) , 0) < 0) { fprintf(stderr,"HELLO send failed\n"); exit(1); }
+    if( send(sock , message , strlen(message) , 0) < 0) { fprintf(stderr,"HELLO send failed\n"); close(sock); exit(1); }
 
     int saved_flags = fcntl(sock, F_GETFL);
     fcntl(sock, F_SETFL, saved_flags & ~O_NONBLOCK);
 
-    //Wait five seconds for GOODDAY
+    // //Wait five seconds for GOODDAY
+    // for (i = 1; i <= 5; i++) {
 
-    for (i = 1; i <= 5; i++) {
+    // let's try 10 seconds - 5 seconds seems to fail often for no obvious reason
+    for (i = 1; i <= 10; i++) {
+
         // fprintf(stderr,"try: %d\n",i);
         //Receive a reply from the server
-        if( (bytes_read = recv(sock , server_reply , 20000 , 0)) < 0) { fprintf(stderr,"receive failed\n"); exit(1); }
+        if( (bytes_read = recv(sock , server_reply , 20000 , 0)) < 0) { fprintf(stderr,"receive failed\n"); close(sock); exit(1); }
 
         server_reply[bytes_read] = '\0';
         // fprintf(stderr,"reply:\n%s\n=====\n",server_reply);
-        if (strstr(server_reply,"GOODDAY")!=NULL) { fprintf(stderr,"GOODDAY\n"); exit(0); }
+        if (strstr(server_reply,"GOODDAY")!=NULL) { fprintf(stderr,"GOODDAY\n"); close(sock); exit(0); }
 
         sleep(1);
     }
  
-    fprintf(stderr,"no goodday!\n"); exit(1);
+    fprintf(stderr,"no goodday!\n"); close(sock); exit(1);
      
 }
