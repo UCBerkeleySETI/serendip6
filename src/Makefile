@@ -10,7 +10,7 @@ S6_LIB_CCFLAGS     = -g -O3 -fPIC -shared -lstdc++ -mavx -msse4 \
 		     -I. -I$(CUDA_DIR)/include -I/usr/local/include \
 		     -L. -L/usr/local/lib \
 		     -lhashpipe -lS6GPU -lrt -lhiredis -lcfitsio -lazzatoradec -laoscram -lm
-S6OBS_AO__PROG_CCFLAGS = -g -lstdc++ \
+S6OBS_AO_PROG_CCFLAGS = -g -lstdc++ \
 		     -I/usr/include/tcl \
 		     -I/usr/local/include \
 		     -I/usr/local/include/ao \
@@ -93,6 +93,8 @@ $(S6GPUTEST_PROG_TARGET): $(S6GPUTEST_PROG_SOURCES) $(S6GPUTEST_PROG_INCLUDES) ;
 $(S6_LIB_TARGET):         $(S6_LIB_SOURCES) $(S6_LIB_INCLUDES) ;                 $(CC)   -o $(S6_LIB_TARGET) $(S6_LIB_SOURCES) $(S6_LIB_CCFLAGS) $(S6_LOCATION)
 
 $(S6OBS_PROG_TARGET):     $(S6OBS_PROG_SOURCES) $(S6OBS_PROG_INCLUDES) ;         $(CC)   -o $(S6OBS_PROG_TARGET) $(S6OBS_PROG_SOURCES) $(S6OBS_PROG_CCFLAGS) $(S6_LOCATION)
+
+$(S6OBS_AO_PROG_TARGET): $(S6OBS_AO_PROG_SOURCES) $(S6OBS_AO_PROG_INCLUDES) ;    $(CC)   -o $(S6OBS_AO_PROG_TARGET) $(S6OBS_AO_PROG_SOURCES) $(S6OBS_AO_PROG_CCFLAGS)
 
 $(S6OBS_GBT_PROG_TARGET): $(S6OBS_GBT_PROG_SOURCES) $(S6OBS_GBT_PROG_INCLUDES) ; $(CC)   -o $(S6OBS_GBT_PROG_TARGET) $(S6OBS_GBT_PROG_SOURCES) $(S6OBS_GBT_PROG_CCFLAGS)
 
