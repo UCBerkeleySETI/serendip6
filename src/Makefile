@@ -42,12 +42,6 @@ S6GPU_LIB_SOURCES   = s6GPU.cu
 S6GPU_LIB_INCLUDES  = s6GPU.h \
 		      stopwatch.hpp
 
-S6GPUTEST_PROG_TARGET   = s6GPU_test
-S6GPUTEST_PROG_SOURCES  = s6GPU_test.cpp \
-			  s6_fake_data.cpp
-S6GPUTEST_PROG_INCLUDES = s6GPU.h \
-			  s6GPU_test.h
-
 S6EXTRACT_PROG_TARGET   = s6_extract_coarse_chan
 S6EXTRACT_PROG_SOURCES  = s6_extract_coarse_chan.cpp
 S6EXTRACT_PROG_INCLUDES = s6_databuf.h
