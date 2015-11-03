@@ -403,7 +403,7 @@ int write_integration_header_gbt(etfits_t * etf, gbtstatus_t *gbtstatus) {
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "J2000MAJ",  &(gbtstatus->J2000MAJ), NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "J2000MIN",  &(gbtstatus->J2000MIN), NULL, status_p); 
 
-    // the derived fields below are from s6_observatory_gbt but not from gbtstatus/mysql
+    // the gbtstatus-derived fields below are from s6_observatory_gbt or elsewhere but not from gbtstatus/mysql
     
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "LSTH_DRV",  &(gbtstatus->LSTH_DRV), NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "RA_DRV",  &(gbtstatus->RA_DRV), NULL, status_p); 
@@ -419,6 +419,48 @@ int write_integration_header_gbt(etfits_t * etf, gbtstatus_t *gbtstatus) {
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "BIRDIFRQ",  &(gbtstatus->BIRDIFRQ), NULL, status_p);
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "BIRDIDBM",  &(gbtstatus->BIRDIDBM), NULL, status_p);
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "BIRDILOC",  &(gbtstatus->BIRDILOC), NULL, status_p); 
+
+    // cleo fields
+
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "CLEOREV",  &(gbtstatus->CLEOREV), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "ATMCRAJ2",  &(gbtstatus->ATMCRAJ2), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "ATMCDCJ2",  &(gbtstatus->ATMCDCJ2), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "IFV1CSFQ",  &(gbtstatus->IFV1CSFQ), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "IFV1BW",  &(gbtstatus->IFV1BW), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "IFV1LVL",  &(gbtstatus->IFV1LVL), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "IFV1IFFQ",  &(gbtstatus->IFV1IFFQ), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "IFV1SSB",  &(gbtstatus->IFV1SSB), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "IFV1SKFQ",  &(gbtstatus->IFV1SKFQ), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "IFV2CSFQ",  &(gbtstatus->IFV2CSFQ), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "IFV2BW",  &(gbtstatus->IFV2BW), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "IFV2LVL",  &(gbtstatus->IFV2LVL), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "IFV2IFFQ",  &(gbtstatus->IFV2IFFQ), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "IFV2SSB",  &(gbtstatus->IFV2SSB), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "IFV2SKFQ",  &(gbtstatus->IFV2SKFQ), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "LO1APSFQ",  &(gbtstatus->LO1APSFQ), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "LO1BPSFQ",  &(gbtstatus->LO1BPSFQ), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VEGSFBW1",  &(gbtstatus->VEGSFBW1), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VEGSFBW2",  &(gbtstatus->VEGSFBW2), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VEGSFBW3",  &(gbtstatus->VEGSFBW3), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VEGSFBW4",  &(gbtstatus->VEGSFBW4), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VEGSFBW5",  &(gbtstatus->VEGSFBW5), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VEGSFBW6",  &(gbtstatus->VEGSFBW6), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VEGSFBW7",  &(gbtstatus->VEGSFBW7), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VEGSFBW8",  &(gbtstatus->VEGSFBW8), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VEGSSBAM",  &(gbtstatus->VEGSSBAM), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VEGSSBBM",  &(gbtstatus->VEGSSBBM), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VEGSSBCM",  &(gbtstatus->VEGSSBCM), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VEGSSBDM",  &(gbtstatus->VEGSSBDM), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VEGSSBEM",  &(gbtstatus->VEGSSBEM), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VEGSSBFM",  &(gbtstatus->VEGSSBFM), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VEGSSBGM",  &(gbtstatus->VEGSSBGM), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VEGSSBHM",  &(gbtstatus->VEGSSBHM), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "BAMMPWR1",  &(gbtstatus->BAMMPWR1), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "BAMMPWR2",  &(gbtstatus->BAMMPWR2), NULL, status_p);
+
+    // the cleo-related derived fields below are from s6_observatory_gbt but not from cleo
+
+    if(! *status_p) fits_update_key(etf->fptr, TINT,  "LCUDSECS",  &(gbtstatus->LCUDSECS), NULL, status_p);
 
 #ifdef SOURCE_S6
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "ADCRMSTM",  &(gbtstatus->ADCRMSTM),   NULL, status_p); 

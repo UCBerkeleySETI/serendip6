@@ -19,9 +19,9 @@
 #define ftoa(A,B) sprintf(B,"%lf",A);
 
 // file containing redis key/mysql row pairs for which to read from mysql and put into redis
-// const char *status_fields_config = "./status_fields";
+// const char *status_fields_config = "./mysql_status_fields";
 const char *mysql_fields_config = "/usr/local/etc/mysql_status_fields";
-//const char *cleo_fields_config = "/usr/local/etc/mysql_status_fields";
+// const char *cleo_fields_config = "./cleo_status_fields";
 const char *cleo_fields_config = "/usr/local/etc/cleo_status_fields";
 
 const char *usage = "Usage: s6_observatory_gbt [-stdout] [-nodb] [-redishost hostname] [-redisport port]\n -[-cleohost hostname] [-cleoport port]\n  [-nomysql] [-nocleo]\n  -stdout: output packets to stdout (normally quiet)\n  -nodb: don't update redis db\n  redishost/redisport: for redis database (default 127.0.0.1:6379)\n  cleohost/cleoport: for cleo socket connection (default euler.gb.nrao.edu/8030)\n  -nomysql/-nocleo : don't attempt to read from either as specified\n\n";
@@ -44,10 +44,11 @@ int main(int argc, char ** argv) {
   char strbuf[1024];
 
   int lines_allocated = 256; // for reading in from status fields
-  int max_line_len = 50;     // for reading in from status fields
+  int max_line_len = 256;     // for reading in from status fields
   FILE *statusfp;
   int num_mysql_keys;
   int num_cleo_keys;
+  char *comment; // dummy storage for comments
 
   bool nodb = false;
   bool dostdout = false;
@@ -80,6 +81,16 @@ int main(int argc, char ** argv) {
   char * cleo_server_hostname = "euler.gb.nrao.edu";
   int cleo_port = 8030;
   char timestamp[256], key[256], value[256];
+
+  long lcudsecs, lcudwhen; // for calculating last cleo update seconds
+
+  bool found_any_key;
+  bool cleo_connected = false;
+
+  int64_t idlestatus;
+  long tmplong;
+  double tmpdouble;
+  char tmpstring[256];
 
   //### read in command line arguments
 
@@ -131,6 +142,8 @@ int main(int argc, char ** argv) {
       }
     }
 
+  comment = (char *)malloc(max_line_len);
+
   //### read in mysql status fields (and create mysql "select" command string)
   
   az_actual_index = el_actual_index = last_update_index = lst_index = mjd_index = -1;
@@ -147,7 +160,7 @@ int main(int argc, char ** argv) {
       mysqlfitskeys[i] = malloc(max_line_len);
       mysqlkeys[i] = malloc(max_line_len);
       if (mysqlfitskeys[i]==NULL || mysqlkeys[i]==NULL) { fprintf(stderr,"Out of memory (getting next line).\n"); exit(1); }
-      if (fscanf(statusfp,"%s %s",mysqlfitskeys[i],mysqlkeys[i])!=2) break;
+      if (fscanf(statusfp,"%s %s%[^\n]\n",mysqlfitskeys[i],mysqlkeys[i],comment)<2) break;
       if (strcmp(mysqlkeys[i],"az_actual") == 0) az_actual_index = i;
       if (strcmp(mysqlkeys[i],"el_actual") == 0) el_actual_index = i;
       if (strcmp(mysqlkeys[i],"last_update") == 0) last_update_index = i;
@@ -186,7 +199,8 @@ int main(int argc, char ** argv) {
       cleofitskeys[i] = malloc(max_line_len);
       cleokeys[i] = malloc(max_line_len);
       if (cleofitskeys[i]==NULL || cleokeys[i]==NULL) { fprintf(stderr,"Out of memory (getting next line).\n"); exit(1); }
-      if (fscanf(statusfp,"%s %s",cleofitskeys[i],cleokeys[i])!=2) break;
+      if (fscanf(statusfp,"%s %s%[^\n]\n",cleofitskeys[i],cleokeys[i],comment)<2) break;
+      // fprintf(stderr,"DEBUG: fits %s key %s comment %s EOL\n",cleofitskeys[i],cleokeys[i],comment);
       }
 
   num_cleo_keys = i;
@@ -217,42 +231,49 @@ int main(int argc, char ** argv) {
       }
     }
 
-  //### connect to cleo socket
-
-  if (!nocleo) {
-      //Create socket
-    sock = socket(AF_INET , SOCK_STREAM , 0);
-    if (sock == -1) { fprintf(stderr, "Could not create socket\n"); exit(1); }
-    fprintf(stderr, "Socket created\n");
-  
-      // populate server struct
-    memset((char *) &server, 0, sizeof(server));
-    server.sin_family = AF_INET;
-    memcpy((char *)&server.sin_addr.s_addr,
-           (char *)server_info->h_addr,
-           server_info->h_length);
-    server.sin_port = htons(cleo_port);            // network byte order
-  
-      //Connect to remote server
-    if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0) {
-        fprintf(stderr,"Connect to cleo socket failed. Error");
-        exit(1);
-        }
-
-    // fprintf(stderr, "Connected\n");
-
-    }
-
   int saved_flags = fcntl(sock, F_GETFL);
   fcntl(sock, F_SETFL, saved_flags | O_NONBLOCK);
 
   //### any other preparations before main loop?
   
   strcpy(last_last_update,"");
+  lcudsecs = 0;
+  lcudwhen = time(NULL);
 
   //### MAIN LOOP
   
   while (1) {
+
+    //### if not already, connect to cleo socket
+
+    if (!nocleo && !cleo_connected) {
+
+      //Create socket
+      sock = socket(AF_INET , SOCK_STREAM , 0);
+      if (sock == -1) { fprintf(stderr, "Could not create socket\n"); exit(1); }
+      fprintf(stderr, "Socket created\n");
+    
+      // populate server struct
+      memset((char *) &server, 0, sizeof(server));
+      server.sin_family = AF_INET;
+      memcpy((char *)&server.sin_addr.s_addr,
+             (char *)server_info->h_addr,
+             server_info->h_length);
+      server.sin_port = htons(cleo_port);            // network byte order
+    
+      //Connect to remote server
+      if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0) {
+          fprintf(stderr,"Connect to cleo socket failed.\n");
+          exit(1);
+          }
+
+      cleo_connected = true;
+  
+      // fprintf(stderr, "Connected\n");
+  
+      }
+
+    //### okay, now onto the various data collections
 
     if (!nomysql) {
 
@@ -358,36 +379,111 @@ int main(int argc, char ** argv) {
       // fprintf(stderr,"#####DEBUG: receiving from cleo...\n");
       if( (bytes_read = recv(sock , server_reply , 20000 , 0)) < 0) { 
         if (dostdout) printf("(nothing right now)\n"); 
+        now = time(NULL);
+        lcudsecs = now-lcudwhen;
         }
       else {
-  
         now = time(NULL);
         server_reply[bytes_read] = '\0';
         // fprintf(stderr, "\n#####DEBUG\nServer reply (%d) :\n%s\n#####END DEBUG\n",bytes_read, server_reply);
         byte_at = 0;
-        while (sscanf(server_reply+byte_at,"%s %s %s\n%n",timestamp,key,value,&bytes_in) == 3) {
+        found_any_key = false;
+        while (sscanf(server_reply+byte_at,"%s %s %[^\n]%n",timestamp,key,value,&bytes_in) == 3) {
+          value[strlen(value)-1] = 0;
           // act on timestamp/key/value 
           found = 0;
           // fprintf(stderr,"DEBUG: %s %s %s\n",timestamp,key,value);
           for (i = 0; i < num_cleo_keys; i++) {
             if (strcmp(key,cleokeys[i]) == 0) {
               found = 1;
+              found_any_key = true;
               if (!nodb) {
                 reply = redisCommand(c,"HMSET %s STIME %ld VALUE %s MJD %s",cleofitskeys[i],now,value,timestamp);
                 freeReplyObject(reply); 
                 }
               if (dostdout) {
-                printf("   %8s (%32s) : %s (time: %s)\n",cleofitskeys[i],cleokeys[i],value,timestamp);
+                printf("   %8s (%60s) : %s (time: %s)\n",cleofitskeys[i],cleokeys[i],value,timestamp);
                 }
               }
-            }
+            } // end for each key
           if (found == 0) { fprintf(stderr,"warning: can't look up cleo key: %s\n",key); }
           // fprintf(stderr, "PARSED: timestamp %s key %s value %s (bytes_in %d, byte_at %d)\n", timestamp, key, value,bytes_in,byte_at);
+          // fprintf(stderr, "CLEO KEY: %s\n",key);
           byte_at += bytes_in;
-          }
-
+          } // end while
+        if (found_any_key) { lcudwhen = now; lcudsecs = 0; }
+        else {
+          //fprintf(stderr, "\n#####DEBUG (found_any_key == false)\nServer reply (%d) :\n%s\n#####END DEBUG\n",bytes_read, server_reply);
+          fprintf(stderr, "warning: weird cleo state - will attempt to restart socket\n");
+          close(sock);
+          cleo_connected = false; 
+          }     
         }
-  
+
+      // cleo derived values
+
+      if (!nodb) {
+        reply = redisCommand(c,"HMSET LCUDSECS STIME %ld VALUE %ld",now,lcudsecs);
+        freeReplyObject(reply); 
+        }
+      if (dostdout) {
+        printf("   %8s (%60s) : %ld\n","LCUDSECS","derived",lcudsecs);
+        }
+
+      // general derived values
+
+      idlestatus = 0;
+
+ // examples: to delete
+ //     reply = (redisReply *)redisCommand(c,"HMGET LASTUPDT VALUE"); s6_strcpy(gbtstatus->LASTUPDT,reply->element[0]->str); freeReplyObject(reply);
+ //     reply = (redisReply *)redisCommand(c,"HMGET LASTUPDT STIME"); gbtstatus->LASTUPDTSTIME = atol(reply->element[0]->str); freeReplyObject(reply);
+
+/*
+#define idle_atlpoaz1_too_large                 0x000000000000020; // GB - ATLPOAZ1 Antenna,localPointingOffsets,azOffset1 # radians - ignore data if too large
+#define idle_atlpoaz2_too_large                 0x000000000000040; // GB - ATLPOAZ2 Antenna,localPointingOffsets,azOffset1 # radians - ignore data if too large
+#define idle_atlpoel_too_large                  0x000000000000080; // GB - ATLPOEL Antenna,localPointingOffsets,elOffset # radians - ignore data if too large
+
+#define idle_atlfcxt_non_zero                   0x000000000000200; // GB - ATLFCXT Antenna,local_focus_correction,Xt # subreflector tilt degrees - ignore if non-zero
+#define idle_atlfcy_too_large                   0x000000000000400; // GB - ATLFCY Antenna,local_focus_correction,Y # mm - ignore if too large
+#define idle_atlfctr_too_large                  0x000000000000800; // GB - ATLFCYT Antenna,local_focus_correction,Yt # subreflector tilt degrees- ignore if too large
+
+#define idle_atlfcz_non_zero                    0x000000000001000; // GB - ATLFCZ Antenna,local_focus_correction,X # mm - ignore if non-zero
+#define idle_atlfczt_non_zero                   0x000000000002000; // GB - ATLFCZT Antenna,local_focus_correction,Xt # subreflector tilt degrees - ignore if non-zero
+#define idle_atoptmod_not_matched               0x000000000004000; // GB - ATOPTMOD Antenna,opticsMode # should match what IF manager reports
+#define idle_atrecvr_not_matched                0x000000000008000; // GB - ATRECVR Antenna,receiver # should match IF manager, opticsMode, and GregorianReceiver
+
+#define idle_atrxocta_wrong_degrees             0x000000000010000; // GB - ATRXOCTA Antenna,rxOpticsConfig,turretAngle # current rot angle of turrent in degrees (should match what's in TurretLocations)
+#define idle_attrbeam_not_1                     0x000000000020000; // GB - ATTRBEAM Antenna,trackBeam  # if != 1 then using non central beam and data should be ignored
+#define idle_atmfbs_wrong_state                 0x000000000040000; // GB - ATMFBS AntennaManager,feedBoomState # PF receiver && BOOM_EXTENDED || Gregorian && BOOM_RETRACTED
+#define idle_atmtls_not_locked                  0x000000000080000; // GB - ATMTLS AntennaManager,turretLockState # If TURRET_LOCK_LOCKED, otherwise ignore data
+
+#define idle_optgreg_not_true                   0x000000000100000; // GB - OPTGREG OpticsOK,Gregorian # if != TRUE then optics offset or tilted and sky pos and gain may be wrong
+#define idle_optprime_not_true                  0x000000000200000; // GB - OPTPRIME OpticsOK,PrimeFocus # if != TRUE then optics offset or tilted and sky pos and gain may be wrong
+#define idle_lo1fqsw_true                       0x000000000400000; // GB - LO1FQSW LO1,FrequencySwitching # if TRUE then data should probably be ignored
+#define idle_lo1cfg_test_tone                   0x000000000800000; // GB - LO1CFG LO1,loConfig # if != (TrackA_BNotUsed || TrackB_ANotUsed) then good chance test tone injected
+
+#define idle_lo1phcal_on                        0x000000001000000; // GB - LO1PHCAL LO1,phaseCalCtl # if ON the VLB phase cal is on and data should have "rail of lines"
+#define idle_bammpwr1_bad_power                 0x000000002000000; // GB - BAMMPWR1 BankAMgr,measpwr1  # power levels in (dBn) of VEGAS samplers (polarization 1) - too different than -20 system may be non-linear
+#define idle_bammpwr2_bad_power                 0x000000004000000; // GB - BAMMPWR2 BankAMgr,measpwr2  # power levels in (dBn) of VEGAS samplers (polarization 2) - too different than -20 system may be non-linear
+#define idle_lastupdt_old                       0x000000008000000; // GB - last update to gbstatus is > 60 then something is wrong
+*/
+
+      // #define idle_atfctrmd_not_1                     0x000000000000010; // GB - ATFCTRMD Antenna,focusTrackingMode # if not 1 then data should be ignored
+      reply = (redisReply *)redisCommand(c,"HMGET ATFCTRMD VALUE"); tmplong = atol(reply->element[0]->str); freeReplyObject(reply);
+//      if (tmplong != 1) idlestatus |= idle_atfctrmd_not_1;
+
+      // #define idle_atlfcx_non_zero                    0x000000000000100; // GB - ATLFCX Antenna,local_focus_correction,X # mm - ignore if non-zero
+      reply = (redisReply *)redisCommand(c,"HMGET ATFCTRMD VALUE"); tmpdouble = atof(reply->element[0]->str); freeReplyObject(reply);
+      
+
+      // web control  
+      reply = (redisReply *)redisCommand(c,"GET WEBCNTRL"); tmplong = atol(reply->str); freeReplyObject(reply);
+ //     if (tmplong == 0) idlestatus |= idle_webcntrl_off;
+
+
+
+      // end derived values
+
       if (dostdout) { printf("----------- (end cleo)\n"); }
  
       }

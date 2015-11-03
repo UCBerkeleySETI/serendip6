@@ -1,0 +1,25 @@
+#! /bin/tcsh
+
+# ssh to all the compute nodes and make sure both hashpipes are running 
+# report back the proc # for each hashpipe, or 0 if not running
+#    (or can't connect to server)
+# note it figures out which instance is which by looking for the -I flag
+#    in the hashpipe proc line as reported by ps -ef
+
+set REDISHOST = localhost
+set REDISPORT = 6379
+
+set TMPFILE = /tmp/check_hashpipe_procs.tmp.$$
+
+foreach NODE (1 2 3)
+   timeout 5 ssh s6c$NODE "ps -ef | grep hashpipe | grep -v grep" >& $TMPFILE 
+   foreach INSTANCE (0 1)
+     set STIME = `date '+%s'`
+     set RUNNING = `grep -c ' -I '$INSTANCE $TMPFILE`
+     set PROC = 0
+     if ($RUNNING == 1) then
+       set PROC = `grep ' -I '$INSTANCE $TMPFILE | awk '{print $2}'`
+     endif
+     redis-cli -h $REDISHOST -p $REDISPORT HMSET S6C${NODE}HPROC${INSTANCE} PROC $PROC STIME $STIME >& /dev/null
+   end
+end

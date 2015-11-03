@@ -1,0 +1,31 @@
+#! /bin/csh
+
+# send a "HELLO" to the cleo client (via the cleo_hello program)
+# should get a "GOODDAY" response - report 1 if so, 0 if not
+
+set ADMINS = "mattl@ssl.berkeley.edu"
+
+set CLEOHELLOEXE = /usr/local/bin/cleo_hello
+set CLEOHOST = euler.gb.nrao.edu
+set CLEOPORT = 8030
+
+set REDISHOST = localhost
+set REDISPORT = 6379
+
+set STIME = `date '+%s'`
+set NEWVALUE = `timeout 15 $CLEOHELLOEXE $CLEOHOST $CLEOPORT |& grep -c "GOODDAY"`
+
+set CURVALUE = `redis-cli -h $REDISHOST -p $REDISPORT HMGET CLEOHELLO VALUE | cat`
+if (x$CURVALUE == x) then
+  set CURVALUE = 0
+endif
+
+redis-cli -h $REDISHOST -p $REDISPORT HMSET CLEOHELLO VALUE $NEWVALUE STIME $STIME >& /dev/null
+
+if ($NEWVALUE == 0 && $CURVALUE == 1) then
+  mail -s "s6@gbt: cleo_hello value changed from 1 to 0" $ADMINS << HERE
+
+current unix time: $STIME
+
+HERE
+endif

@@ -1,0 +1,90 @@
+#! /bin/csh 
+
+set ADMINS = "mattl@ssl.berkeley.edu"
+
+set MAILSUBJPREFIX = '[nikola warning]'
+
+set REDISCLI = /usr/bin/redis-cli
+set REDISHOST = localhost
+set REDISGBPORT = 6380
+set REDISAOPORT = 6381
+
+set REDISAO = "$REDISCLI -h $REDISHOST -p $REDISAOPORT"
+set REDISGB = "$REDISCLI -h $REDISHOST -p $REDISGBPORT"
+
+set REDISSERVERAO = "/usr/sbin/redis-server /etc/redis-ao.conf"
+set REDISSERVERGB = "/usr/sbin/redis-server /etc/redis-gbt.conf"
+
+###### check redis server processes 
+
+set CRITICAL = 0
+set SERVERCOUNT = `ps -ef | grep "$REDISSERVERAO" | grep -cv grep`
+if ($SERVERCOUNT == 0) then
+  mail -s "$MAILSUBJPREFIX redis server process for ao missing" $ADMINS < /dev/null
+  set CRITICAL = 1
+endif
+
+set SERVERCOUNT = `ps -ef | grep "$REDISSERVERGB" | grep -cv grep`
+if ($SERVERCOUNT == 0) then
+  mail -s "$MAILSUBJPREFIX redis server process for gb missing" $ADMINS < /dev/null
+  set CRITICAL = 1
+endif
+
+if ($CRITICAL == 1) then
+  exit 0
+endif
+
+set CRITICAL = 0
+
+###### check redis server connections
+
+set SERVERCONNECT = `$REDISAO < /dev/null |& awk '{print $1}'` # any output is a problem, just need first field
+if (x != x$SERVERCONNECT) then
+  mail -s "$MAILSUBJPREFIX problem with local ao redis connection: $REDISAO" $ADMINS < /dev/null
+  set CRITICAL = 1
+endif
+
+set SERVERCONNECT = `$REDISGB < /dev/null |& awk '{print $1}'` # any output is a problem, just need first field
+if (x != x$SERVERCONNECT) then
+  mail -s "$MAILSUBJPREFIX problem with local gb redis connection: $REDISGB" $ADMINS < /dev/null
+  set CRITICAL = 1
+endif
+
+if ($CRITICAL == 1) then
+  exit 0
+endif
+
+set CRITICAL = 0
+
+###### check various last obs update times/values
+
+set NOW = `date '+%s'`
+set LASTUPDT = `$REDISGB HMGET LASTUPDT STIME | cat`
+set LCUDSECS = `$REDISGB HMGET LCUDSECS VALUE | cat`
+set AGCSTIME = `$REDISAO HMGET SCRAM:AGC AGCSTIME | cat`
+
+set DELTA = `expr $NOW - $LASTUPDT`
+if ($DELTA > 60) then
+  mail -s "$MAILSUBJPREFIX last gbstatus/mysql update $DELTA seconds ago" $ADMINS < /dev/null
+endif
+
+set DELTA = `expr $NOW - $AGCSTIME`
+if ($DELTA > 60) then
+  mail -s "$MAILSUBJPREFIX last aoscram/agc update $DELTA seconds ago" $ADMINS < /dev/null
+endif
+
+if ($LCUDSECS > 60) then
+  mail -s "$MAILSUBJPREFIX last gbt/cleo update $LCUDSECS seconds ago" $ADMINS < /dev/null
+endif
+
+###### check various gb hashpipe processes 
+
+foreach CS (1 2 3)
+  foreach PROC (0 1)
+    set THISKEY = S6C${CS}HPROC${PROC}
+    set THISPROC = `$REDISGB HMGET $THISKEY PROC | cat`
+    if (x$THISPROC == x0) then
+      mail -s "$MAILSUBJPREFIX gbt hashpipe s6c$CS instance $PROC not running" $ADMINS < /dev/null
+    endif
+  end
+end

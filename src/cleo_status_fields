@@ -1,31 +1,81 @@
-ATBOT1EO Antenna,beamOffsetTable,1,beamElOffset
+ATATCOTM Antenna,Antenna,ConnectionToManager
+ATBEELOF Antenna,beamElOffset                                # arcsecs - probably should ignore data if not zero
+ATBOT1EO Antenna,beamOffsetTable,1,beamElOffset 
 ATBOT1XO Antenna,beamOffsetTable,1,beamXelOffset
 ATBOT1NM Antenna,beamOffsetTable,1,name
 ATBOT1F1 Antenna,beamOffsetTable,1,SRFeed1
 ATBOT1F2 Antenna,beamOffsetTable,1,SRFeed2
-ATFCTRMD Antenna,focusTrackingMode
-ATLFCX Antenna,local_focus_correction,X
-ATLFCXT Antenna,local_focus_correction,Xt
-ATLFCY Antenna,local_focus_correction,Y
-ATLFCYT Antenna,local_focus_correction,Yt
-ATLFCZ Antenna,local_focus_correction,Z
-ATLFCZT Antenna,local_focus_correction,Zt
-ATLPOAZ1 Antenna,localPointingOffsets,azOffset1
-ATLPOAZ2 Antenna,localPointingOffsets,azOffset2
-ATLPOEL Antenna,localPointingOffsets,elOffset
-ATMCRAJ2 AntennaManager,ccuData,RaJ2000,indicated
-ATMCDCJ2 AntennaManager,ccuData,DcJ2000,indicated
-ATOPTMOD Antenna,opticsMode
-ATRECVR Antenna,receiver
-ATRXOCTA Antenna,rxOpticsConfig,turretAngle
-BAMMPWR1 BankAMgr,measpwr1
-BAMMPWR2 BankAMgr,measpwr2
-LO1APSFQ LO1A,phaseState,frequency
-LO1BPSFQ LO1B,phaseState,frequency
-SCPROJID ScanCoordinator,projectId
-SCSNUMBR ScanCoordinator,scanNumber
-SCSOURCE ScanCoordinator,source
-SCSTATE ScanCoordinator,state
+ATBEXLOF Antenna,beamXelOffset                               # arcsecs = probably should ignore data if not zero
+ATFCTRMD Antenna,focusTrackingMode                           # if not 1 then data should be ignored
+ATGREGRC Antenna,gregorianReceiver                           # should match receiver, opticeMode (see below)
+ATLFCX Antenna,local_focus_correction,X                      # mm - ignore if non-zero
+ATLFCXT Antenna,local_focus_correction,Xt                    # subreflector tilt degrees - ignore if non-zero
+ATLFCY Antenna,local_focus_correction,Y                      # mm - ignore if too large
+ATLFCYT Antenna,local_focus_correction,Yt                    # subreflector tilt degrees- ignore if too large
+ATLFCZ Antenna,local_focus_correction,Z                      # mm - ignore if non-zero
+ATLFCZT Antenna,local_focus_correction,Zt                    # subreflector tilt degrees - ignore if non-zero
+ATLPOAZ1 Antenna,localPointingOffsets,azOffset1              # radians - ignore data if too large
+ATLPOAZ2 Antenna,localPointingOffsets,azOffset2              # radians - ignore data if too large
+ATLPOEL Antenna,localPointingOffsets,elOffset                # radians - ignore data if too large
+ATMATMCA AntennaManager,AntennaManager,ConnectionToAccessor
+ATMATMCM AntennaManager,AntennaManager,ConnectionToManager
+ATMATMCT AntennaManager,AntennaManager,ConnectionToTransporter
+ATMCDCJ2 AntennaManager,ccuData,DcJ2000,indicated            # degrees
+ATMCRAJ2 AntennaManager,ccuData,RaJ2000,indicated            # degrees 
+ATMFBS AntennaManager,feedBoomState                          # PF receiver && BOOM_EXTENDED || Gregorian && BOOM_RETRACTED
+ATMTLS AntennaManager,turretLockState                        # If TURRET_LOCK_LOCKED, otherwise ignore data
+ATOPTMOD Antenna,opticsMode                                  # should match what IF manager reports
+ATRECVR Antenna,receiver                                     # should match IF manager, opticsMode, and GregorianReceiver
+ATRXOCTA Antenna,rxOpticsConfig,turretAngle                  # current rot angle of turrent in degrees (see TurretLocations)
+ATTRBEAM Antenna,trackBeam                                   # if != 1 then using non central beam and data should be ignored
+ATTURLOC Antenna,TurretLocations                             # useful legend of receiver names/locations
+BAMBAMCA BankAMgr,BankAMgr,ConnectionToAccessor
+BAMBAMCM BankAMgr,BankAMgr,ConnectionToManager
+BAMBAMCT BankAMgr,BankAMgr,ConnectionToTransporter
+BAMMPWR1 BankAMgr,measpwr1                                   # power levels in (dBn) of VEGAS samplers (polarization 1)
+BAMMPWR2 BankAMgr,measpwr2                                   # power levels in (dBn) of VEGAS samplers (polarization 2)
+CLEOPID CleoSetiServer,PID
+CLEOREV CleoSetiServer,Revision                              # cleo revision - should record
+IFMIFMCM IFManager,IFManager,ConnectionToManager
+IFV1BW IFManager,VEGAS_J1,bandwidth                          # MHz - estimate of useful BW
+IFV1CSFQ IFManager,VEGAS_J1,CorrectedSkyFrequency            # server-derived center freq in MHz
+IFV1LVL IFManager,VEGAS_J1,level                             # (unreliable) system set to low of high intensity noise diode
+IFV1IFFQ IFManager,VEGAS_J1,spectrum,IF,centerFrequency      # IF freq corresponding to CorrectedSkyFrequency (MHz)
+IFV1SSB IFManager,VEGAS_J1,spectrum,sideband                 # lower/upper - if upper sky freqs increase as IF freqs increase
+IFV1SKFQ IFManager,VEGAS_J1,spectrum,sky,centerFrequency     # sky freq at IF in MHz at start of obs, not correct during a scan if doppler tracking
+IFV1TH IFManager,VEGAS_J1,transform,1,horn                   # ?
+IFV1TNCI IFManager,VEGAS_J1,transform,1,name,circuit         # inputs into VEGAS J1 Bank A
+IFV1TNCO IFManager,VEGAS_J1,transform,1,name,component       # ?
+IFV1TT IFManager,VEGAS_J1,transform,1,type                   # if != "feed" then VEGAS input no seeing sky, otherwise circuit = receiver
+IFV2BW IFManager,VEGAS_J2,bandwidth                          # MHz - estimate of useful BW
+IFV2CSFQ IFManager,VEGAS_J2,CorrectedSkyFrequency            # server-derviced center freq in MHz
+IFV2LVL IFManager,VEGAS_J2,level                             # (unreliable) system set to low of high intensity noise diode
+IFV2IFFQ IFManager,VEGAS_J2,spectrum,IF,centerFrequency      # IF freq corresponding to CorrectedSkyFrequency (MHz)
+IFV2SSB IFManager,VEGAS_J2,spectrum,sideband                 # lower/upper - if upper sky freqs increase as IF freqs increase
+IFV2SKFQ IFManager,VEGAS_J2,spectrum,sky,centerFrequency     # sky freq at IF in MHz at start of obs, not correct during a scan if doppler tracking
+IFV2TH IFManager,VEGAS_J2,transform,1,horn                   # ?
+IFV2TNCI IFManager,VEGAS_J2,transform,1,name,circuit         # inputs into VEGAS J2 Bank A
+IFV2TNCO IFManager,VEGAS_J2,transform,1,name,component       # ?
+IFV2TT IFManager,VEGAS_J2,transform,1,type                   # if != "feed" then VEGAS input no seeing sky, otherwise circuit = receiver
+LO1ACA LO1A,LO1A,ConnectionToAccessor
+LO1ACM LO1A,LO1A,ConnectionToManager
+LO1ACT LO1A,LO1A,ConnectionToTransporter
+LO1APSFQ LO1A,phaseState,frequency                           # Hz, used to determine Doppler tracking altering center sky freq
+LO1BCA LO1B,LO1B,ConnectionToAccessor
+LO1BCM LO1B,LO1B,ConnectionToManager
+LO1BCT LO1B,LO1B,ConnectionToTransporter
+LO1BPSFQ LO1B,phaseState,frequency                           # Hz, used to determine Doppler tracking altering center sky freq
+LO1FQSW LO1,FrequencySwitching                               # if TRUE then data should probably be ignored
+LO1CM LO1,LO1,ConnectionToManager
+LO1CFG LO1,loConfig                                          # if != (TrackA_BNotUsed || TrackB_ANotUsed) then good chance test tone injected
+LO1PHCAL LO1,phaseCalCtl                                     # if ON the VLB phase cal is on and data should have "rail of lines"
+OPTGREG OpticsOK,Gregorian                                   # if != TRUE then optics offset or tilted and sky pos and gain may be wrong
+OPTPRIME OpticsOK,PrimeFocus                                 # if != TRUE then optics offset or tilted and sky pos and gain may be wrong
+SCPROJID ScanCoordinator,projectId                           # info on current observer
+SCSCCM ScanCoordinator,ScanCoordinator,ConnectionToManager   
+SCSNUMBR ScanCoordinator,scanNumber                          # info on current observer 
+SCSOURCE ScanCoordinator,source                              # info on current observer 
+SCSTATE ScanCoordinator,state                                # examples: Running - writing fits, Ready - telescope idle
 SCSACTSF ScanCoordinator,subsystemSelect,ActiveSurface
 SCSANAFR ScanCoordinator,subsystemSelect,AnalogFilterRack
 SCSANTEN ScanCoordinator,subsystemSelect,Antenna
@@ -61,7 +111,7 @@ SCSSPECT ScanCoordinator,subsystemSelect,Spectrometer
 SCSSWSS ScanCoordinator,subsystemSelect,SwitchingSignalSelector
 SCSVEGAS ScanCoordinator,subsystemSelect,VEGAS
 SCSZPECT ScanCoordinator,subsystemSelect,Zpectrometer
-VEGSFBW1 VEGAS,filter_bw,1
+VEGSFBW1 VEGAS,filter_bw,1                                   # analog filger BW (MHz) just in front of VEGAS inputs
 VEGSFBW2 VEGAS,filter_bw,2
 VEGSFBW3 VEGAS,filter_bw,3
 VEGSFBW4 VEGAS,filter_bw,4
@@ -69,7 +119,7 @@ VEGSFBW5 VEGAS,filter_bw,5
 VEGSFBW6 VEGAS,filter_bw,6
 VEGSFBW7 VEGAS,filter_bw,7
 VEGSFBW8 VEGAS,filter_bw,8
-VEGSSBAM VEGAS,subsystemSelect,BankAMgr
+VEGSSBAM VEGAS,subsystemSelect,BankAMgr                     # if == 1 and ScanCoordinator == "Running" then observer collecting data with bank A
 VEGSSBBM VEGAS,subsystemSelect,BankBMgr
 VEGSSBCM VEGAS,subsystemSelect,BankCMgr
 VEGSSBDM VEGAS,subsystemSelect,BankDMgr
@@ -77,3 +127,4 @@ VEGSSBEM VEGAS,subsystemSelect,BankEMgr
 VEGSSBFM VEGAS,subsystemSelect,BankFMgr
 VEGSSBGM VEGAS,subsystemSelect,BankGMgr
 VEGSSBHM VEGAS,subsystemSelect,BankHMgr
+VEGASCM VEGAS,VEGAS,ConnectionToManager

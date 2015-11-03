@@ -1,0 +1,6 @@
+#! /bin/bash
+
+SERVER=/home/mattl/SetiServer.tcl
+
+source /home/gbt/gbt.bash
+$SERVER
