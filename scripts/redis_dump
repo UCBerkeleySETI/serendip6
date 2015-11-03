@@ -1,0 +1,53 @@
+#! /bin/csh
+
+set TMPFILE = /tmp/redis_dump.tmp.$$
+
+set HOST = localhost
+set PORT = 6379
+
+while (x != x$1)
+  if (x$1 == "x-h") then
+    shift
+    set HOST = $1
+  else if (x$1 == "x-p") then
+    shift
+    set PORT = $1
+  else
+    echo "redis_dump [-h hostname] [-p port]"
+  endif
+  shift
+end
+
+set REDISCLI = "redis-cli -h $HOST -p $PORT"
+
+foreach KEY (`$REDISCLI keys "*" | sort`)
+  echo -n $KEY" "
+  set TYPE = `$REDISCLI type $KEY`
+  if ($TYPE == "string") then
+    $REDISCLI get $KEY > $TMPFILE
+    set ISTEXT = `file $TMPFILE | grep -c text`
+    if ($ISTEXT == 0) then
+      echo "<binary> "
+    else
+      set VALUE = `$REDISCLI get $KEY`
+      echo "'$VALUE' "
+    endif 
+  else
+    foreach HKEY (`$REDISCLI hkeys $KEY`)
+      echo -n "$HKEY "
+      $REDISCLI hmget $KEY $HKEY > $TMPFILE
+      set ISTEXT = `file $TMPFILE | grep -c text`
+      # echo "DEBUG: $KEY $HKEY "
+      # file $TMPFILE
+      if ($ISTEXT == 0) then
+        echo -n "<binary> "
+      else
+        set VALUE = `$REDISCLI hmget $KEY $HKEY`
+        echo -n "'$VALUE' "
+      endif 
+    end
+    echo " "
+  endif
+end
+
+/bin/rm $TMPFILE

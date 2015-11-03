@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <math.h>
@@ -11,15 +12,18 @@
 #include "hashpipe.h"
 #include "s6_databuf.h"
 #include "s6_obs_data.h"
+#include "s6_obs_data_gbt.h"
 #include "s6_etfits.h"
 #include "s6_obsaux.h"
 
 //----------------------------------------------------------
-int init_etfits(etfits_t *etf, int start_file_num) {
+int init_etfits(etfits_t *etf) {
 //----------------------------------------------------------
 
+    gethostname(etf->hostname, sizeof(etf->hostname));
     strcpy(etf->basefilename, "serendip6");     // TODO where to get file name?
-    etf->file_num              = start_file_num;
+    etf->filename_working[0]   = '\0';          // null until we form the first filename  
+    etf->file_num              = 1;
     etf->file_cnt              = 0;
     etf->new_run               = 1;
     etf->new_file              = 1;
@@ -83,7 +87,8 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
         // TODO update code versions
         etf->primary_hdr.n_subband = db->block[block_idx].header.num_coarse_chan;
         etf->primary_hdr.n_chan    = N_FINE_CHAN;
-        etf->primary_hdr.n_inputs  = N_BEAMS * N_POLS_PER_BEAM;
+        //etf->primary_hdr.n_inputs  = N_BEAMS * N_POLS_PER_BEAM;
+        etf->primary_hdr.n_inputs  = N_BORS * N_POLS_PER_BEAM;
         strncpy(etf->primary_hdr.receiver, receiver[scram_p->receiver], sizeof(etf->primary_hdr.receiver));
         // TODO not yet implemented
         //etf->primary_hdr.bandwidth = ;
@@ -103,7 +108,8 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
     // populate hits header data
     // TODO maybe I should do away with this and write directly to the header
     //      from scram in write_hits_header()
-    for(int i=0; i < N_BEAMS*N_POLS_PER_BEAM; i++) {
+    //for(int i=0; i < N_BEAMS*N_POLS_PER_BEAM; i++) {
+    for(int i=0; i < N_BORS*N_POLS_PER_BEAM; i++) {
         etf->hits_hdr[i].time    = (time_t)s6_seti_ao_timeMS2unixtime(scram_p->AGCTIME, scram_p->AGCSTIME);
         etf->hits_hdr[i].ra      = scram_p->ra_by_beam[int(floor(i/N_POLS_PER_BEAM))];       
         etf->hits_hdr[i].dec     = scram_p->dec_by_beam[int(floor(i/N_POLS_PER_BEAM))];  
@@ -133,10 +139,91 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
 }
 
 //----------------------------------------------------------
+int write_etfits_gbt(s6_output_databuf_t *db, int block_idx, etfits_t *etf, gbtstatus_t *gbtstatus_p) {
+//----------------------------------------------------------
+    int row, rv;
+    int nchan, nivals, nsubband;
+    char* temp_str;
+    double temp_dbl;
+    size_t nhits;
+
+    int * status_p = &(etf->status);
+    *status_p = 0;
+
+    // Create the initial file or change to a new one if needed.
+    if (etf->new_run || etf->new_file) {
+        etf->new_file = 0;
+        if (!etf->new_run) {
+            if(etf->file_open) {
+                etfits_close(etf);
+            }
+            etf->integration_cnt = 0;
+        }
+        // TODO update code versions
+        etf->primary_hdr.n_subband = db->block[block_idx].header.num_coarse_chan;
+        etf->primary_hdr.n_chan    = N_FINE_CHAN;
+        //etf->primary_hdr.n_inputs  = N_BEAMS * N_POLS_PER_BEAM;
+        etf->primary_hdr.n_inputs  = N_BORS * N_POLS_PER_BEAM;
+        // in scram, need to look up receiver from array? but in gbtstatus, it's already a string, so just copy it?...
+        // strncpy(etf->primary_hdr.receiver, receiver[gbtstauts_p->receiver], sizeof(etf->primary_hdr.receiver));
+        strncpy(etf->primary_hdr.receiver, gbtstatus_p->RECEIVER, sizeof(etf->primary_hdr.receiver));
+        // TODO not yet implemented
+        //etf->primary_hdr.bandwidth = ;
+        //etf->primary_hdr.chan_bandwidth = ;
+        //etf->primary_hdr.freq_res = ;
+        etfits_create(etf);
+        if(*status_p) {
+            hashpipe_error(__FUNCTION__, "Error creating/initializing new etfits file");
+            //fprintf(stderr, "Error creating/initializing new etfits file.\n");
+            fits_report_error(stderr, *status_p);
+            exit(1);
+        }    
+        write_primary_header(etf);
+        etf->file_cnt++;
+    }
+
+    // populate hits header data
+    // TODO maybe I should do away with this and write directly to the header
+    //      from scram in write_hits_header()
+    //for(int i=0; i < N_BEAMS*N_POLS_PER_BEAM; i++) {
+    for(int i=0; i < N_BORS*N_POLS_PER_BEAM; i++) {
+        etf->hits_hdr[i].time    = (time_t)((gbtstatus_p->MJD - 40587.0) * 86400);   
+        etf->hits_hdr[i].ra      = gbtstatus_p->RADG_DRV;
+        etf->hits_hdr[i].dec     = gbtstatus_p->DEC_DRV;
+        etf->hits_hdr[i].beampol = i;       
+    }
+
+    if(! *status_p) write_integration_header_gbt(etf, gbtstatus_p);
+
+    if(! *status_p) nhits = write_ccpwrs(db, block_idx, etf);
+
+    if(! *status_p) nhits = write_hits(db, block_idx, etf);
+
+    etf->integration_cnt++;
+
+    // Now update some key values if no CFITSIO errors
+    if (! *status_p) {
+        etf->tot_rows += nhits;
+        etf->N += 1;
+        *status_p = check_for_file_roll(etf);
+    }
+
+    if(*status_p) {
+        hashpipe_error(__FUNCTION__, "FITS error, exiting");
+        //fprintf(stderr, "FITS error, exiting.\n");
+        exit(1);
+    }
+
+    return *status_p;
+}
+
+//----------------------------------------------------------
 int etfits_create(etfits_t * etf) {
 //----------------------------------------------------------
     int * status_p = &(etf->status);
     *status_p = 0;
+
+    int rv;
 
     struct tm tm_now;
     time_t time_now;
@@ -161,7 +248,11 @@ int etfits_create(etfits_t * etf) {
             printf("Using directory '%s' for output.\n", datadir);
             char cmd[1024];
             sprintf(cmd, "mkdir -m 1777 -p %s", datadir);
-            system(cmd);
+            rv = system(cmd);
+            if(rv) {
+                hashpipe_error(__FUNCTION__, "error making output dirtectory %s", datadir);
+                // TODO - exit here?
+            }
         }
     }   // end first time writing this run
 
@@ -181,7 +272,11 @@ int etfits_create(etfits_t * etf) {
     // Create basic FITS file from our template
     char template_file[1024];
     //printf("Opening file '%s'\n", etf->filename);
+#ifdef SOURCE_S6
     sprintf(template_file, "%s/%s", etf->s6_dir, ETFITS_TEMPLATE);
+#elif SOURCE_DIBAS
+    sprintf(template_file, "%s/%s", etf->s6_dir, ETFITS_GBT_TEMPLATE);
+#endif
     if(! *status_p) fits_create_template(&(etf->fptr), etf->filename_working, template_file, status_p);
 
     // Check to see if file was successfully created
@@ -211,6 +306,7 @@ int etfits_close(etfits_t *etf) {
 
     if(rv) {
         hashpipe_error(__FUNCTION__, "file rename error : %d %s", errno, strerror(errno));
+        // TODO - exit here?
     } else {
         hashpipe_info(__FUNCTION__, "Done.  %s %ld data rows into %s (status = %d).\n",
                 etf->mode=='r' ? "Read" : "Wrote", 
@@ -255,6 +351,97 @@ int write_primary_header(etfits_t * etf) {
 
     return *status_p;
 }
+
+
+//----------------------------------------------------------
+int write_integration_header_gbt(etfits_t * etf, gbtstatus_t *gbtstatus) {
+//----------------------------------------------------------
+
+    int * status_p = &(etf->status);
+    *status_p = 0;
+
+//fprintf(stderr, "writing integration header\n");
+    if(etf->integration_cnt == 0) {
+        // go to the template created HDU
+        if(! *status_p) fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"GBTSTATUS", 0, status_p);
+    } else {
+        // create new HDU
+        if(! *status_p) fits_create_tbl(etf->fptr, BINARY_TBL, 0, 0, NULL, NULL, NULL, (char *)"GBTSTATUS", status_p);
+    }
+
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "EXTNAME",  (char *)"GBTSTATUS",  NULL, status_p); 
+    // is there really an analogous/worthwhile similar value in gbtstatus?
+    if(! *status_p) fits_update_key(etf->fptr, TINT,     "COARCHID", &(gbtstatus->coarse_chan_id),   NULL, status_p); 
+
+    // observatory (gbt) data
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "LASTUPDT",  &(gbtstatus->LASTUPDT), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "LST",  &(gbtstatus->LST), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "UTC",  &(gbtstatus->UTC), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "MJD",  &(gbtstatus->MJD), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "EPOCH",  &(gbtstatus->EPOCH), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "MAJTYPE",  &(gbtstatus->MAJTYPE), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "MINTYPE",  &(gbtstatus->MINTYPE), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "MAJOR",  &(gbtstatus->MAJOR), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "MINOR",  &(gbtstatus->MINOR), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "AZCOMM",  &(gbtstatus->AZCOMM), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "ELCOMM",  &(gbtstatus->ELCOMM), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "AZACTUAL",  &(gbtstatus->AZACTUAL), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "ELACTUAL",  &(gbtstatus->ELACTUAL), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "AZERROR",  &(gbtstatus->AZERROR), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "ELERROR",  &(gbtstatus->ELERROR), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "LPCS",  &(gbtstatus->LPCS), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "FOCUSOFF",  &(gbtstatus->FOCUSOFF), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "ANTMOT",  &(gbtstatus->ANTMOT), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "RECEIVER",  &(gbtstatus->RECEIVER), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "IFFRQ1ST",  &(gbtstatus->IFFRQ1ST), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "IFFRQRST",  &(gbtstatus->IFFRQRST), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "DCRSCFRQ",  &(gbtstatus->DCRSCFRQ), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "SPRCSFRQ",  &(gbtstatus->SPRCSFRQ), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "FREQ",  &(gbtstatus->FREQ), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VELFRAME",  &(gbtstatus->VELFRAME), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TSTRING,  "VELDEF",  &(gbtstatus->VELDEF), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "J2000MAJ",  &(gbtstatus->J2000MAJ), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "J2000MIN",  &(gbtstatus->J2000MIN), NULL, status_p); 
+
+    // the derived fields below are from s6_observatory_gbt but not from gbtstatus/mysql
+    
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "LSTH_DRV",  &(gbtstatus->LSTH_DRV), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "RA_DRV",  &(gbtstatus->RA_DRV), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "RADG_DRV",  &(gbtstatus->RADG_DRV), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE,  "DEC_DRV",  &(gbtstatus->DEC_DRV), NULL, status_p); 
+
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "CLOCKTIM",  &(gbtstatus->CLOCKTIM), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "CLOCKFRQ",  &(gbtstatus->CLOCKFRQ), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "CLOCKDBM",  &(gbtstatus->CLOCKDBM), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "CLOCKLOC",  &(gbtstatus->CLOCKLOC), NULL, status_p); 
+
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "BIRDITIM",  &(gbtstatus->BIRDITIM), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "BIRDIFRQ",  &(gbtstatus->BIRDIFRQ), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "BIRDIDBM",  &(gbtstatus->BIRDIDBM), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "BIRDILOC",  &(gbtstatus->BIRDILOC), NULL, status_p); 
+
+#ifdef SOURCE_S6
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "ADCRMSTM",  &(gbtstatus->ADCRMSTM),   NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS01",  &(gbtstatus->ADC1RMS[0]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS02",  &(gbtstatus->ADC1RMS[1]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS03",  &(gbtstatus->ADC1RMS[2]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS04",  &(gbtstatus->ADC1RMS[3]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS05",  &(gbtstatus->ADC1RMS[4]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS06",  &(gbtstatus->ADC1RMS[5]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS07",  &(gbtstatus->ADC1RMS[6]), NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "ADCRMS08",  &(gbtstatus->ADC1RMS[7]), NULL, status_p);
+#endif
+
+    if (*status_p) {
+        hashpipe_error(__FUNCTION__, "Error writing integration header");
+        //fprintf(stderr, "Error writing integration header.\n");
+        fits_report_error(stderr, *status_p);
+    }
+
+    return *status_p;
+}
+
+
 
 //----------------------------------------------------------
 int write_integration_header(etfits_t * etf, scram_t *scram) {
@@ -353,10 +540,72 @@ int write_integration_header(etfits_t * etf, scram_t *scram) {
 }
 
 //----------------------------------------------------------
-int write_hits_header(etfits_t * etf, int beampol, size_t nhits, size_t missed_pkts) {
+int write_ccpwrs_header(etfits_t * etf) {
 //----------------------------------------------------------
 
-#define TFIELDS 4
+    const int TFIELDS = 2;
+    int * status_p = &(etf->status);
+    *status_p = 0;
+
+    int tbltype                = BINARY_TBL;
+    long long naxis2           = 0;
+    //const int tfields          = 3;
+    // TODO check chan types!
+    const char *ttype[TFIELDS] = {"POLX  ", "POLY "};
+    const char *tform[TFIELDS] = {"1E",       "1E"};     // cfitsio format codes 
+                             //     32-bit floats       
+    if(etf->integration_cnt == 0) {
+        // at start of file go to the template created HDU for this set of beampols
+        if(! *status_p) fits_movnam_hdu(etf->fptr, BINARY_TBL, (char *)"CCPWRS", 0, status_p);
+    } else {
+        // otherwise create new HDU for this set of beampols
+        if(! *status_p) fits_create_tbl(etf->fptr, BINARY_TBL, 0, TFIELDS, (char **)&ttype, (char **)&tform, NULL, (char *)"CCPWRS", status_p);
+    }
+
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "TIME",    &(etf->hits_hdr[0].time),    NULL, status_p);    // TODO - right for GBT, but for AO...
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "RA",      &(etf->hits_hdr[0].ra),      NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr[0].dec),     NULL, status_p);
+
+    if (*status_p) {
+        hashpipe_error(__FUNCTION__, "Error writing hits header");
+        fits_report_error(stderr, *status_p);
+    }
+}
+
+//----------------------------------------------------------
+int write_ccpwrs(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
+//----------------------------------------------------------
+
+    //long firstrow, firstelem, colnum;
+    long firstrow, firstelem, colnum;
+
+
+    int * status_p = &(etf->status);
+    *status_p = 0;
+
+    firstrow  = 1;
+    firstelem = 1;
+    write_ccpwrs_header(etf);
+
+    // write the hits for this input
+    colnum      = 1;
+    if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, N_COARSE_CHAN, db->block[block_idx].cc_pwrs_x, status_p);
+    colnum      = 2;
+    if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, N_COARSE_CHAN, db->block[block_idx].cc_pwrs_y, status_p);
+
+    if (*status_p) {
+        hashpipe_error(__FUNCTION__, "Error writing coarse channel powers");
+        fits_report_error(stderr, *status_p);
+    }
+
+    return(*status_p);
+}
+
+//----------------------------------------------------------
+int write_hits_header(etfits_t * etf, int borspol, size_t nhits, size_t missed_pkts) {
+//----------------------------------------------------------
+
+    const int TFIELDS = 4;
     int * status_p = &(etf->status);
     *status_p = 0;
 
@@ -376,10 +625,10 @@ int write_hits_header(etfits_t * etf, int beampol, size_t nhits, size_t missed_p
         if(! *status_p) fits_create_tbl(etf->fptr, BINARY_TBL, 0, TFIELDS, (char **)&ttype, (char **)&tform, NULL, (char *)"ETHITS", status_p);
     }
 
-    if(! *status_p) fits_update_key(etf->fptr, TINT,    "TIME",    &(etf->hits_hdr[beampol].time),    NULL, status_p);    
-    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "RA",      &(etf->hits_hdr[beampol].ra),      NULL, status_p);   
-    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr[beampol].dec),     NULL, status_p);   
-    if(! *status_p) fits_update_key(etf->fptr, TINT,    "BEAMPOL", &(etf->hits_hdr[beampol].beampol), NULL, status_p);   
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "TIME",    &(etf->hits_hdr[borspol].time),    NULL, status_p);    
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "RA",      &(etf->hits_hdr[borspol].ra),      NULL, status_p);   
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr[borspol].dec),     NULL, status_p);   
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "BORSPOL", &(etf->hits_hdr[borspol].beampol), NULL, status_p);   
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "NHITS",   &nhits,                            NULL, status_p);   
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "MISSEDPK",&missed_pkts,                      NULL, status_p);   
 
@@ -415,29 +664,33 @@ int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
     firstrow  = 1;
     firstelem = 1;
 
-    for(int beam=0; beam < N_BEAMS; beam++) {
+    //for(int beam=0; beam < N_BEAMS; beam++) {
+    for(int bors=0; bors < N_BORS; bors++) {
         // TODO - this goes through the output block for each beam twice. We could cut
         // this in half if we have a set of arrays for each pol (consuming twice the
         // memory).
         for(int input=0; input < N_POLS_PER_BEAM; input++) {        
-            int beampol = beam * N_POLS_PER_BEAM + input;
+            int borspol = bors * N_POLS_PER_BEAM + input;
             int hit_j=0;
             nhits_this_input=0;
-            for(int hit_i=0; hit_i < (size_t)db->block[block_idx].header.nhits[beam]; hit_i++) {
-                if(db->block[block_idx].pol[beam][hit_i] == input) {
-                    nhits_this_input++;
-                    det_pow[hit_j]     = db->block[block_idx].power[beam][hit_i];
-                    mean_pow[hit_j]    = db->block[block_idx].baseline[beam][hit_i];
-                    coarse_chan[hit_j] = db->block[block_idx].coarse_chan[beam][hit_i];
-                    fine_chan[hit_j]   = db->block[block_idx].fine_chan[beam][hit_i];
-                    hit_j++;
+            for(int hit_i=0; hit_i < (size_t)db->block[block_idx].header.nhits[bors]; hit_i++) {
+                if(db->block[block_idx].pol[bors][hit_i] == input) {
+                    int this_fine_chan =  db->block[block_idx].fine_chan[bors][hit_i];
+                    if(this_fine_chan != 0) {   // ignore the DC bin
+                        nhits_this_input++;
+                        det_pow[hit_j]     = db->block[block_idx].power[bors][hit_i];
+                        mean_pow[hit_j]    = db->block[block_idx].baseline[bors][hit_i];
+                        coarse_chan[hit_j] = db->block[block_idx].coarse_chan[bors][hit_i];
+                        fine_chan[hit_j]   = this_fine_chan;
+                        hit_j++;
+                    }
                 }
             }
 
             write_hits_header(etf, 
-                              beampol, 
+                              borspol, 
                               nhits_this_input, 
-                              (size_t)db->block[block_idx].header.missed_pkts[beam]);
+                              (size_t)db->block[block_idx].header.missed_pkts[bors]);
             nhits += nhits_this_input;
 
             // write the hits for this input

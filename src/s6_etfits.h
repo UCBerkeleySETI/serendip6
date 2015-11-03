@@ -11,6 +11,7 @@
 
 // The following is the template file to use to create a ETFITS file.
 #define ETFITS_TEMPLATE "s6_ETFITS_template.txt"
+#define ETFITS_GBT_TEMPLATE "s6_ETFITS_gbt_template.txt"
 
 typedef struct etfits_primary_header {
     char date[16];          // Date file was created (dd/mm/yy)  TODO does this need to be populated?
@@ -69,17 +70,21 @@ typedef struct etfits {
     int file_open;          // boolean indicating file open or not      TODO can I use fitsfile * for this?
     etfits_primary_header_t     primary_hdr;
     etfits_integration_header_t integration_hdr;
-    etfits_hits_header_t        hits_hdr[N_BEAMS*N_POLS_PER_BEAM];       // one hits HDU per beam/pol per integration
+    etfits_hits_header_t        hits_hdr[N_BORS*N_POLS_PER_BEAM];       // one hits HDU per beam/pol per integration
     etfits_hits_t               hits;
 } etfits_t;
 
-int init_etfits(etfits_t *etf, int file_num_start);
+int init_etfits(etfits_t *etf);
 int check_for_file_roll(etfits_t *etf);
 int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t *scram_p);
+int write_etfits_gbt(s6_output_databuf_t *db, int block_idx, etfits_t *etf, gbtstatus_t *gbtstatus_p);
 int etfits_create(etfits_t *etf);
 int etfits_close(etfits_t *etf);
 int write_primary_header(etfits_t *etf);
 int write_integration_header(etfits_t *etf, scram_t *scram);
+int write_integration_header_gbt(etfits_t *etf, gbtstatus_t *gbtstatus);
+int write_ccpwrs_header(etfits_t *etf);
+int write_ccpwrs(s6_output_databuf_t *db, int block_idx, etfits_t *etf);
 int write_hits_header(etfits_t *etf, size_t nhits);
 int write_hits(s6_output_databuf_t *db, int block_idx, etfits_t *etf);
 

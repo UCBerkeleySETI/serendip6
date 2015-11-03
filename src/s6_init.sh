@@ -1,13 +1,13 @@
 #!/bin/bash
 
-VERS6SW=0.6.0                   \
+VERS6SW=0.7.0                   \
 VERS6GW=0.1.0                   \
 
 # Add directory containing this script to PATH
 PATH="$(dirname $0):${PATH}"
 
 hostname=`hostname -s`
-net_thread=${1:-s6_net_thread}
+net_thread=${1:-s6_pktsock_thread}
 
 function getip() {
   out=$(host $1) && echo $out | awk '{print $NF}'
@@ -35,6 +35,7 @@ fi
 
 # Setup parameters for two instances.
 instance_i=("0" "1")
+#instance_i=("0")
 log_timestamp=`date +%Y%m%d_%H%M%S`
 instances=(
   # 2 x E5-2630 (6-cores @ 2.3 GHz, 15 MB L3, 7.2 GT/s QPI, 1333 MHz DRAM)
@@ -52,8 +53,8 @@ instances=(
   #
   #                               GPU NET GPU OUT
   # mask  bind_host               DEV CPU CPU CPU
-  "0x000e ${hostname}-2.tenge.pvt  0   1   2   3 $log_timestamp" # Instance 0, eth2
-  "0x0380 ${hostname}-4.tenge.pvt  1   7   8   9 $log_timestamp" # Instance 2, eth4
+  "0x000e ${hostname}-3.tenge.pvt  0   1   2   3 $log_timestamp" # Instance 0, eth3
+  "0x0380 ${hostname}-5.tenge.pvt  1   7   8   9 $log_timestamp" # Instance 2, eth5
 );
 
 function init() {
@@ -80,7 +81,7 @@ function init() {
 
   if [ $net_thread == 's6_pktsock_thread' ]
   then
-    bindhost="eth$((2+2*instance))"
+    bindhost="eth$((3+2*instance))"
     echo "binding $net_thread to $bindhost"
   fi
 

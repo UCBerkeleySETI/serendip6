@@ -15,9 +15,14 @@ using std::endl;
 #include <thrust/gather.h>
 #include <thrust/binary_search.h>
 #include <thrust/device_ptr.h>
+#include <thrust/for_each.h>
+#include <thrust/functional.h>
 
 #include "s6GPU.h"
 #include "stopwatch.hpp"
+
+#include "hashpipe.h"
+#include <time.h>
 
 //#define USE_TIMER
 //#define USE_TOTAL_GPU_TIMER
@@ -214,6 +219,70 @@ void transpose(size_t m, size_t n, thrust::device_vector<T> *src, thrust::device
      dst->begin());
 }
 
+// convert a linear index to a row index
+template <typename T>
+struct linear_index_to_row_index : public thrust::unary_function<T,T>
+{
+  T C; // number of columns
+  
+  __host__ __device__
+  linear_index_to_row_index(T C) : C(C) {}
+
+  __host__ __device__
+  T operator()(T i)
+  {
+    return i / C;
+  }
+};
+
+template <typename Iterator>
+class strided_range
+{
+    public:
+
+    typedef typename thrust::iterator_difference<Iterator>::type difference_type;
+
+    struct stride_functor : public thrust::unary_function<difference_type,difference_type>
+    {
+        difference_type stride;
+
+        stride_functor(difference_type stride)
+            : stride(stride) {}
+
+        __host__ __device__
+        difference_type operator()(const difference_type& i) const
+        { 
+            return stride * i;
+        }
+    };
+
+    typedef typename thrust::counting_iterator<difference_type>                   CountingIterator;
+    typedef typename thrust::transform_iterator<stride_functor, CountingIterator> TransformIterator;
+    typedef typename thrust::permutation_iterator<Iterator,TransformIterator>     PermutationIterator;
+
+    // type of the strided_range iterator
+    typedef PermutationIterator iterator;
+
+    // construct strided_range for the range [first,last)
+    strided_range(Iterator first, Iterator last, difference_type stride)
+        : first(first), last(last), stride(stride) {}
+   
+    iterator begin(void) const
+    {
+        return PermutationIterator(first, TransformIterator(CountingIterator(0), stride_functor(stride)));
+    }
+
+    iterator end(void) const
+    {
+        return begin() + ((last - first) + (stride - 1)) / stride;
+    }
+    
+    protected:
+    Iterator first;
+    Iterator last;
+    difference_type stride;
+};
+
 void do_fft(cufftHandle *fft_plan, float2* &fft_input_ptr, float2* &fft_output_ptr) {
     Stopwatch timer;
     if(use_timer) timer.start();
@@ -225,15 +294,49 @@ void do_fft(cufftHandle *fft_plan, float2* &fft_input_ptr, float2* &fft_output_p
 }
 
 void compute_power_spectrum(device_vectors_t *dv_p) {
+//fprintf(stderr, "In compute_power_spectrum 1\n");
     Stopwatch timer;
     if(use_timer) timer.start();
+//fprintf(stderr, "In compute_power_spectrum 2 %p %p\n", thrust::raw_pointer_cast(dv_p->fft_data_out_p), thrust::raw_pointer_cast(dv_p->powspec_p));
+//fprintf(stderr, "In compute_power_spectrum 2 %p %p\n", dv_p->fft_data_out_p, dv_p->powspec_p);
     thrust::transform(dv_p->fft_data_out_p->begin(), dv_p->fft_data_out_p->end(),
                       dv_p->powspec_p->begin(),
                       compute_complex_power());
+//fprintf(stderr, "In compute_power_spectrum 3\n");
     cudaThreadSynchronize();
     if(use_timer) timer.stop();
     if(use_timer) cout << "Power spectrum time:\t" << timer.getTime() << endl;
     if(use_timer) timer.reset();
+}
+
+struct printf_functor {
+    __host__ __device__
+    void operator()(float x)
+    {
+      // note that using printf in a __device__ function requires
+      // code compiled for a GPU with compute capability 2.0 or
+      // higher (nvcc --arch=sm_20)
+      printf("%f\n", x);
+    }
+};
+
+using namespace thrust::placeholders;
+void reduce_power_spectra(device_vectors_t *dv_p, int n_subband_pols, int n_chan) {
+
+    // first, sum all of the fine (time) channels for each coarse channel (subband_pol)
+    thrust::reduce_by_key(thrust::make_transform_iterator(thrust::counting_iterator<int>(0),    // beginning of the input key range 
+                            linear_index_to_row_index<int>(n_chan)),                            //  (keyed by row (spectra) index)
+                          thrust::make_transform_iterator(thrust::counting_iterator<int>(0),    // end of the input key range
+                            linear_index_to_row_index<int>(n_chan)) + (n_subband_pols*n_chan),      
+                          dv_p->powspec_p->begin(),                                             // beginning of the input (spectra) value range
+                          dv_p->spectra_indices_p->begin(),                                     // beginning of the output (power sums) key range
+                          dv_p->spectra_sums_p->begin(),                                        // beginning of the output (power sums) value range
+                          thrust::equal_to<int>(),                                              // binary predicate used to determine equality of key
+                          thrust::plus<float>());                                               // binary function used to accumulate values
+    //thrust::for_each(dv_p->spectra_sums_p->begin(), dv_p->spectra_sums_p->end(), printf_functor());
+    // now find the mean of each (TODO why won't the divide_by functor work here?)
+    thrust::for_each(dv_p->spectra_sums_p->begin(), dv_p->spectra_sums_p->end(), _1 /= n_chan);
+    //thrust::for_each(dv_p->spectra_sums_p->begin(), dv_p->spectra_sums_p->end(), printf_functor());
 }
 
 void compute_baseline(device_vectors_t *dv_p, int n_chan, int n_element, float smooth_scale) {
@@ -332,17 +435,34 @@ size_t find_hits(device_vectors_t *dv_p, int n_element, size_t maxhits, float po
 }    
 
 // AO spectra order goes as pol0chan0 pol0chan1    pol1chan0 pol1chan1    pol0chan2 pol0chan3    pol1chan2 pol1chan3... 
+// (S0-C0-P0-Re), (S0-C0-P0-Im), (S0-C1-P0-Re), (S0-C1-P0-Im), (S0-C0-P1-Re), (S0-C0-P1-Im), (S0-C1-P1-Re), (S0-C1-P1-Im)
+// foreach spectra
+// 	foreach pair of channels
+// 		for each pol
+// 			8 bits Re, 8 bits Im
 inline int ao_pol(long spectrum_index) {
     return((long)floor((double)spectrum_index/2) % 2);
 }
 inline int ao_coarse_chan(long spectrum_index) {
     return((long)floor((double)spectrum_index/4) * 2 + spectrum_index % 2);
 }
+// DiBAS (GBT) spectra order goes as pol0chan0 pol1chan0    pol0chan1 pol1chan1    pol0chan2 pol1chan3    pol0chan3 pol1chan3... 
+// (S0-C0-P0-Re ), (S0-C0-P0-Im), (S0-C0-P1-Re), (S0-C0-P1-Im), (S0-C1-P0-Re), (S0-C1-P0-Im), (S0-C1-P1-Re), (S0-C1-P1-Im)
+// foreach spectra
+// 	foreach channel
+// 		for each pol
+// 			8 bits Re, 8 bits Im
+inline int dibas_pol(long spectrum_index) {
+    return ((long)(double)spectrum_index % 2);
+}
+inline int dibas_coarse_chan(long spectrum_index, int sub_spectrum_i) {
+    return((long)floor((double)spectrum_index/2) + sub_spectrum_i * N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM);
+}
     
-int spectroscopy(int n_subband,
-                 int n_chan,
-                 int n_input,
-                 int beam,
+int spectroscopy(int n_subband,         // N coarse chan
+                 int n_chan,            // N fine chan
+                 int n_input,           // N pols
+                 int bors,              // beam or subspectrum
                  size_t maxhits,
                  size_t maxgpuhits,
                  float power_thresh,
@@ -353,7 +473,12 @@ int spectroscopy(int n_subband,
                  device_vectors_t    *dv_p,
                  cufftHandle *fft_plan) {
 
-// GPU memory allocation note.  Our total memory needs are larger than the
+// Note - beam or subspectra. Sometimes we are passes a beam's worth of coarse 
+// channels (eg, as AO). At other times we are passed a subspectrum of channels  
+// (eg, GBT). In both cases, each course channel runs the full length of fine
+// channels.
+ 
+// Note - GPU memory allocation.  Our total memory needs are larger than the
 // capcity of our current GPU (GeForce GTX 780 Ti with 3071MB). So we allocate 
 // as needed and delete memory as soon as it is no longer needed.
 
@@ -372,10 +497,11 @@ int spectroscopy(int n_subband,
     dv_p->fft_data_p         = new thrust::device_vector<float2>(n_element);
     dv_p->fft_data_out_p     = new thrust::device_vector<float2>(n_element);
     dv_p->powspec_p          = new thrust::device_vector<float>(n_element);
-    dv_p->raw_timeseries_p   = new thrust::device_vector<char2>(N_COARSE_CHAN * N_FINE_CHAN * N_POLS_PER_BEAM);
+    dv_p->raw_timeseries_p   = new thrust::device_vector<char2>(N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM * N_FINE_CHAN * N_POLS_PER_BEAM);
 
     // Copy to the device
     if(use_timer) timer.start();
+
     thrust::copy(h_raw_timeseries, h_raw_timeseries + n_input_data_bytes / sizeof(char2),
                  //d_raw_timeseries.begin());
                  dv_p->raw_timeseries_p->begin());
@@ -397,13 +523,32 @@ int spectroscopy(int n_subband,
     // Input pointer varies with input.
     // Output pointer is constant - we reuse the output area for each input.
     // This is not true anymore - we analyze all inputs in one go. These
-    // comments and this way of asigning fft_input_ptr and fft_output_ptr
+    // comments and this way of assigning fft_input_ptr and fft_output_ptr
     // are left as is in case we need to go back to one-input-at-a-time.
     float2* fft_input_ptr  = thrust::raw_pointer_cast(&((*dv_p->fft_data_p)[0]));
     float2* fft_output_ptr = thrust::raw_pointer_cast(&((*dv_p->fft_data_out_p)[0]));
 
     do_fft                      (fft_plan, fft_input_ptr, fft_output_ptr);
     compute_power_spectrum      (dv_p);
+
+    // reduce coarse channels to mean power...
+    // allocate working vectors
+    dv_p->spectra_sums_p      = new thrust::device_vector<float>(n_subband*n_input);
+    dv_p->spectra_indices_p   = new thrust::device_vector<int>(n_subband*n_input);
+    // do the reduce
+    reduce_power_spectra(dv_p, n_subband*n_input, n_chan);
+    // copy the result to the output buffer, separating the pols
+    typedef thrust::device_vector<float>::iterator Iterator;
+    // polX
+    strided_range<Iterator> polX(dv_p->spectra_sums_p->begin(),     dv_p->spectra_sums_p->end(), 2);
+    thrust::copy(polX.begin(), polX.end(), &s6_output_block->cc_pwrs_x[bors*n_subband]);      
+    // polY
+    strided_range<Iterator> polY(dv_p->spectra_sums_p->begin() + 1, dv_p->spectra_sums_p->end(), 2);
+    thrust::copy(polY.begin(), polY.end(), &s6_output_block->cc_pwrs_y[bors*n_subband]);      
+    // delete working vectors
+    delete(dv_p->spectra_sums_p);
+    delete(dv_p->spectra_indices_p);
+    // ...end reduce coarse channels to mean power
 
     // done with the timeseries and FFTs - delete the associated GPU memory
     delete(dv_p->raw_timeseries_p);         
@@ -424,19 +569,24 @@ int spectroscopy(int n_subband,
     if(use_timer) timer.start();
 
     total_nhits += nhits;
-    s6_output_block->header.nhits[beam] = nhits;
-    thrust::copy(dv_p->hit_powers_p->begin(),    dv_p->hit_powers_p->end(),    &s6_output_block->power[beam][0]);
-    thrust::copy(dv_p->hit_baselines_p->begin(), dv_p->hit_baselines_p->end(), &s6_output_block->baseline[beam][0]);
-    thrust::copy(dv_p->hit_indices_p->begin(),   dv_p->hit_indices_p->end(),   &s6_output_block->hit_indices[beam][0]);
+    s6_output_block->header.nhits[bors] = nhits;
+    thrust::copy(dv_p->hit_powers_p->begin(),    dv_p->hit_powers_p->end(),    &s6_output_block->power[bors][0]);      
+    thrust::copy(dv_p->hit_baselines_p->begin(), dv_p->hit_baselines_p->end(), &s6_output_block->baseline[bors][0]);
+    thrust::copy(dv_p->hit_indices_p->begin(),   dv_p->hit_indices_p->end(),   &s6_output_block->hit_indices[bors][0]);
     for(size_t i=0; i<nhits; ++i) {
-        long hit_index                        = s6_output_block->hit_indices[beam][i]; 
+        long hit_index                        = s6_output_block->hit_indices[bors][i]; 
         long spectrum_index                   = (long)floor((double)hit_index/n_chan);
-        s6_output_block->pol[beam][i]         = ao_pol(spectrum_index);
-        s6_output_block->coarse_chan[beam][i] = ao_coarse_chan(spectrum_index);
-        s6_output_block->fine_chan[beam][i]   = hit_index % n_chan;
+#ifdef SOURCE_S6
+        s6_output_block->pol[bors][i]         = ao_pol(spectrum_index);
+        s6_output_block->coarse_chan[bors][i] = ao_coarse_chan(spectrum_index);
+#elif SOURCE_DIBAS
+        s6_output_block->pol[bors][i]         = dibas_pol(spectrum_index);    
+        s6_output_block->coarse_chan[bors][i] = dibas_coarse_chan(spectrum_index, bors);
+#endif
+        s6_output_block->fine_chan[bors][i]   = hit_index % n_chan;
         //fprintf(stderr, "hit_index %ld spectrum_index %ld pol %d cchan %d fchan %d power %f\n", 
-        //        hit_index, spectrum_index, s6_output_block->pol[beam][i], s6_output_block->coarse_chan[beam][i], 
-        //        s6_output_block->fine_chan[beam][i], s6_output_block->power[beam][i]);
+        //        hit_index, spectrum_index, s6_output_block->pol[bors][i], s6_output_block->coarse_chan[bors][i], 
+        //        s6_output_block->fine_chan[bors][i], s6_output_block->power[bors][i]);
     }
         
     // delete remaining GPU memory

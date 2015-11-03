@@ -18,6 +18,7 @@
 #include "hashpipe.h"
 #include "s6_databuf.h"
 #include "s6_obs_data.h"
+#include "s6_obs_data_gbt.h"
 #include "s6_etfits.h"
 
 
@@ -44,17 +45,22 @@ static void *run(hashpipe_thread_args_t * args)
     const char * status_key = args->thread_desc->skey;
 
     etfits_t  etf;
+#ifdef SOURCE_S6
     scram_t   scram;
     scram_t * scram_p = &scram;
-    
     int prior_receiver = 0;    
+#elif SOURCE_DIBAS
+    gbtstatus_t gbtstatus;
+    gbtstatus_t * gbtstatus_p = &gbtstatus;
+    char *prior_receiver = (char *)malloc(32);
+    strcpy(prior_receiver,"");
+#endif    
+
     int run_always, prior_run_always=0;                 // 1 = run even if no receiver
 
     size_t num_coarse_chan = 0;
 
     extern const char *receiver[];
-
-    char hostname[200];
 
 #if 0
     // raise this thread to maximum scheduling priority
@@ -68,19 +74,14 @@ static void *run(hashpipe_thread_args_t * args)
     }
 #endif
 
-    // Initialization for etfits file output.
-    hashpipe_status_lock_safe(&st);
-    hgets(st.buf, "BINDHOST", 80, hostname);
-    hashpipe_status_unlock_safe(&st);
-    strcpy(etf.hostname, strtok(hostname, "."));    // just use the host portion
-    int file_num_start = -1;
-    if(file_num_start == -1) file_num_start = 0;
-    init_etfits(&etf, file_num_start+1);
-
-    int i, rv, debug=20;
+    int i, rv=0, debug=20;
     int block_idx=0;
     int error_count, max_error_count = 0;
     float error, max_error = 0.0;
+
+    char current_filename[200] = "\0";  // init as a null string
+
+    init_etfits(&etf);                  // init for ETFITS output 
 
     /* Main loop */
     while (run_threads()) {
@@ -113,18 +114,23 @@ static void *run(hashpipe_thread_args_t * args)
         // TODO check mcnt
 
         // get scram, etc data
-#if 1
+#ifdef SOURCE_S6
         rv = get_obs_info_from_redis(scram_p, (char *)"redishost", 6379);
+#elif SOURCE_DIBAS
+        rv = get_obs_gbt_info_from_redis(gbtstatus_p, (char *)"redishost", 6379);
 #endif
-rv=0;
         if(rv) {
             hashpipe_error(__FUNCTION__, "error returned from get_obs_info_from_redis()");
             pthread_exit(NULL);
         }
 
+#ifdef SOURCE_S6
         scram.coarse_chan_id = db->block[block_idx].header.coarse_chan_id;
-
+#elif SOURCE_DIBAS
+        gbtstatus.coarse_chan_id = db->block[block_idx].header.coarse_chan_id;
+#endif
         hashpipe_status_lock_safe(&st);
+#ifdef SOURCE_S6
         hputs(st.buf,  "TELESCOP", receiver[scram.receiver]);
         hputi4(st.buf, "COARCHID", scram.coarse_chan_id);
         hputi4(st.buf, "CLOCKFRQ", scram.CLOCKFRQ);
@@ -144,12 +150,44 @@ rv=0;
         hputi4(st.buf, "SCRALFFB", scram.IF1ALFFB);
         hputi4(st.buf, "SCRALFON", scram.IF2ALFON);
         hputi4(st.buf, "SCRIF2SR", scram.IF2SIGSR);
+#elif SOURCE_DIBAS
+// TODO - put other GBT status items to status shmem?
+        hputs(st.buf,  "TELESCOP", gbtstatus.RECEIVER);
+        hputi4(st.buf, "COARCHID", gbtstatus.coarse_chan_id);
+        // hputi4(st.buf, "CLOCKFRQ", gbtstatus.CLOCKFRQ);
+        hputi4(st.buf, "GBTCLKFQ", gbtstatus.CLOCKFRQ);
+        // hputr4(st.buf, "AZACTUAL", gbtstatus.AZACTUAL);
+        hputr4(st.buf, "GBTAZACT", gbtstatus.AZACTUAL);
+        // hputr4(st.buf, "ELACTUAL", gbtstatus.ELACTUAL);
+        hputr4(st.buf, "GBTELACT", gbtstatus.ELACTUAL);
+        // hputr4(st.buf, "RA_DEG", gbtstatus.RADG_DRV);
+        hputr4(st.buf, "GBTRADG", gbtstatus.RADG_DRV);
+        // hputr4(st.buf, "DEC_DEG", gbtstatus.DEC_DRV);
+        hputr4(st.buf, "GBTDECDG", gbtstatus.DEC_DRV);
+        // hputr4(st.buf, "IFFRQ1ST", gbtstatus.IFFRQ1ST);
+        hputr4(st.buf, "GBTIFFQ1", gbtstatus.IFFRQ1ST);
+        // hputr4(st.buf, "FREQ", gbtstatus.FREQ);
+        hputr4(st.buf, "GBTFREQ", gbtstatus.FREQ);
+        hputi4(st.buf, "WEBCNTRL", gbtstatus.WEBCNTRL);
+#endif
         hashpipe_status_unlock_safe(&st);
 
+#ifdef SOURCE_DIBAS
+        //if(gbtstatus.WEBCNTRL == 0) {
+        //    pthread_exit(NULL);
+        //}
+#endif
+
         // test for and handle file change events
+
+#ifdef SOURCE_S6
         if(scram.receiver  != prior_receiver    ||
-            run_always      != prior_run_always  ||
-            num_coarse_chan != db->block[block_idx].header.num_coarse_chan)  {
+#elif SOURCE_DIBAS
+        if(strcmp(gbtstatus.RECEIVER,prior_receiver) != 0 ||
+                  gbtstatus.WEBCNTRL == 0  ||
+#endif
+                  run_always      != prior_run_always  ||
+                  num_coarse_chan != db->block[block_idx].header.num_coarse_chan) {
 
 #if 0
             uint32_t total_missed_pkts[N_BEAM_SLOTS];
@@ -167,7 +205,11 @@ rv=0;
 #endif
 
             hashpipe_info(__FUNCTION__, "Initializing output for %ld coarse channels, using receiver %s\n",
+#ifdef SOURCE_S6
                           num_coarse_chan, receiver[scram.receiver]);
+#elif SOURCE_DIBAS
+                          num_coarse_chan, gbtstatus.RECEIVER);
+#endif
 
             // change files
             if(etf.file_open) {
@@ -175,16 +217,30 @@ rv=0;
             }
             etf.new_file = 1; 
             // re-init
+#ifdef SOURCE_S6
             prior_receiver   = scram.receiver;
+#elif SOURCE_DIBAS
+            strcpy(prior_receiver,gbtstatus.RECEIVER);
+#endif
             num_coarse_chan  = db->block[block_idx].header.num_coarse_chan; 
             prior_run_always = run_always;
         }
 
+#ifdef SOURCE_S6
         // write hits and metadata to etFITS file only if there is a receiver
         // in focus or the run_always flag in on
         if(scram.receiver || run_always) {
-            etf.file_chan = scram.coarse_chan_id;
+#elif SOURCE_DIBAS
+// TODO - put GBT acquisition trigger logic, if any, here
+        if(run_always && gbtstatus.WEBCNTRL == 1) {
+#endif
+#ifdef SOURCE_S6
+            etf.file_chan = scram.coarse_chan_id;          
             rv = write_etfits(db, block_idx, &etf, scram_p);
+#elif SOURCE_DIBAS
+            etf.file_chan = gbtstatus.coarse_chan_id;           // TODO - sensible for GBT?
+            rv = write_etfits_gbt(db, block_idx, &etf, gbtstatus_p);
+#endif
             if(rv) {
                 hashpipe_error(__FUNCTION__, "error error returned from write_etfits()");
                 pthread_exit(NULL);
@@ -197,7 +253,31 @@ rv=0;
         hputr4(st.buf, "OUTMXERR", max_error);
         hputi4(st.buf, "OUTERCNT", error_count);
         hputi4(st.buf, "OUTMXECT", max_error_count);
+        hputr4(st.buf, "CCAV000X", db->block[block_idx].cc_pwrs_x[0]);
+        hputr4(st.buf, "CCAV000Y", db->block[block_idx].cc_pwrs_y[0]);
+        hputr4(st.buf, "CCAV100X", db->block[block_idx].cc_pwrs_x[100]);
+        hputr4(st.buf, "CCAV100Y", db->block[block_idx].cc_pwrs_y[100]);
+        hputr4(st.buf, "CCAV200X", db->block[block_idx].cc_pwrs_x[200]);
+        hputr4(st.buf, "CCAV200Y", db->block[block_idx].cc_pwrs_y[200]);
+        hputr4(st.buf, "CCAV300X", db->block[block_idx].cc_pwrs_x[300]);
+        hputr4(st.buf, "CCAV300Y", db->block[block_idx].cc_pwrs_y[300]);
+        hputr4(st.buf, "CCAV400X", db->block[block_idx].cc_pwrs_x[400]);
+        hputr4(st.buf, "CCAV400Y", db->block[block_idx].cc_pwrs_y[400]);
+        hputr4(st.buf, "CCAV511X", db->block[block_idx].cc_pwrs_x[511]);
+        hputr4(st.buf, "CCAV511Y", db->block[block_idx].cc_pwrs_y[511]);
         hashpipe_status_unlock_safe(&st);
+
+#ifdef SOURCE_DIBAS
+        if(strcmp(etf.filename_working, current_filename) != 0) {     // check for filename change
+            strcpy(current_filename, etf.filename_working);
+            hashpipe_info(__FUNCTION__, "New file : %s", current_filename);
+            rv = put_obs_gbt_info_to_redis(current_filename, st.instance_id, (char *)"redishost", 6379);
+            if(rv) {
+                hashpipe_error(__FUNCTION__, "error returned from put_obs_info_to_redis()");
+                pthread_exit(NULL);
+            }
+        }
+#endif
 
         // Mark block as free
         memset((void *)&db->block[block_idx], 0, sizeof(s6_output_block_t));   

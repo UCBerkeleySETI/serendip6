@@ -1,0 +1,160 @@
+#! /bin/csh -b
+
+set REMOTE_USER = aodata
+set REMOTE_HOST = khan.ssl.berkeley.edu
+set REMOTE_DIR = /setistor1/users/aodata/serendip6_data
+set XFER_SUFFIX = .xfer_to_ucb
+set DONE_SUFFIX = .at_ucb
+set SLEEP_SECS = 300 # how many seconds to sleep if no files to xfer
+set BWLIMIT = 2500 # KBps throttle (2500 KBps jjjjG= 20 Mbps)
+
+# first check to see if s6c* mounts exist, otherwise don't bother.
+
+echo -n "pinging servers:"
+foreach i (0 1 2 3)
+  echo -n " "s6c$i
+  set SUCCESS = `ping -c 1 -W 1 s6c$i |& grep -c "1 packets transmitted, 1 received, 0% packet loss"`
+  if ($SUCCESS == 0) then
+    echo '! - failed to ping back - exiting...'
+    exit 1
+  endif
+end
+
+echo " - good" 
+
+echo -n "checking mounts:"
+foreach i (0 1 2 3)
+  echo -n " "s6c$i
+  set MOUNTED = `df | grep -c /mnt_data/s6c$i'$'`
+  if ($MOUNTED == 0) then
+    echo '! - still not mounted - exiting...'
+    exit 1
+  endif
+end
+
+echo " - good"
+
+echo "entering main loop:"
+
+while (1)
+
+  # local data file management first, before any transfers. 
+ 
+  # compress all rotated logs in s6h0:/data/serendip6
+
+  echo "compressing files in s6h0:/data/serendip6"
+  gzip /data/serendip6/scramdump.*[0-9] >& /dev/null
+
+  # now onto the actual data xfers!
+   
+  set DO_THIS_FILE = ""
+  set SEND_TO_SUBDIR = ""
+
+  # first see if there were any files with a xfer suffix in head/compute nodes
+  # if so, this must have been a broken xfer from before, and thus restart on that file
+
+  set DO_THIS_FILE = `find /data/serendip6 -name "*${XFER_SUFFIX}" -print | head -1`
+  if (x != x$DO_THIS_FILE) then
+    set SEND_TO_SUBDIR = s6h0
+  else
+    foreach i (0 1 2 3)
+      if (x == x$DO_THIS_FILE) then
+        set DO_THIS_FILE = `find /mnt_data/s6c$i -name "*${XFER_SUFFIX}" -print |& grep -v "lost+found" | head -1`
+        if (x != x$DO_THIS_FILE) then
+          set SEND_TO_SUBDIR = s6c$i
+        endif
+      endif
+    end
+  endif
+
+  set REMOVED_SUFFIX = `echo $DO_THIS_FILE | sed "s/$XFER_SUFFIX//"`
+  set DO_THIS_FILE = $REMOVED_SUFFIX
+
+  # failing that, now try to pick a head node file to xfer:
+
+  if (x == x$DO_THIS_FILE) then
+    
+    # currently only xferring scrampdump.*.gz
+
+    set DO_THIS_FILE = `ls -1tr /data/serendip6/scramdump.*.gz |& head -1 | grep -v "No match"`
+    if (x != x$DO_THIS_FILE) then
+      set SEND_TO_SUBDIR = s6h0
+    endif 
+          
+  endif
+
+  # okay then, pick a fits file to xfer from one of the compute nodes
+  # or an *out*.[01] file, or an *err*.[01] file...
+
+  # echo $i $j | awk '{printf("%03d0",($1*2+$2)*2)}' ;
+  # serendip6_0000_20140312_154830.fits
+
+  foreach i (0 1 2 3)
+    cd /mnt_data/s6c${i}/serendip6
+    # note working files end with .working, so just look for anything
+    # ending with .fits - should be quiescent and ready to go.
+    if (x == x$DO_THIS_FILE) then
+      set COUNT = `ls serendip6_*.fits |& grep -v "No match" | wc -l | awk '{print $1}'`
+      if ($COUNT > 0) then # >0, i.e. any fits file is good to go
+        set THIS_FILE = `ls -1tr serendip6_*.fits  | head -1` 
+        set DO_THIS_FILE = /mnt_data/s6c${i}/serendip6/${THIS_FILE}
+        set SEND_TO_SUBDIR = s6c${i}
+      endif
+    endif
+    if (x == x$DO_THIS_FILE) then
+      set COUNT = `ls *.out*.0 |& grep -v "No match" | wc -l | awk '{print $1}'`
+      if ($COUNT > 1) then # >1, i.e. get anything but the most current one
+        set THIS_FILE = `ls -1tr *.out*.0 | head -1` 
+        set DO_THIS_FILE = /mnt_data/s6c${i}/serendip6/${THIS_FILE}
+        set SEND_TO_SUBDIR = s6c${i}
+      endif
+    endif
+    if (x == x$DO_THIS_FILE) then
+      set COUNT = `ls *.out*.1 |& grep -v "No match" | wc -l | awk '{print $1}'`
+      if ($COUNT > 1) then
+        set THIS_FILE = `ls -1tr *.out*.1 | head -1` 
+        set DO_THIS_FILE = /mnt_data/s6c${i}/serendip6/${THIS_FILE}
+        set SEND_TO_SUBDIR = s6c${i}
+      endif
+    endif
+    if (x == x$DO_THIS_FILE) then
+      set COUNT = `ls *.err*.0 |& grep -v "No match" | wc -l | awk '{print $1}'`
+      if ($COUNT > 1) then
+        set THIS_FILE = `ls -1tr *.err*.0 | head -1` 
+        set DO_THIS_FILE = /mnt_data/s6c${i}/serendip6/${THIS_FILE}
+        set SEND_TO_SUBDIR = s6c${i}
+      endif
+    endif
+    if (x == x$DO_THIS_FILE) then
+      set COUNT = `ls *.err*.1 |& grep -v "No match" | wc -l | awk '{print $1}'`
+      if ($COUNT > 1) then
+        set THIS_FILE = `ls -1tr *.err*.1 | head -1` 
+        set DO_THIS_FILE = /mnt_data/s6c${i}/serendip6/${THIS_FILE}
+        set SEND_TO_SUBDIR = s6c${i}
+      endif
+    endif
+  end
+
+  # anything? if not, sleep - otherwise rsync away!
+
+  if (x == x$DO_THIS_FILE) then
+    echo "nothing to do, sleeping..."
+    sleep $SLEEP_SECS
+  else
+    echo "working with file: $DO_THIS_FILE"
+    set BASENAME = `basename $DO_THIS_FILE`
+    if (! -f ${DO_THIS_FILE}${XFER_SUFFIX}) then 
+      mv $DO_THIS_FILE ${DO_THIS_FILE}${XFER_SUFFIX}
+    endif
+    echo command: rsync -av --bwlimit=$BWLIMIT ${DO_THIS_FILE}${XFER_SUFFIX} ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/${SEND_TO_SUBDIR}/$BASENAME
+    rsync -av --bwlimit=$BWLIMIT ${DO_THIS_FILE}${XFER_SUFFIX} ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/${SEND_TO_SUBDIR}/$BASENAME
+    if ($status > 0) then
+      echo "error during rsync! bailing out!!"
+      mv ${DO_THIS_FILE}${XFER_SUFFIX} $DO_THIS_FILE
+      exit 1
+    endif
+    mv ${DO_THIS_FILE}${XFER_SUFFIX} ${DO_THIS_FILE}${DONE_SUFFIX}
+  endif
+
+
+end # main while loop

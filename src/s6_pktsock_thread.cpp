@@ -23,6 +23,7 @@
 
 #include "hashpipe.h"
 #include "s6_databuf.h"
+#include "s6_logger.h"
 
 #define DEBUG_NET
 
@@ -40,8 +41,9 @@
 #define PKTSOCK_NFRAMES (PKTSOCK_FRAMES_PER_BLOCK * PKTSOCK_NBLOCKS)
 
 // Number of mcnts per block
-static const uint64_t     Nm = N_FINE_CHAN;
-static const unsigned int N_PACKETS_PER_BLOCK = Nm * N_BEAMS;
+// TODO - put these in s6_databuf.h ?
+static const uint64_t     Nm = N_FINE_CHAN / N_SPECTRA_PER_PACKET;
+static const unsigned int N_PACKETS_PER_BLOCK = Nm * N_BEAMS;           // for GBT, this is just Nm
 static const unsigned int N_BYTES_PER_CHAN = 4;
 
 typedef struct {
@@ -111,13 +113,14 @@ static void print_ring_mcnts(s6_input_databuf_t *s6_input_databuf_p) {
 // Returns physical block number for given mcnt
 static inline int block_for_mcnt(uint64_t mcnt)
 {
-    return (mcnt / Nm) % N_INPUT_BLOCKS;
+    return (mcnt / Nm) % N_INPUT_BLOCKS;       
 }
 
+#define LOC_MCNTS
 #ifdef LOG_MCNTS
 #define MAX_MCNT_LOG (1024*1024)
-//static uint64_t mcnt_log[MAX_MCNT_LOG];
-//static int mcnt_log_idx = 0;
+static uint64_t mcnt_log[MAX_MCNT_LOG];
+static int mcnt_log_idx = 0;
 static int total_packets_counted = 0;
 static int expected_packets_counted = 0;
 static int late_packets_counted = 0;
@@ -136,10 +139,10 @@ void dump_mcnt_log(int pchan)
     fprintf(f, "outofseq packets counted = %d\n", outofseq_packets_counted);
     fprintf(f, "total    packets counted = %d\n", total_packets_counted);
     fprintf(f, "filled   packets counted = %d\n", filled_packets_counted);
-    //for(i=0; i<MAX_MCNT_LOG; i++) {
-    //    if(mcnt_log[i] == 0) break;
-    //    fprintf(f, "%012lx\n", mcnt_log[i]);
-    //}
+    for(i=0; i<MAX_MCNT_LOG; i++) {
+        if(mcnt_log[i] == 0) break;
+        fprintf(f, "%012lx\n", mcnt_log[i]);
+    }
     fclose(f);
 }
 #endif
@@ -186,20 +189,31 @@ static inline void get_header(unsigned char *p_frame, packet_header_t * pkt_head
 {
     uint64_t raw_header;
     raw_header = be64toh(*(unsigned long long *)PKT_UDP_DATA(p_frame));
+#ifdef SOURCE_S6
     pkt_header->mcnt        =  raw_header >> 16;
     pkt_header->pchan       = (raw_header >>  4) & 0x0000000000000FFF;
     pkt_header->sid         =  raw_header        & 0x000000000000000F;
+#elif SOURCE_DIBAS
+    pkt_header->pchan       =  (raw_header >> 56) * N_COARSE_CHAN;  // node ID converted to phcan. 
+    pkt_header->mcnt        =  raw_header & 0x00FFFFFFFFFFFFFF;
+    pkt_header->sid         =  raw_header >> 56;
+#endif
 
+#ifdef SOURCE_S6
     // Compute nchan from packet size (minus UDP header and S6 header and CRC words)
-    pkt_header->nchan = (PKT_UDP_SIZE(p_frame) - 3*8)/ N_BYTES_PER_CHAN; // N_BYTES_PER_CHAN==4
+    pkt_header->nchan = (PKT_UDP_SIZE(p_frame) - 3*8)/ N_BYTES_PER_CHAN / N_SPECTRA_PER_PACKET; 
+#elif SOURCE_DIBAS
+    // Compute nchan from packet size (minus UDP header and S6 header and CRC words, and two interframe gaps)
+    pkt_header->nchan = (PKT_UDP_SIZE(p_frame) - 5*8)/ N_BYTES_PER_CHAN / N_SPECTRA_PER_PACKET; 
+#endif
 
 #ifdef LOG_MCNTS
     total_packets_counted++;
-    //mcnt_log[mcnt_log_idx++] = pkt_header->mcnt;
-    //if(mcnt_log_idx == MAX_MCNT_LOG) {
-    //    dump_mcnt_log(pkt_header->sid);
-    //    abort();
-    //}
+    mcnt_log[mcnt_log_idx++] = pkt_header->mcnt;
+    if(mcnt_log_idx == MAX_MCNT_LOG) {
+        dump_mcnt_log(pkt_header->sid);
+        abort();
+    }
     if(total_packets_counted == 10*1000*1000) {
 	dump_mcnt_log(pkt_header->sid);
 	abort();
@@ -261,7 +275,7 @@ static uint64_t set_block_filled(s6_input_databuf_t *s6_input_databuf_p, block_i
     // If we missed more than Nm, then assume we are missing one or more beams.
     // Any missed packets beyond an integer multiple of Nm will be considered
     // as dropped packets.
-    block_missed_beams   = block_missed_pkt_cnt / Nm;
+    block_missed_beams   = block_missed_pkt_cnt / Nm;       // TODO GBT beams or spectra
     block_missed_mod_cnt = block_missed_pkt_cnt % Nm;
 
     // Update status buffer
@@ -287,10 +301,10 @@ static uint64_t set_block_filled(s6_input_databuf_t *s6_input_databuf_p, block_i
 static inline int calc_block_indexes(block_info_t *binfo, packet_header_t * pkt_header)
 {
     // Reject pacets with bad SID Values
-    if(pkt_header->sid >= N_BEAMS) {
+    if(pkt_header->sid >= N_SOURCE_NODES) {            // TODO - sid == 0 for dibas
 	hashpipe_error(__FUNCTION__,
 		"current packet SID %u out of range (0-%d)",
-		pkt_header->sid, N_BEAMS-1);
+		pkt_header->sid, N_SOURCE_NODES-1);
 	return -1;
     }
 
@@ -316,7 +330,7 @@ static inline int calc_block_indexes(block_info_t *binfo, packet_header_t * pkt_
 }
 
 // This allows for 2 out of sequence packets from each beam (in a row)
-#define MAX_OUT_OF_SEQ (2*N_BEAMS)
+#define MAX_OUT_OF_SEQ (2*N_BORS)
 
 // This allows packets to be two full databufs late without being considered
 // out of sequence.
@@ -333,8 +347,9 @@ static inline void initialize_block(s6_input_databuf_t * s6_input_databuf_p,
     int i;
     int block_i = block_for_mcnt(mcnt);
 
-    for(i=0; i<N_BEAM_SLOTS; i++) {
-	s6_input_databuf_p->block[block_i].header.missed_pkts[i] = (i < N_BEAMS ? Nm : 0);
+    //for(i=0; i<N_BEAM_SLOTS; i++) {
+    for(i=0; i<N_BORS; i++) {               // TODO - not right for s6 at ao where N_BORS != N_BEAM_SLOTS ?
+	s6_input_databuf_p->block[block_i].header.missed_pkts[i] = (i < N_BORS ? Nm : 0);
     }
     // Round pkt_mcnt down to nearest multiple of Nm
     s6_input_databuf_p->block[block_i].header.mcnt = mcnt - (mcnt % Nm);
@@ -371,6 +386,37 @@ static inline void initialize_block_info(block_info_t * binfo)
     binfo->out_of_seq_cnt = 0;
     binfo->initialized = 1;
 }
+
+inline void log_rms(s6_input_databuf_t *s6_input_databuf_p, block_info_t *binfo, int coarse_chan, double &rms_p0, double &rms_p1) {
+
+    static int n_rms = 0;
+    //if(n_rms >= 5) return;
+
+    //int coarse_chan = 246;
+    long sum_p0 = 0;
+    long sum_p1 = 0;
+    char * data_p = (char *)&s6_input_databuf_p->block[binfo->block_i].data;
+//fprintf(stderr, "%p\n\n", data_p);
+    char * coarse_chan_p = data_p 
+                            + (long)floor(coarse_chan / (N_COARSE_CHAN/N_SUBSPECTRA_PER_SPECTRUM))
+                            * N_FINE_CHAN * (N_COARSE_CHAN/N_SUBSPECTRA_PER_SPECTRUM) * N_POLS_PER_BEAM * N_BYTES_PER_SAMPLE
+                            + coarse_chan % (N_COARSE_CHAN/N_SUBSPECTRA_PER_SPECTRUM)  
+                            * N_POLS_PER_BEAM * N_BYTES_PER_SAMPLE;  
+    for(int i=0; i < N_FINE_CHAN; i++) {
+//fprintf(stderr, "%p\n", coarse_chan_p);
+        // just calc the 'real' portion
+        sum_p0 += *coarse_chan_p * *coarse_chan_p;
+        sum_p1 += *(coarse_chan_p+2) * *(coarse_chan_p+2);
+        coarse_chan_p += N_COARSE_CHAN/N_SUBSPECTRA_PER_SPECTRUM * N_POLS_PER_BEAM * N_BYTES_PER_SAMPLE;	
+    }
+    
+    rms_p0 = sqrt((double)sum_p0/N_FINE_CHAN);
+    rms_p1 = sqrt((double)sum_p1/N_FINE_CHAN);
+    //fprintf(stderr, "rms = %lf %lf\n", rms_p0, rms_p1);
+
+    //n_rms += 1;
+}
+
 
 // This function returns -1 unless the given packet causes a block to be marked
 // as filled in which case this function returns the marked block's first mcnt.
@@ -438,6 +484,22 @@ static inline uint64_t process_packet(
 			s6_input_databuf_p->block[binfo.block_i].header.missed_pkts[i], i);
 	    }
 #endif
+#define LOG_RMS
+#ifdef LOG_RMS
+        // only do this once per block! Ie, when the block is done.
+        int coarse_chan, retval;
+        double rms_p0, rms_p1;
+        hashpipe_status_lock_safe(st_p);
+        retval = hgeti4(st_p->buf, "CCTORMS", &coarse_chan);
+        hashpipe_status_unlock_safe(st_p);
+        if(retval) {
+	        log_rms(s6_input_databuf_p, &binfo, coarse_chan, rms_p0, rms_p1);
+            hashpipe_status_lock_safe(st_p);
+            hputr4(st_p->buf, "CCRMSP0", rms_p0);
+            hputr4(st_p->buf, "CCRMSP1", rms_p1);
+            hashpipe_status_unlock_safe(st_p);
+        }
+#endif
 
 	    // Mark the current block as filled
 	    netmcnt = set_block_filled(s6_input_databuf_p, &binfo);
@@ -488,25 +550,86 @@ static inline uint64_t process_packet(
 	}
 
 	// Decrement missed packet counter
-	s6_input_databuf_p->block[pkt_block_i].header.missed_pkts[pkt_header.sid]--;
+	s6_input_databuf_p->block[pkt_block_i].header.missed_pkts[pkt_header.sid]--;    // TODO GBT - is this correct?  sid is constant for a given instance
 
 	// Calculate starting points for unpacking this packet into block's data buffer.
-	dest_p = s6_input_databuf_p->block[pkt_block_i].data
-	    + (pkt_header.sid*Nm + (pkt_mcnt%Nm)) * N_COARSE_CHAN * N_BYTES_PER_CHAN / sizeof(uint64_t);
-
-	// Copy data into buffer
-
-#if 1
 	// Point to payload (after S6 header)
 	payload_p        = (uint64_t *)(PKT_UDP_DATA(p_frame)+8);
-	// Use length from packet (minus UDP header and minus HEADER word and minus CRC word)
-	memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame) - 8 - 8 - 8);
+#ifdef SOURCE_S6
+    const uint64_t *src_p = payload_p;
+	dest_p = s6_input_databuf_p->block[pkt_block_i].data        // start of block
+	    + (pkt_header.sid * Nm                                  // offset of the destination beam
+        + (pkt_mcnt       % Nm))                                // offset within the destination beam 
+        * N_COARSE_CHAN * N_BYTES_PER_CHAN / sizeof(uint64_t);  // units of offset, in 64 bit words
+#if 1
+    // Use length from packet (minus UDP header and minus HEADER word and minus CRC word)
+    memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame) - 8 - 8 - 8);
 #else
-	// Copy "extra" packet preface data to maintain alignment
-	payload_p        = (uint64_t *)(PKT_NET(p_frame)+16);
-	s6_memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame));
+    // Copy "extra" packet preface data to maintain alignment
+    payload_p        = (uint64_t *)(PKT_NET(p_frame)+16);
+    s6_memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame));
+#endif
+#elif SOURCE_DIBAS
+    const uint64_t *src_p = payload_p;  // TODO - get beyond the header?
+
+    // for each spectrum in packet...
+    for(int pkt_spectrum_i=0; pkt_spectrum_i < N_SPECTRA_PER_PACKET; pkt_spectrum_i++) {    
+
+        uint64_t pkt_spectrum_mcnt = pkt_mcnt * N_SPECTRA_PER_PACKET + pkt_spectrum_i;      // should not wrap - pkt_cnt is 56 bits for DiBAS
+
+        // for each subspectrum...
+        for(int sub_spectrum_i=0; 
+                sub_spectrum_i < N_SUBSPECTRA_PER_SPECTRUM; 
+                sub_spectrum_i++, 
+                src_p += N_BYTES_PER_SUBSPECTRUM/sizeof(uint64_t)) {
+
+            dest_p = s6_input_databuf_p->block[pkt_block_i].data        // start of block 
+                + (sub_spectrum_i    * N_FINE_CHAN                      // offset of the destination sub-spectrum
+                +  pkt_spectrum_mcnt % N_FINE_CHAN)                     // offset within the destination sub-spectrum TODO - this can br above this for loop 
+                * N_BYTES_PER_SUBSPECTRUM/sizeof(uint64_t);             // units of offset, in 64 bit words
+#if 0
+            // log debugging information
+            char log_message[256];
+            static int net_log_lines = 1000;
+            //int first_log_line = 1;
+            static uint64_t test_memcpy_counter;
+            static uint64_t *prior_src_p, *prior_dest_p, prior_pkt_mcnt, prior_pkt_spectrum_mcnt;
+            test_memcpy_counter++;
+            uint64_t offset = (sub_spectrum_i    * N_FINE_CHAN   +  pkt_spectrum_mcnt % N_FINE_CHAN)  * N_BYTES_PER_SUBSPECTRUM/sizeof(uint64_t);
+            //if(offset == 0) {
+            if(net_log_lines) {
+                sprintf(log_message, "%9lu %d %d %d src_p = %p (%lu)  dest_p = %p (%lu)  pkt_mcnt = %lu (%lu)  pkt_spectrum_mcnt = %lu (%lu) (%lu)  offset64 = %lu", 
+                        test_memcpy_counter, pkt_block_i, pkt_spectrum_i, sub_spectrum_i, 
+                        src_p, src_p-prior_src_p, 
+                        dest_p, dest_p-prior_dest_p,
+                        pkt_mcnt, pkt_mcnt-prior_pkt_mcnt, 
+                        pkt_spectrum_mcnt, pkt_spectrum_mcnt-prior_pkt_spectrum_mcnt, pkt_spectrum_mcnt % N_FINE_CHAN,
+                        offset);
+                if(logger(log_message, net_log_lines) == net_log_lines) {
+                    net_log_lines  = 0;     // stop logging after writing out the current log
+                    //first_log_line = 1;     // re-init for next log run
+                }       
+            }
+            //}
+            prior_src_p = (uint64_t*)src_p;
+            prior_dest_p = (uint64_t*)dest_p;
+            prior_pkt_mcnt = pkt_mcnt;
+            prior_pkt_spectrum_mcnt = pkt_spectrum_mcnt;
+#endif
+#if 1
+	        // Use length from packet (minus UDP header and minus HEADER word and minus CRC word)
+	        //memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame) - 8 - 8 - 8);
+	        memcpy(dest_p, src_p, N_BYTES_PER_SUBSPECTRUM);
+#else
+	        // Copy "extra" packet preface data to maintain alignment
+	        payload_p        = (uint64_t *)(PKT_NET(p_frame)+16);
+	        s6_memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame));
+#endif
+        }
+    }
 #endif
 
+    // TODO - this should probably be moved into the SOURCE_ sections, above
 	//memset(dest_p, 0, N_COARSE_CHAN*N_BYTES_PER_CHAN);
 	//dest_p[0] = be64toh(*(uint64_t *)(p->data));
 
@@ -586,9 +709,10 @@ static int init(hashpipe_thread_args_t *args)
 {
     /* Read network params */
     char bindhost[80];
-    int bindport = 21302;
+    //int bindport = 21302;
+    int bindport = 60000;
 
-    strcpy(bindhost, "eth2");
+    strcpy(bindhost, "eth3");
 
     hashpipe_status_t st = args->st;
 
@@ -698,7 +822,8 @@ static void *run(hashpipe_thread_args_t * args)
 
     /* Read network params */
     int bindport = 21302;
-    size_t max_packet_size = 8 + (N_COARSE_CHAN * N_BYTES_PER_CHAN) + 8;
+    size_t max_packet_size = 8 + (N_COARSE_CHAN * N_BYTES_PER_CHAN * N_SPECTRA_PER_PACKET) + 8 + 16;    // + 16 for 2 8byte interframe gaps
+//fprintf(stderr, "max_packet_size = %lu\n", max_packet_size);
 
 #ifndef TIMING_TEST
     /* Get pktsock from args*/
@@ -754,6 +879,8 @@ static void *run(hashpipe_thread_args_t * args)
 	do {
 	    clock_gettime(CLOCK_MONOTONIC, &start);
 	    //p_frame = hashpipe_pktsock_recv_udp_frame(p_ps, bindport, 10);
+	    //p_frame = hashpipe_pktsock_recv_udp_frame_nonblock(p_ps, bindport);
+	    //p_frame = hashpipe_pktsock_recv_udp_frame_nonblock(p_ps, 0);
 	    p_frame = hashpipe_pktsock_recv_udp_frame_nonblock(p_ps, bindport);
 	    clock_gettime(CLOCK_MONOTONIC, &recv_stop);
 	} while (!p_frame && run_threads());

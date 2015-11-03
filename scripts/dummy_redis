@@ -1,0 +1,18 @@
+#! /bin/tcsh
+
+set STATUS_FIELDS_FILE = ../src/status_fields
+
+set STATUS_FIELDS = `awk '{printf("%s ",$1)}' $STATUS_FIELDS_FILE`
+
+set OBS_DERIVED_FIELDS = "LSTH_DRV RA_DRV RADG_DRV DEC_DRV"
+
+#############################
+# MAIN LOOP
+
+while (1)
+  set NOW = `date '+%s'`
+  foreach FIELD ($STATUS_FIELDS $OBS_DERIVED_FIELDS) 
+    redis-cli SET $FIELD $NOW
+  end
+  sleep 1
+end
