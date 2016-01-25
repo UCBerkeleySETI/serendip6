@@ -253,6 +253,8 @@ static void *run(hashpipe_thread_args_t * args)
         hputr4(st.buf, "OUTMXERR", max_error);
         hputi4(st.buf, "OUTERCNT", error_count);
         hputi4(st.buf, "OUTMXECT", max_error_count);
+#ifdef SOURCE_DIBAS
+        // put a few selected coarse channel powers to the status buffer
         hputr4(st.buf, "CCAV000X", db->block[block_idx].cc_pwrs_x[0]);
         hputr4(st.buf, "CCAV000Y", db->block[block_idx].cc_pwrs_y[0]);
         hputr4(st.buf, "CCAV100X", db->block[block_idx].cc_pwrs_x[100]);
@@ -265,6 +267,7 @@ static void *run(hashpipe_thread_args_t * args)
         hputr4(st.buf, "CCAV400Y", db->block[block_idx].cc_pwrs_y[400]);
         hputr4(st.buf, "CCAV511X", db->block[block_idx].cc_pwrs_x[511]);
         hputr4(st.buf, "CCAV511Y", db->block[block_idx].cc_pwrs_y[511]);
+#endif
         hashpipe_status_unlock_safe(&st);
 
 #ifdef SOURCE_DIBAS

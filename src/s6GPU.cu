@@ -531,6 +531,7 @@ int spectroscopy(int n_subband,         // N coarse chan
     do_fft                      (fft_plan, fft_input_ptr, fft_output_ptr);
     compute_power_spectrum      (dv_p);
 
+#ifdef SOURCE_DIBAS
     // reduce coarse channels to mean power...
     // allocate working vectors
     dv_p->spectra_sums_p      = new thrust::device_vector<float>(n_subband*n_input);
@@ -549,6 +550,7 @@ int spectroscopy(int n_subband,         // N coarse chan
     delete(dv_p->spectra_sums_p);
     delete(dv_p->spectra_indices_p);
     // ...end reduce coarse channels to mean power
+#endif
 
     // done with the timeseries and FFTs - delete the associated GPU memory
     delete(dv_p->raw_timeseries_p);         
