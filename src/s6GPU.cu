@@ -400,6 +400,10 @@ size_t find_hits(device_vectors_t *dv_p, int n_element, size_t maxhits, float po
     Stopwatch timer;
     if(use_timer) timer.start();
     dv_p->hit_indices_p->resize(n_element); // Note: Upper limit on required storage TODO - is n_element being set right?
+
+    // Find normalised powers (S/N) over threshold.
+    // The hit_indices vector will then index the powspec (detected powers) and baseline (mean powers) as well
+    // as the normalized power (S/N) vector.
     nhits = thrust::copy_if(make_counting_iterator<int>(0),
                                    make_counting_iterator<int>(n_element),
                                    dv_p->normalised_p->begin(),  // stencil
@@ -417,7 +421,7 @@ size_t find_hits(device_vectors_t *dv_p, int n_element, size_t maxhits, float po
     if(use_timer) timer.reset();
     
     if(use_timer) timer.start();
-    // Retrieve hit info
+    // Retrieve (hit) detected and mean powers into their own vectors for ease of outputting.
     dv_p->hit_powers_p->resize(nhits);
     thrust::gather(dv_p->hit_indices_p->begin(), dv_p->hit_indices_p->end(),
                    dv_p->powspec_p->begin(),
@@ -572,6 +576,7 @@ int spectroscopy(int n_subband,         // N coarse chan
 
     total_nhits += nhits;
     s6_output_block->header.nhits[bors] = nhits;
+    // We output both detected and mean powers (not S/N).
     thrust::copy(dv_p->hit_powers_p->begin(),    dv_p->hit_powers_p->end(),    &s6_output_block->power[bors][0]);      
     thrust::copy(dv_p->hit_baselines_p->begin(), dv_p->hit_baselines_p->end(), &s6_output_block->baseline[bors][0]);
     thrust::copy(dv_p->hit_indices_p->begin(),   dv_p->hit_indices_p->end(),   &s6_output_block->hit_indices[bors][0]);
