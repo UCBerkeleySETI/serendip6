@@ -32,13 +32,13 @@ redisContext * redis_connect(char *hostname, int port) {
 }
 
 //----------------------------------------------------------
-int s6_strcpy(char * dest, char * src) {
+int s6_strcpy(char * dest, char * src, int strsize=GBTSTATUS_STRING_SIZE) {
 //----------------------------------------------------------
 
-    strncpy(dest, src, GBTSTATUS_STRING_SIZE);
-    if(dest[GBTSTATUS_STRING_SIZE-1] != '\0') {
-        dest[GBTSTATUS_STRING_SIZE-1] = '\0';
-        hashpipe_error(__FUNCTION__, "GBT status string exceeded buffer size of %d, truncated : %s", GBTSTATUS_STRING_SIZE, dest);
+    strncpy(dest, src, strsize);
+    if(dest[strsize-1] != '\0') {
+        dest[strsize-1] = '\0';
+        hashpipe_error(__FUNCTION__, "GBT status string exceeded buffer size of %d, truncated : %s", strsize, dest);
     }
 }
 
@@ -278,7 +278,7 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
     if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET ATTRBEAM VALUE")))  {s6_strcpy(gbtstatus->ATTRBEAM,reply->element[0]->str);     freeReplyObject(reply);} 
     if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET ATTRBEAM STIME")))  {gbtstatus->ATTRBEAMSTIME = atol(reply->element[0]->str);   freeReplyObject(reply);} 
     if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET ATTRBEAM MJD")))    {gbtstatus->ATTRBEAMMJD = atof(reply->element[0]->str);     freeReplyObject(reply);} 
-    if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET ATTURLOC VALUE")))  {s6_strcpy(gbtstatus->ATTURLOC,reply->element[0]->str);     freeReplyObject(reply);} 
+    if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET ATTURLOC VALUE")))  {s6_strcpy(gbtstatus->ATTURLOC,reply->element[0]->str,GBTSTATUS_BIG_STRING_SIZE);     freeReplyObject(reply);} 
     if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET ATTURLOC STIME")))  {gbtstatus->ATTURLOCSTIME = atol(reply->element[0]->str);   freeReplyObject(reply);} 
     if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET ATTURLOC MJD")))    {gbtstatus->ATTURLOCMJD = atof(reply->element[0]->str);     freeReplyObject(reply);} 
     if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET BAMBAMCA VALUE")))  {s6_strcpy(gbtstatus->BAMBAMCA,reply->element[0]->str);     freeReplyObject(reply);} 
