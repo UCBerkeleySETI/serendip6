@@ -14,6 +14,10 @@ set REDISPORT = 6379
 
 set STIME = `date '+%s'`
 set NEWVALUE = `timeout 15 $CLEOHELLOEXE $CLEOHOST $CLEOPORT |& grep -c "GOODDAY"`
+# If need be, try once more.
+if(NEWVALUE == 0) then
+    set NEWVALUE = `timeout 15 $CLEOHELLOEXE $CLEOHOST $CLEOPORT |& grep -c "GOODDAY"`
+endif
 
 set CURVALUE = `redis-cli -h $REDISHOST -p $REDISPORT HMGET CLEOHELLO VALUE | cat`
 if (x$CURVALUE == x) then
