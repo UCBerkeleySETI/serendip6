@@ -709,8 +709,11 @@ static int init(hashpipe_thread_args_t *args)
 {
     /* Read network params */
     char bindhost[80];
-    //int bindport = 21302;
+#ifdef SOURCE_S6
+    int bindport = 21302;
+#elif SOURCE_DIBAS
     int bindport = 60000;
+#endif
 
     strcpy(bindhost, "eth3");
 
