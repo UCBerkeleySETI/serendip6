@@ -477,9 +477,9 @@ int spectroscopy(int n_subband,         // N coarse chan
                  device_vectors_t    *dv_p,
                  cufftHandle *fft_plan) {
 
-// Note - beam or subspectra. Sometimes we are passes a beam's worth of coarse 
-// channels (eg, as AO). At other times we are passed a subspectrum of channels  
-// (eg, GBT). In both cases, each course channel runs the full length of fine
+// Note - beam or subspectra. Sometimes we are passed a beam's worth of coarse 
+// channels (eg, at AO). At other times we are passed a subspectrum of channels  
+// (eg, at GBT). In both cases, each course channel runs the full length of fine
 // channels.
  
 // Note - GPU memory allocation.  Our total memory needs are larger than the
@@ -535,9 +535,8 @@ int spectroscopy(int n_subband,         // N coarse chan
     do_fft                      (fft_plan, fft_input_ptr, fft_output_ptr);
     compute_power_spectrum      (dv_p);
 
-#ifdef SOURCE_DIBAS
-    if(use_timer) timer.start();
     // reduce coarse channels to mean power...
+    if(use_timer) timer.start();
     // allocate working vectors
     dv_p->spectra_sums_p      = new thrust::device_vector<float>(n_subband*n_input);
     dv_p->spectra_indices_p   = new thrust::device_vector<int>(n_subband*n_input);
@@ -558,7 +557,6 @@ int spectroscopy(int n_subband,         // N coarse chan
     if(use_timer) timer.stop();
     if(use_timer) cout << "Reduce coarse channels time:\t" << timer.getTime() << endl;
     if(use_timer) timer.reset();
-#endif
 
     // done with the timeseries and FFTs - delete the associated GPU memory
     delete(dv_p->raw_timeseries_p);         

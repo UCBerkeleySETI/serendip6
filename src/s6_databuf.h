@@ -124,8 +124,8 @@ typedef struct s6_output_block {
   int   pol         [N_BORS][MAXGPUHITS];
   int   coarse_chan [N_BORS][MAXGPUHITS];
   int   fine_chan   [N_BORS][MAXGPUHITS];
-  float cc_pwrs_x   [N_COARSE_CHAN];    // coarse channel mean powers for polX
-  float cc_pwrs_y   [N_COARSE_CHAN];    // coarse channel mean powers for polY
+  float cc_pwrs_x   [N_COARSE_CHAN*N_BEAMS];    // coarse channel mean powers for polX
+  float cc_pwrs_y   [N_COARSE_CHAN*N_BEAMS];    // coarse channel mean powers for polY
 } s6_output_block_t;
 
 typedef struct s6_output_databuf {

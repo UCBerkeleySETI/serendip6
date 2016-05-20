@@ -13,8 +13,8 @@ DATE    =                    *  / Date (dd/mm//yy) this file was written
 ### Core ETFITS header fields ###
 #
 HDRVER  = 1.0                   / Header version 
-S6HPCVER= '0.7.1'               / version of serendip6.so
-LBGPUVER= '0.7.0'               / version of libS6GPU.so
+S6HPCVER= '0.7.2'               / version of serendip6.so
+LBGPUVER= '0.7.2'               / version of libS6GPU.so
 HASHPVER= '0.1.0'               / version of hashpipe lib/app
 FPGAVER = '0.1.0'               / version of FPGA code
 TELESCOP=                    *  / Telescope name
@@ -144,6 +144,42 @@ ADCRMS13=                    *  / a value of -1 indicates a NaN return from the 
 ADCRMS14=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
 ADCRMS15=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
 ADCRMS16=                    *  / a value of -1 indicates a NaN return from the ADC (TDOUBLE)
+#
+END
+##################################################################
+# ETFITS Coarse Channel Powers Binary Table Header Block - 1 per per integration
+##################################################################
+#
+### Mandatory ETFITS header fields ###
+#
+XTENSION= BINTABLE             / FITS binary table
+BITPIX  =                    8  / Binary data
+NAXIS   =                    2 / 2-dimensional binary table
+NAXIS1  =                    * / width of table in bytes
+NAXIS2  =                    * / Number of rows in table
+PCOUNT  =                    0 / size of special data area
+GCOUNT  =                    1 / one data group (required keyword)
+TFIELDS =                    * / Number of fields per row
+EXTNAME = 'CCPWRS'             / name of this binary table extension
+NMATRIX =                    1 / 1 dataset per row
+#
+### ETFITS hits metadata ###
+#
+TIME    =                    * / unix time of this integration - is this fine enough res? (TINT)
+RA      =                    * / derived from corrected scram azza (TDOUBLE)
+DEC     =                    * / derived from corrected scram azza (TDOUBLE)
+#
+END
+##################################################################
+# Data table rows
+#####################################################################
+#
+### ETFITS coarse channel power columns ###
+#
+TTYPE#  = 'POLX    '           / coarse channel powers for X polarization
+TFORM#  = '1E      '           / 4-byte real
+TTYPE#  = 'POLY    '           / coarse channel powers for Y polarization
+TFORM#  = '1E      '           / 4-byte real
 #
 END
 ##################################################################

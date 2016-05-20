@@ -118,6 +118,8 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
 
     if(! *status_p) write_integration_header(etf, scram_p);
 
+    if(! *status_p) nhits = write_ccpwrs(db, block_idx, etf);
+
     if(! *status_p) nhits = write_hits(db, block_idx, etf);
 
     etf->integration_cnt++;

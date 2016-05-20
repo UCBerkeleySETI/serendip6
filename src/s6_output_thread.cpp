@@ -253,8 +253,22 @@ static void *run(hashpipe_thread_args_t * args)
         hputr4(st.buf, "OUTMXERR", max_error);
         hputi4(st.buf, "OUTERCNT", error_count);
         hputi4(st.buf, "OUTMXECT", max_error_count);
-#ifdef SOURCE_DIBAS
         // put a few selected coarse channel powers to the status buffer
+#ifdef SOURCE_S6
+        hputr4(st.buf, "CCAV000X", db->block[block_idx].cc_pwrs_x[0]);
+        hputr4(st.buf, "CCAV000Y", db->block[block_idx].cc_pwrs_y[0]);
+        hputr4(st.buf, "CCAV060X", db->block[block_idx].cc_pwrs_x[60]);
+        hputr4(st.buf, "CCAV060Y", db->block[block_idx].cc_pwrs_y[60]);
+        hputr4(st.buf, "CCAV120X", db->block[block_idx].cc_pwrs_x[120]);
+        hputr4(st.buf, "CCAV120Y", db->block[block_idx].cc_pwrs_y[120]);
+        hputr4(st.buf, "CCAV180X", db->block[block_idx].cc_pwrs_x[180]);
+        hputr4(st.buf, "CCAV180Y", db->block[block_idx].cc_pwrs_y[180]);
+        hputr4(st.buf, "CCAV240X", db->block[block_idx].cc_pwrs_x[240]);
+        hputr4(st.buf, "CCAV240Y", db->block[block_idx].cc_pwrs_y[240]);
+        hputr4(st.buf, "CCAV319X", db->block[block_idx].cc_pwrs_x[319]);
+        hputr4(st.buf, "CCAV319Y", db->block[block_idx].cc_pwrs_y[319]);
+#endif
+#ifdef SOURCE_DIBAS
         hputr4(st.buf, "CCAV000X", db->block[block_idx].cc_pwrs_x[0]);
         hputr4(st.buf, "CCAV000Y", db->block[block_idx].cc_pwrs_y[0]);
         hputr4(st.buf, "CCAV100X", db->block[block_idx].cc_pwrs_x[100]);
