@@ -13,8 +13,8 @@ DATE    =                    *  / Date (dd/mm//yy) this file was written
 ### Core ETFITS header fields ###
 #
 HDRVER  = 1.0                   / Header version 
-S6HPCVER= '0.7.1'               / version of serendip6.so
-LBGPUVER= '0.7.0'               / version of libS6GPU.so
+S6HPCVER= '0.7.2'               / version of serendip6.so
+LBGPUVER= '0.7.2'               / version of libS6GPU.so
 HASHPVER= '0.1.0'               / version of hashpipe lib/app
 FPGAVER = '0.1.0'               / version of FPGA code
 TELESCOP=                    *  / Telescope name
