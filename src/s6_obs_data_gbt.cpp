@@ -111,26 +111,36 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
     redisReply *reply;
     int rv = 0;
 
-    static double prior_mjd=0;
-    static int no_time_change_count=0;
-    int no_time_change_limit=10;
+    double mjd_now;  
+
+    // in units of seconds
+    double cleo_mjd_lag;    
+    double mysql_mjd_lag;    
+    const  double cleo_mjd_lag_tolerance  = 70.0;   // allow a 10s delay: cleo heartbeat arrives once per minute 
+    const  double mysql_mjd_lag_tolerance = 10.0;   // allow a 10s delay: mysql MJD should be changing once per second
 
     // TODO make c static?
     c = redis_connect(hostname, port);
 
-    if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET MJD VALUE")))       {gbtstatus->MJD = atof(reply->element[0]->str);               freeReplyObject(reply);} 
-    if (!rv && gbtstatus->MJD == prior_mjd) {
-      no_time_change_count++;
-      hashpipe_warn(__FUNCTION__, "mjd in redis database (%f) has not been updated over %d queries", gbtstatus->MJD, no_time_change_count);
-      if(no_time_change_count >= no_time_change_limit) {
-        hashpipe_error(__FUNCTION__, "redis databse is static!");
-        rv = 1;
-        }
-      } 
-    else {
-      no_time_change_count = 0;
-      prior_mjd = gbtstatus->MJD;
-      }
+    // check for static mysql data via mysql mjd
+    if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET MJD VALUE")))       {gbtstatus->MJD = atof(reply->element[0]->str);      freeReplyObject(reply);} 
+    mjd_now       = CURRENT_MJD;  
+    mysql_mjd_lag = (mjd_now - gbtstatus->MJD) * 86400;   
+    if (!rv && mysql_mjd_lag > mysql_mjd_lag_tolerance) { 
+      hashpipe_error(__FUNCTION__, "redis databse (mysql portion) is static :  mysql MJD is %lf current MJD is %lf mysql lag is %lf seconds", 
+                     gbtstatus->MJD, mjd_now, mysql_mjd_lag);
+      rv = 1;
+    }
+
+    // check for static cleo data via cleo heartbeat mjd
+    if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET Thump MJD")))       {gbtstatus->CLEOMJD = atof(reply->element[0]->str);  freeReplyObject(reply);} 
+    mjd_now      = CURRENT_MJD;  
+    cleo_mjd_lag = (mjd_now - gbtstatus->CLEOMJD) * 86400;   
+    if (!rv && cleo_mjd_lag > cleo_mjd_lag_tolerance) { 
+      hashpipe_error(__FUNCTION__, "redis databse (cleo portion) is static :  cleo MJD is %lf current MJD is %lf cleo lag is %lf seconds", 
+                     gbtstatus->CLEOMJD, mjd_now, cleo_mjd_lag);
+      rv = 1;
+    }
 
     // In all of the following s6_redis_get() lines we check the current rv before making the call.
     // Thus we short circuit all subsequent calls on the first error.  The rv of the call is then
@@ -431,6 +441,16 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
     gbtstatus->WEBCNTRL = 0;  // default to off
     if(!rv && !(rv = s6_redis_get(c,&reply,"GET WEBCNTRL")))          {gbtstatus->WEBCNTRL = atoi(reply->str);                    freeReplyObject(reply);} 
 
+    // ADC stats TODO - why ADCRMSTM and not STIME?
+    if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET ADC0SDEV VALUE"))) {gbtstatus->ADC0SDEV = atof(reply->element[0]->str);         freeReplyObject(reply);} 
+    if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET ADC1SDEV VALUE"))) {gbtstatus->ADC1SDEV = atof(reply->element[0]->str);         freeReplyObject(reply);} 
+    if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET ADC0MEAN VALUE"))) {gbtstatus->ADC0MEAN = atof(reply->element[0]->str);         freeReplyObject(reply);} 
+    if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET ADC1MEAN VALUE"))) {gbtstatus->ADC1MEAN = atof(reply->element[0]->str);         freeReplyObject(reply);} 
+    if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET ADC0SDEV ADCRMSTM"))) {gbtstatus->ADC0SDEVSTIME = atol(reply->element[0]->str);    freeReplyObject(reply);} 
+    if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET ADC1SDEV ADCRMSTM"))) {gbtstatus->ADC1SDEVSTIME = atol(reply->element[0]->str);    freeReplyObject(reply);} 
+    if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET ADC0MEAN ADCRMSTM"))) {gbtstatus->ADC0MEANSTIME = atol(reply->element[0]->str);    freeReplyObject(reply);} 
+    if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET ADC1MEAN ADCRMSTM"))) {gbtstatus->ADC1MEANSTIME = atol(reply->element[0]->str);    freeReplyObject(reply);} 
+
     // Sample clock rate parameters
     if(!rv && !(rv = s6_redis_get(c, &reply,"HMGET CLOCKSYN      CLOCKTIM CLOCKFRQ CLOCKDBM CLOCKLOC"))) {
         gbtstatus->CLOCKTIM = atoi(reply->element[0]->str);
@@ -448,47 +468,6 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
         gbtstatus->BIRDILOC = atoi(reply->element[3]->str);
         freeReplyObject(reply);
     } 
-
-    // ADC RMS values (we get the time from the first set only)
-// TODO - re-enable?
-#if 0
-      if(!rv && !(rv = s6_redis_get(c, &reply,"HMGET ADC1RMS      ADCRMSTM ADCRMS1 ADCRMS2 ADCRMS3 ADCRMS4 ADCRMS5 ADCRMS6 ADCRMS7 ADCRMS8"))) {
-fprintf(stderr, "elements = %ld\n", reply->elements);
-          gbtstatus->ADCRMSTM   = atof(reply->element[0]->str);
-          gbtstatus->ADC1RMS[0] = atof(reply->element[1]->str);
-          gbtstatus->ADC1RMS[1] = atof(reply->element[2]->str);
-          gbtstatus->ADC1RMS[2] = atof(reply->element[3]->str);
-          gbtstatus->ADC1RMS[3] = atof(reply->element[4]->str);
-          gbtstatus->ADC1RMS[4] = atof(reply->element[5]->str);
-          gbtstatus->ADC1RMS[5] = atof(reply->element[6]->str);
-          gbtstatus->ADC1RMS[6] = atof(reply->element[7]->str);
-          gbtstatus->ADC1RMS[7] = atof(reply->element[8]->str);
-          freeReplyObject(reply);
-      } else {
-          fprintf(stderr,"ADC1RMS not set yet!\n"); 
-          rv = 1;
-      }
-
-    // ONLY ONE ROACH AT GBT (not like AO, which has 2)
-    //
-    // if (!rv) {
-    //   reply = (redisReply *)redisCommand(c, "HMGET ADC2RMS      ADCRMS1 ADCRMS2 ADCRMS3 ADCRMS4 ADCRMS5 ADCRMS6 ADCRMS7 ADCRMS8");
-    //   if (reply->type == REDIS_REPLY_ERROR) { fprintf(stderr, "Error: %s\n", reply->str); rv = 1; }
-    //   else if (reply->type != REDIS_REPLY_ARRAY) { fprintf(stderr, "Unexpected type: %d\n", reply->type); rv = 1; }
-    //   else if (!reply->element[0]->str) { fprintf(stderr,"ADC2RMS not set yet!\n"); rv = 1; }
-    //   else {
-    //       gbtstatus->ADC2RMS[0] = atof(reply->element[0]->str);
-    //       gbtstatus->ADC2RMS[1] = atof(reply->element[1]->str);
-    //       gbtstatus->ADC2RMS[2] = atof(reply->element[2]->str);
-    //       gbtstatus->ADC2RMS[3] = atof(reply->element[3]->str);
-    //       gbtstatus->ADC2RMS[4] = atof(reply->element[4]->str);
-    //       gbtstatus->ADC2RMS[5] = atof(reply->element[5]->str);
-    //       gbtstatus->ADC2RMS[6] = atof(reply->element[6]->str);
-    //       gbtstatus->ADC2RMS[7] = atof(reply->element[7]->str);
-    //   }
-    //   freeReplyObject(reply);
-    // }
-#endif
 
     redisFree(c);       // TODO do I really want to free each time?
 

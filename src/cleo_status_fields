@@ -128,3 +128,4 @@ VEGSSBFM VEGAS,subsystemSelect,BankFMgr
 VEGSSBGM VEGAS,subsystemSelect,BankGMgr
 VEGSSBHM VEGAS,subsystemSelect,BankHMgr
 VEGASCM VEGAS,VEGAS,ConnectionToManager
+Thump Thump                                                 # cleo heartbeat - arrives at a regular cadence rather than on delta

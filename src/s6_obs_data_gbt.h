@@ -8,6 +8,8 @@
 #define GBTSTATUS_STRING_SIZE 32
 #define GBTSTATUS_BIG_STRING_SIZE 256
 
+#define CURRENT_MJD ((time(NULL) / 86400.0 ) + 40587.0)             // 40587.0 is the MJD of the unix epoch
+
 // idle status reasons bitmap
 #define idle_nibble_01_1bit                     0x000000000000001; // saving these 4 for something important
 #define idle_nibble_01_2bit                     0x000000000000002;
@@ -549,6 +551,9 @@ typedef struct gbtstatus {
     long VEGASCMSTIME;
     double VEGASCMMJD;
 
+    int CLEOHELLO;                       // cleo server status.  1 = up, 0 = down 
+    double CLEOMJD;                      // mjd of last cleao heart beat
+
    // the cleo-related derived fields below are from s6_observatory_gbt but not from cleo
 
    long LCUDSECS; // Last CLEO Update seconds (i.e. how many seconds since last known updated value from cleo
@@ -562,9 +567,14 @@ typedef struct gbtstatus {
    // the fields below are other scripts and not from gbtstatus/mysql/cleo
 
    int     coarse_chan_id;
-   int     ADCRMSTM;
-   double  ADC1RMS[N_ADCS_PER_ROACH2];
-   double  ADC2RMS[N_ADCS_PER_ROACH2];
+   double  ADC0SDEV; 
+   double  ADC1SDEV; 
+   double  ADC0MEAN; 
+   double  ADC1MEAN; 
+   int     ADC0SDEVSTIME; 
+   int     ADC1SDEVSTIME; 
+   int     ADC0MEANSTIME; 
+   int     ADC1MEANSTIME; 
    int     CLOCKTIM;
    double  CLOCKFRQ;
    double  CLOCKDBM;
