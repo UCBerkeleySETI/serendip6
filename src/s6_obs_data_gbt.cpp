@@ -116,8 +116,12 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
     // in units of seconds
     double cleo_mjd_lag;    
     double mysql_mjd_lag;    
-    const  double cleo_mjd_lag_tolerance  = 70.0;   // allow a 10s delay: cleo heartbeat arrives once per minute 
-    const  double mysql_mjd_lag_tolerance = 10.0;   // allow a 10s delay: mysql MJD should be changing once per second
+    const  double cleo_mjd_lag_tolerance  = 100.0;   // allow a 40s delay: cleo heartbeat arrives once per minute 
+    const  double mysql_mjd_lag_tolerance =  40.0;   // allow a 40s delay: mysql MJD should be changing once per second
+    static int mysql_mjd_long_lag_count = 0; 
+    static int cleo_mjd_long_lag_count  = 0; 
+    const int mysql_mjd_long_lag_count_tolerance = 70;
+    const int cleo_mjd_long_lag_count_tolerance  = 70;
 
     // TODO make c static?
     c = redis_connect(hostname, port);
@@ -127,9 +131,17 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
     mjd_now       = CURRENT_MJD;  
     mysql_mjd_lag = (mjd_now - gbtstatus->MJD) * 86400;   
     if (!rv && mysql_mjd_lag > mysql_mjd_lag_tolerance) { 
-      hashpipe_error(__FUNCTION__, "redis databse (mysql portion) is static :  mysql MJD is %lf current MJD is %lf mysql lag is %lf seconds", 
-                     gbtstatus->MJD, mjd_now, mysql_mjd_lag);
-      rv = 1;
+      mysql_mjd_long_lag_count++;
+      if(mysql_mjd_long_lag_count <= mysql_mjd_long_lag_count_tolerance) {
+        hashpipe_warn(__FUNCTION__, "redis databse (mysql portion) may be static :  mysql MJD is %lf current MJD is %lf mysql lag is %lf seconds (%d occurrence(s))", 
+                      gbtstatus->MJD, mjd_now, mysql_mjd_lag, mysql_mjd_long_lag_count);
+      } else {
+        hashpipe_error(__FUNCTION__, "redis databse (mysql portion) is static :  mysql MJD is %lf current MJD is %lf mysql lag is %lf seconds (%d occurrence(s))", 
+                      gbtstatus->MJD, mjd_now, mysql_mjd_lag, mysql_mjd_long_lag_count);
+        rv = 1;
+      }
+    } else {
+      mysql_mjd_long_lag_count = 0;
     }
 
     // check for static cleo data via cleo heartbeat mjd
@@ -137,9 +149,17 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
     mjd_now      = CURRENT_MJD;  
     cleo_mjd_lag = (mjd_now - gbtstatus->CLEOMJD) * 86400;   
     if (!rv && cleo_mjd_lag > cleo_mjd_lag_tolerance) { 
-      hashpipe_error(__FUNCTION__, "redis databse (cleo portion) is static :  cleo MJD is %lf current MJD is %lf cleo lag is %lf seconds", 
-                     gbtstatus->CLEOMJD, mjd_now, cleo_mjd_lag);
+      cleo_mjd_long_lag_count++;
+      if(cleo_mjd_long_lag_count <= cleo_mjd_long_lag_count_tolerance) {
+        hashpipe_warn(__FUNCTION__, "redis databse (cleo portion) may be static :  cleo MJD is %lf current MJD is %lf cleo lag is %lf seconds (%d occurrence(s))", 
+                     gbtstatus->CLEOMJD, mjd_now, cleo_mjd_lag, cleo_mjd_long_lag_count);
+      } else {
+        hashpipe_error(__FUNCTION__, "redis databse (cleo portion) is static :  cleo MJD is %lf current MJD is %lf cleo lag is %lf seconds (%d occurrence(s))", 
+                      gbtstatus->CLEOMJD, mjd_now, cleo_mjd_lag, cleo_mjd_long_lag_count);
       rv = 1;
+      }
+    } else {
+      cleo_mjd_long_lag_count = 0;
     }
 
     // In all of the following s6_redis_get() lines we check the current rv before making the call.
