@@ -469,17 +469,28 @@ int main(int argc, char ** argv) {
 */
 
       // #define idle_atfctrmd_not_1                     0x000000000000010; // GB - ATFCTRMD Antenna,focusTrackingMode # if not 1 then data should be ignored
-      reply = (redisReply *)redisCommand(c,"HMGET ATFCTRMD VALUE"); tmplong = atol(reply->element[0]->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"HMGET ATFCTRMD VALUE");
+      if(reply != NULL && reply->type == 0) {
+        tmplong = atol(reply->element[0]->str); 
+        freeReplyObject(reply);
 //      if (tmplong != 1) idlestatus |= idle_atfctrmd_not_1;
+      }
 
       // #define idle_atlfcx_non_zero                    0x000000000000100; // GB - ATLFCX Antenna,local_focus_correction,X # mm - ignore if non-zero
-      reply = (redisReply *)redisCommand(c,"HMGET ATFCTRMD VALUE"); tmpdouble = atof(reply->element[0]->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"HMGET ATFCTRMD VALUE");
+      if(reply != NULL && reply->type == 0) {
+        tmpdouble = atof(reply->element[0]->str); 
+        freeReplyObject(reply);
+      }
       
 
       // web control  
-      reply = (redisReply *)redisCommand(c,"GET WEBCNTRL"); tmplong = atol(reply->str); freeReplyObject(reply);
+      reply = (redisReply *)redisCommand(c,"GET WEBCNTRL");
+      if(reply != NULL && reply->type == 0) {
+        tmplong = atol(reply->str); 
+        freeReplyObject(reply);
  //     if (tmplong == 0) idlestatus |= idle_webcntrl_off;
-
+      }
 
 
       // end derived values
