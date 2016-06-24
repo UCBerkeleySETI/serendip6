@@ -58,6 +58,8 @@ static void *run(hashpipe_thread_args_t * args)
 
     int run_always, prior_run_always=0;                 // 1 = run even if no receiver
 
+    int idle=0;                                         // 1 = idle output, 0 = good to go
+
     size_t num_coarse_chan = 0;
 
     extern const char *receiver[];
@@ -113,15 +115,25 @@ static void *run(hashpipe_thread_args_t * args)
 
         // TODO check mcnt
 
-        // get scram, etc data
+        // get metadata
+        hgeti4(st.buf, "IDLE", &idle);
 #ifdef SOURCE_S6
         rv = get_obs_info_from_redis(scram_p, (char *)"redishost", 6379);
 #elif SOURCE_DIBAS
         rv = get_obs_gbt_info_from_redis(gbtstatus_p, (char *)"redishost", 6379);
 #endif
         if(rv) {
-            hashpipe_error(__FUNCTION__, "error returned from get_obs_info_from_redis()");
-            pthread_exit(NULL);
+            if(!idle) {    // if not already idling
+                hashpipe_warn(__FUNCTION__, "error returned from get_obs_info_from_redis() - idling");
+                idle = 1;
+                hputi4(st.buf, "IDLE", idle);
+            }
+        } else {
+            if(idle) {    // if currently idling
+                hashpipe_warn(__FUNCTION__, "OK returned from get_obs_info_from_redis() - de-idling");
+                idle = 0;
+                hputi4(st.buf, "IDLE", idle);
+            }
         }
 
 #ifdef SOURCE_S6
@@ -190,19 +202,25 @@ static void *run(hashpipe_thread_args_t * args)
                   num_coarse_chan != db->block[block_idx].header.num_coarse_chan) {
 
 #if 0
-            uint32_t total_missed_pkts[N_BEAM_SLOTS];
-            char missed_key[9] = "MISSPKBX";
-            const char missed_beam[7] = {'0', '1', '2', '3', '4', '5', '6'};
-            for(int i=0; i < N_BEAMS; i++) {
-                missed_key[7] = missed_beam[i];
-                hgetu4(st.buf, missed_key, &total_missed_pkts[i]);
-                hputu4(st.buf, missed_key, 0);
-            }
-
-            hashpipe_info(__FUNCTION__, "Missed packet totals : beam0 %lu beam1 %lu beam2 %lu beam3 %lu beam4 %lu beam5 %lu beam6 %lu \n",
-                         total_missed_pkts[0], total_missed_pkts[1], total_missed_pkts[2], total_missed_pkts[3], 
-                         total_missed_pkts[4], total_missed_pkts[5], total_missed_pkts[6]);
+//            uint32_t total_missed_pkts[N_BEAM_SLOTS];
+//
+//            char missed_key[9] = "MISSPKBX";
+//            const char missed_beam[7] = {'0', '1', '2', '3', '4', '5', '6'};
+//            for(int i=0; i < N_BEAMS; i++) {
+//                missed_key[7] = missed_beam[i];
+//                hgetu4(st.buf, missed_key, &total_missed_pkts[i]);
+//                hputu4(st.buf, missed_key, 0);
+//            }
+//
+//            hashpipe_info(__FUNCTION__, "Missed packet totals : beam0 %lu beam1 %lu beam2 %lu beam3 %lu beam4 %lu beam5 %lu beam6 %lu \n",
+//                         total_missed_pkts[0], total_missed_pkts[1], total_missed_pkts[2], total_missed_pkts[3], 
+//                         total_missed_pkts[4], total_missed_pkts[5], total_missed_pkts[6]);
 #endif
+
+//fprintf(stderr, "prior receiver %s (%ld)  status receiver %s (%ld)\n", prior_receiver, strlen(prior_receiver),gbtstatus.RECEIVER, strlen(gbtstatus.RECEIVER));
+//fprintf(stderr, "prior run_always %ld  run_always %ld\n", prior_run_always, run_always);
+//fprintf(stderr, "prior num_coarse_chan %ld  num_coarse_chan %ld\n", num_coarse_chan, db->block[block_idx].header.num_coarse_chan);
+//fprintf(stderr, "prior webcntrl %ld\n", gbtstatus.WEBCNTRL);
 
             hashpipe_info(__FUNCTION__, "Initializing output for %ld coarse channels, using receiver %s\n",
 #ifdef SOURCE_S6
@@ -232,7 +250,7 @@ static void *run(hashpipe_thread_args_t * args)
         if(scram.receiver || run_always) {
 #elif SOURCE_DIBAS
 // TODO - put GBT acquisition trigger logic, if any, here
-        if(run_always && gbtstatus.WEBCNTRL == 1) {
+        if(run_always && gbtstatus.WEBCNTRL == 1 && !idle) {
 #endif
 #ifdef SOURCE_S6
             etf.file_chan = scram.coarse_chan_id;          
@@ -269,18 +287,24 @@ static void *run(hashpipe_thread_args_t * args)
         hputr4(st.buf, "CCAV319Y", db->block[block_idx].cc_pwrs_y[319]);
 #endif
 #ifdef SOURCE_DIBAS
-        hputr4(st.buf, "CCAV000X", db->block[block_idx].cc_pwrs_x[0]);
-        hputr4(st.buf, "CCAV000Y", db->block[block_idx].cc_pwrs_y[0]);
+        hputr4(st.buf, "CCAVS0FX", db->block[block_idx].cc_pwrs_x[0][0]);
+        hputr4(st.buf, "CCAVS0FY", db->block[block_idx].cc_pwrs_y[0][0]);
+        hputr4(st.buf, "CCAVS0LX", db->block[block_idx].cc_pwrs_x[0][1]);
+        hputr4(st.buf, "CCAVS0LY", db->block[block_idx].cc_pwrs_y[0][1]);
+        hputr4(st.buf, "CCAVS1FX", db->block[block_idx].cc_pwrs_x[1][0]);
+        hputr4(st.buf, "CCAVS1FY", db->block[block_idx].cc_pwrs_y[1][0]);
+        hputr4(st.buf, "CCAVS1LX", db->block[block_idx].cc_pwrs_x[1][1]);
+        hputr4(st.buf, "CCAVS1LY", db->block[block_idx].cc_pwrs_y[1][1]);
+
+
+#if 0
         hputr4(st.buf, "CCAV100X", db->block[block_idx].cc_pwrs_x[100]);
         hputr4(st.buf, "CCAV100Y", db->block[block_idx].cc_pwrs_y[100]);
         hputr4(st.buf, "CCAV200X", db->block[block_idx].cc_pwrs_x[200]);
         hputr4(st.buf, "CCAV200Y", db->block[block_idx].cc_pwrs_y[200]);
         hputr4(st.buf, "CCAV300X", db->block[block_idx].cc_pwrs_x[300]);
-        hputr4(st.buf, "CCAV300Y", db->block[block_idx].cc_pwrs_y[300]);
-        hputr4(st.buf, "CCAV400X", db->block[block_idx].cc_pwrs_x[400]);
-        hputr4(st.buf, "CCAV400Y", db->block[block_idx].cc_pwrs_y[400]);
-        hputr4(st.buf, "CCAV511X", db->block[block_idx].cc_pwrs_x[511]);
         hputr4(st.buf, "CCAV511Y", db->block[block_idx].cc_pwrs_y[511]);
+#endif
 #endif
         hashpipe_status_unlock_safe(&st);
 

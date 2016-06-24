@@ -20,11 +20,11 @@ redisContext * redis_connect(char *hostname, int port) {
     if (c == NULL || c->err) {
         if (c) {
             hashpipe_error(__FUNCTION__, c->errstr);
-            redisFree(c);
+            redisFree(c);   // get rid of the in-error context
+            c = NULL;       // indicate error to caller (TODO - does redisFree null the context pointer?)
         } else {
             hashpipe_error(__FUNCTION__, "Connection error: can't allocate redis context");
         }
-        exit(1);
     }
 
     return(c);
@@ -80,23 +80,27 @@ int put_obs_gbt_info_to_redis(char * fits_filename, int instance, char *hostname
     redisContext *c;
     redisReply *reply;
     char key[200];
-    int rv;
+    char my_hostname[200];
+    int rv=0;
 
     // TODO - sane rv
 
     // TODO make c static?
     c = redis_connect(hostname, port);
+    if (!c) {
+        rv = 1;
+    }
 
-    // update current filename
-    char my_hostname[200];
-    // On success, zero is returned.  On error, -1 is returned, and errno is set appropriately.
-    rv =  gethostname(my_hostname, sizeof(my_hostname));
-    sprintf(key, "FN%s_%02d", my_hostname, instance);
-    //fprintf(stderr, "redis SET: %s %s %ld\n", key, fits_filename, strlen(fits_filename));
-    reply = (redisReply *)redisCommand(c,"SET %s %s", key, fits_filename);
-    freeReplyObject(reply);
+    if(!rv) {
+        // update current filename
+        // On success, zero is returned.  On error, -1 is returned, and errno is set appropriately.
+        rv =  gethostname(my_hostname, sizeof(my_hostname));
+        sprintf(key, "FN%s_%02d", my_hostname, instance);
+        reply = (redisReply *)redisCommand(c,"SET %s %s", key, fits_filename);
+        freeReplyObject(reply);
+    }
 
-    redisFree(c);       // TODO do I really want to free each time?
+    if(c) redisFree(c);       // TODO do I really want to free each time?
 
     return(rv);
 }
@@ -120,11 +124,14 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
     const  double mysql_mjd_lag_tolerance =  40.0;   // allow a 40s delay: mysql MJD should be changing once per second
     static int mysql_mjd_long_lag_count = 0; 
     static int cleo_mjd_long_lag_count  = 0; 
-    const int mysql_mjd_long_lag_count_tolerance = 70;
-    const int cleo_mjd_long_lag_count_tolerance  = 70;
+    const int mysql_mjd_long_lag_count_tolerance = 2;
+    const int cleo_mjd_long_lag_count_tolerance  = 2;
+    static int mysql_error_issued = 0;
+    static int cleo_error_issued = 0;
 
     // TODO make c static?
     c = redis_connect(hostname, port);
+    if (!c) rv = 1;     // if no context, then error
 
     // check for static mysql data via mysql mjd
     if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET MJD VALUE")))       {gbtstatus->MJD = atof(reply->element[0]->str);      freeReplyObject(reply);} 
@@ -136,11 +143,15 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
         hashpipe_warn(__FUNCTION__, "redis databse (mysql portion) may be static :  mysql MJD is %lf current MJD is %lf mysql lag is %lf seconds (%d occurrence(s))", 
                       gbtstatus->MJD, mjd_now, mysql_mjd_lag, mysql_mjd_long_lag_count);
       } else {
-        hashpipe_error(__FUNCTION__, "redis databse (mysql portion) is static :  mysql MJD is %lf current MJD is %lf mysql lag is %lf seconds (%d occurrence(s))", 
-                      gbtstatus->MJD, mjd_now, mysql_mjd_lag, mysql_mjd_long_lag_count);
+        if(!mysql_error_issued) {
+            hashpipe_error(__FUNCTION__, "redis databse (mysql portion) is static :  mysql MJD is %lf current MJD is %lf mysql lag is %lf seconds (%d occurrence(s))", 
+                          gbtstatus->MJD, mjd_now, mysql_mjd_lag, mysql_mjd_long_lag_count);
+            mysql_error_issued = 1;
+        }
         rv = 1;
       }
-    } else {
+    } else {    // all good
+      mysql_error_issued = 0;
       mysql_mjd_long_lag_count = 0;
     }
 
@@ -154,11 +165,15 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
         hashpipe_warn(__FUNCTION__, "redis databse (cleo portion) may be static :  cleo MJD is %lf current MJD is %lf cleo lag is %lf seconds (%d occurrence(s))", 
                      gbtstatus->CLEOMJD, mjd_now, cleo_mjd_lag, cleo_mjd_long_lag_count);
       } else {
-        hashpipe_error(__FUNCTION__, "redis databse (cleo portion) is static :  cleo MJD is %lf current MJD is %lf cleo lag is %lf seconds (%d occurrence(s))", 
-                      gbtstatus->CLEOMJD, mjd_now, cleo_mjd_lag, cleo_mjd_long_lag_count);
+        if(!cleo_error_issued) {
+            hashpipe_error(__FUNCTION__, "redis databse (cleo portion) is static :  cleo MJD is %lf current MJD is %lf cleo lag is %lf seconds (%d occurrence(s))", 
+                          gbtstatus->CLEOMJD, mjd_now, cleo_mjd_lag, cleo_mjd_long_lag_count);
+            cleo_error_issued = 1;
+        }
       rv = 1;
       }
     } else {
+      cleo_error_issued = 0;
       cleo_mjd_long_lag_count = 0;
     }
 
@@ -458,7 +473,7 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
     if(!rv && !(rv = s6_redis_get(c,&reply,"HMGET LCUDSECS STIME"))) {gbtstatus->LCUDSECSSTIME = atol(reply->element[0]->str);    freeReplyObject(reply);} 
 
     // Web based operator off/on switch
-    gbtstatus->WEBCNTRL = 0;  // default to off
+    gbtstatus->WEBCNTRL = 1;  // default to on
     if(!rv && !(rv = s6_redis_get(c,&reply,"GET WEBCNTRL")))          {gbtstatus->WEBCNTRL = atoi(reply->str);                    freeReplyObject(reply);} 
 
     // ADC stats TODO - why ADCRMSTM and not STIME?
@@ -489,7 +504,7 @@ int get_obs_gbt_info_from_redis(gbtstatus_t * gbtstatus,
         freeReplyObject(reply);
     } 
 
-    redisFree(c);       // TODO do I really want to free each time?
+    if(c) redisFree(c);       // TODO do I really want to free each time?
 
     return rv;         
 }

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERS6SW=0.7.2                   \
+VERS6SW=0.7.3                   \
 VERS6GW=0.1.0                   \
 
 # Add directory containing this script to PATH
