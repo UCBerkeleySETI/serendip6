@@ -606,8 +606,8 @@ int write_ccpwrs_header(etfits_t * etf) {
         if(! *status_p) fits_create_tbl(etf->fptr, BINARY_TBL, 0, TFIELDS, (char **)&ttype, (char **)&tform, NULL, (char *)"CCPWRS", status_p);
     }
 
-    if(! *status_p) fits_update_key(etf->fptr, TINT,    "TIME",    &(etf->hits_hdr[0].time),    NULL, status_p);    // TODO - right for GBT, but for AO...
-    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "RA",      &(etf->hits_hdr[0].ra),      NULL, status_p);
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "TIME",    &(etf->hits_hdr[0].time),    NULL, status_p);    // TODO - right for GBT, but for AO
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "RA",      &(etf->hits_hdr[0].ra),      NULL, status_p);    // we have a diffrent RA/Dec for each beam.
     if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "DEC",     &(etf->hits_hdr[0].dec),     NULL, status_p);
 
     if (*status_p) {
@@ -631,11 +631,14 @@ int write_ccpwrs(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
     firstelem = 1;
     write_ccpwrs_header(etf);
 
-    // write the hits for this input
-    colnum      = 1;
-    if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, N_COARSE_CHAN, db->block[block_idx].cc_pwrs_x, status_p);
-    colnum      = 2;
-    if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, N_COARSE_CHAN, db->block[block_idx].cc_pwrs_y, status_p);
+    for(int bors=0; bors < N_BORS; bors++) {
+        colnum      = 1;
+        //if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, N_COARSE_CHAN, &db->block[block_idx].cc_pwrs_x[N_COARSE_CHAN*bors], status_p);
+        if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, N_COARSE_CHAN_PER_BORS, &db->block[block_idx].cc_pwrs_x[bors][0], status_p);
+        colnum      = 2;
+        //if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, N_COARSE_CHAN, &db->block[block_idx].cc_pwrs_y[N_COARSE_CHAN*bors], status_p);
+        if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, N_COARSE_CHAN_PER_BORS, &db->block[block_idx].cc_pwrs_y[bors][0], status_p);
+    }
 
     if (*status_p) {
         hashpipe_error(__FUNCTION__, "Error writing coarse channel powers");

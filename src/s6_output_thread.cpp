@@ -287,14 +287,16 @@ static void *run(hashpipe_thread_args_t * args)
         hputr4(st.buf, "CCAV319Y", db->block[block_idx].cc_pwrs_y[319]);
 #endif
 #ifdef SOURCE_DIBAS
-        hputr4(st.buf, "CCAVS0FX", db->block[block_idx].cc_pwrs_x[0][0]);
-        hputr4(st.buf, "CCAVS0FY", db->block[block_idx].cc_pwrs_y[0][0]);
-        hputr4(st.buf, "CCAVS0LX", db->block[block_idx].cc_pwrs_x[0][1]);
-        hputr4(st.buf, "CCAVS0LY", db->block[block_idx].cc_pwrs_y[0][1]);
-        hputr4(st.buf, "CCAVS1FX", db->block[block_idx].cc_pwrs_x[1][0]);
-        hputr4(st.buf, "CCAVS1FY", db->block[block_idx].cc_pwrs_y[1][0]);
-        hputr4(st.buf, "CCAVS1LX", db->block[block_idx].cc_pwrs_x[1][1]);
-        hputr4(st.buf, "CCAVS1LY", db->block[block_idx].cc_pwrs_y[1][1]);
+        // first, 1/3, 2/3, final, skipping to new subspectrum for each
+        // Number of coarse channels should never change with the DiBAS design!
+        hputr4(st.buf, "CCS0FSTX", db->block[block_idx].cc_pwrs_x[0][0]);
+        hputr4(st.buf, "CCS0FSTY", db->block[block_idx].cc_pwrs_y[0][0]);
+        hputr4(st.buf, "CCS2.33X", db->block[block_idx].cc_pwrs_x[2][(int)(N_COARSE_CHAN_PER_BORS*0.33)]);
+        hputr4(st.buf, "CCS2.33Y", db->block[block_idx].cc_pwrs_y[2][(int)(N_COARSE_CHAN_PER_BORS*0.33)]);
+        hputr4(st.buf, "CCS4.67X", db->block[block_idx].cc_pwrs_x[4][(int)(N_COARSE_CHAN_PER_BORS*0.67)]);
+        hputr4(st.buf, "CCS4.67Y", db->block[block_idx].cc_pwrs_y[4][(int)(N_COARSE_CHAN_PER_BORS*0.67)]);
+        hputr4(st.buf, "CCS7LSTX", db->block[block_idx].cc_pwrs_x[7][N_COARSE_CHAN_PER_BORS-1]);
+        hputr4(st.buf, "CCS7LSTY", db->block[block_idx].cc_pwrs_y[7][N_COARSE_CHAN_PER_BORS-1]);
 
 
 #if 0

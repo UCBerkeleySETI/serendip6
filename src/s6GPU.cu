@@ -537,26 +537,27 @@ int spectroscopy(int n_subband,         // N coarse chan
 
     // reduce coarse channels to mean power...
     if(use_timer) timer.start();
-    // allocate working vectors
+    // allocate working vectors to accomodate all power spectra for this block :
+    // all coarse channels (n_subbands) x both pols (n_input)
     dv_p->spectra_sums_p      = new thrust::device_vector<float>(n_subband*n_input);
     dv_p->spectra_indices_p   = new thrust::device_vector<int>(n_subband*n_input);
     // do the reduce
     reduce_power_spectra(dv_p, n_subband*n_input, n_chan);
-    // copy the result to the output buffer, separating the pols
+    // copy the result to the output buffer, separating the pols. First, create the 
+    // strided ranges (2 pols, so a stride of 2) then copy to the output block area
+    // for this bors. Note: the "begin() + 1" is to get to the Y pol. 
     typedef thrust::device_vector<float>::iterator Iterator;
-    // polX
     strided_range<Iterator> polX(dv_p->spectra_sums_p->begin(),     dv_p->spectra_sums_p->end(), 2);
-    thrust::copy(polX.begin(), polX.end(), &s6_output_block->cc_pwrs_x[bors*n_subband]);      
-    // polY
     strided_range<Iterator> polY(dv_p->spectra_sums_p->begin() + 1, dv_p->spectra_sums_p->end(), 2);
-    thrust::copy(polY.begin(), polY.end(), &s6_output_block->cc_pwrs_y[bors*n_subband]);      
+    thrust::copy(polX.begin(), polX.end(), &(s6_output_block->cc_pwrs_x[bors][0]));      
+    thrust::copy(polY.begin(), polY.end(), &(s6_output_block->cc_pwrs_y[bors][0]));      
     // delete working vectors
     delete(dv_p->spectra_sums_p);
     delete(dv_p->spectra_indices_p);
-    // ...end reduce coarse channels to mean power
     if(use_timer) timer.stop();
     if(use_timer) cout << "Reduce coarse channels time:\t" << timer.getTime() << endl;
     if(use_timer) timer.reset();
+    // ...end reduce coarse channels to mean power
 
     // done with the timeseries and FFTs - delete the associated GPU memory
     delete(dv_p->raw_timeseries_p);         
