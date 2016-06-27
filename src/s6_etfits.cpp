@@ -94,6 +94,8 @@ int write_etfits(s6_output_databuf_t *db, int block_idx, etfits_t *etf, scram_t 
         //etf->primary_hdr.bandwidth = ;
         //etf->primary_hdr.chan_bandwidth = ;
         //etf->primary_hdr.freq_res = ;
+        etf->primary_hdr.power_threshold  = (double)POWER_THRESH;
+        etf->primary_hdr.smooth_scale     = (int)SMOOTH_SCALE;
         etfits_create(etf);
         if(*status_p) {
             hashpipe_error(__FUNCTION__, "Error creating/initializing new etfits file");
@@ -169,6 +171,8 @@ int write_etfits_gbt(s6_output_databuf_t *db, int block_idx, etfits_t *etf, gbts
         // in scram, need to look up receiver from array? but in gbtstatus, it's already a string, so just copy it?...
         // strncpy(etf->primary_hdr.receiver, receiver[gbtstauts_p->receiver], sizeof(etf->primary_hdr.receiver));
         strncpy(etf->primary_hdr.receiver, gbtstatus_p->RECEIVER, sizeof(etf->primary_hdr.receiver));
+        etf->primary_hdr.power_threshold  = (double)POWER_THRESH;
+        etf->primary_hdr.smooth_scale     = (int)SMOOTH_SCALE;
         // TODO not yet implemented
         //etf->primary_hdr.bandwidth = ;
         //etf->primary_hdr.chan_bandwidth = ;
@@ -338,6 +342,8 @@ int write_primary_header(etfits_t * etf) {
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "NSUBBAND", &(etf->primary_hdr.n_subband),   NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "NCHAN",    &(etf->primary_hdr.n_chan),      NULL, status_p); 
     if(! *status_p) fits_update_key(etf->fptr, TINT,    "NINPUTS",  &(etf->primary_hdr.n_inputs),    NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TDOUBLE, "THRSHOLD", &(etf->primary_hdr.power_threshold), NULL, status_p); 
+    if(! *status_p) fits_update_key(etf->fptr, TINT,    "SMOOTHSC", &(etf->primary_hdr.smooth_scale),    NULL, status_p); 
     // TODO not yet implemented
     //if(! *status_p) fits_update_key(etf->fptr, TINT,    "BANDWID",  &(etf->primary_hdr.bandwidth),       NULL, status_p); 
     //if(! *status_p) fits_update_key(etf->fptr, TINT,    "CHAN_BW",  &(etf->primary_hdr.chan_bandwidth),  NULL, status_p); 
