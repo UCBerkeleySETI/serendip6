@@ -640,10 +640,12 @@ int write_ccpwrs(s6_output_databuf_t *db, int block_idx, etfits_t *etf) {
     for(int bors=0; bors < N_BORS; bors++) {
         colnum      = 1;
         //if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, N_COARSE_CHAN, &db->block[block_idx].cc_pwrs_x[N_COARSE_CHAN*bors], status_p);
-        if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, N_COARSE_CHAN_PER_BORS, &db->block[block_idx].cc_pwrs_x[bors][0], status_p);
+        if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow+bors*N_COARSE_CHAN_PER_BORS, 
+                                       firstelem, N_COARSE_CHAN_PER_BORS, &db->block[block_idx].cc_pwrs_x[bors][0], status_p);
         colnum      = 2;
         //if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, N_COARSE_CHAN, &db->block[block_idx].cc_pwrs_y[N_COARSE_CHAN*bors], status_p);
-        if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow, firstelem, N_COARSE_CHAN_PER_BORS, &db->block[block_idx].cc_pwrs_y[bors][0], status_p);
+        if(! *status_p) fits_write_col(etf->fptr, TFLOAT, colnum, firstrow+bors*N_COARSE_CHAN_PER_BORS, 
+                                       firstelem, N_COARSE_CHAN_PER_BORS, &db->block[block_idx].cc_pwrs_y[bors][0], status_p);
     }
 
     if (*status_p) {
