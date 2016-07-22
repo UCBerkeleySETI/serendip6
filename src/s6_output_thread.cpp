@@ -122,6 +122,8 @@ static void *run(hashpipe_thread_args_t * args)
 #elif SOURCE_DIBAS
         rv = get_obs_gbt_info_from_redis(gbtstatus_p, (char *)"redishost", 6379);
 #endif
+
+        // generic redis error check.  A specific error message should precede this.
         if(rv) {
             if(!idle) {    // if not already idling
                 hashpipe_warn(__FUNCTION__, "error returned from get_obs_info_from_redis() - idling");
@@ -135,6 +137,23 @@ static void *run(hashpipe_thread_args_t * args)
                 hputi4(st.buf, "IDLE", idle);
             }
         }
+
+#ifdef SOURCE_DIBAS
+        // DiBAS specific receiver check
+        if(!atoi(gbtstatus.IFV1BW)) {
+            if(!idle) {    // if not already idling
+                hashpipe_warn(__FUNCTION__, "Receiver not properly set up (bandwidth is zero) - idling");
+                idle = 1;
+                hputi4(st.buf, "IDLE", idle);
+            }
+        } else {
+            if(idle) {    // if currently idling
+                hashpipe_warn(__FUNCTION__, "Receiver properly set up - de-idling");
+                idle = 0;
+                hputi4(st.buf, "IDLE", idle);
+            }
+        }
+#endif
 
 #ifdef SOURCE_S6
         scram.coarse_chan_id = db->block[block_idx].header.coarse_chan_id;
@@ -164,8 +183,9 @@ static void *run(hashpipe_thread_args_t * args)
         hputi4(st.buf, "SCRIF2SR", scram.IF2SIGSR);
 #elif SOURCE_DIBAS
 // TODO - put other GBT status items to status shmem?
-        hputs(st.buf,  "TELESCOP", gbtstatus.RECEIVER);
+        hputs(st.buf,  "TELESCOP", gbtstatus.IFV1TNCI);
         hputi4(st.buf, "COARCHID", gbtstatus.coarse_chan_id);
+        hputs(st.buf, "BANDWDTH", gbtstatus.IFV1BW);
         // hputi4(st.buf, "CLOCKFRQ", gbtstatus.CLOCKFRQ);
         hputi4(st.buf, "GBTCLKFQ", gbtstatus.CLOCKFRQ);
         // hputr4(st.buf, "AZACTUAL", gbtstatus.AZACTUAL);
@@ -195,7 +215,7 @@ static void *run(hashpipe_thread_args_t * args)
 #ifdef SOURCE_S6
         if(scram.receiver  != prior_receiver    ||
 #elif SOURCE_DIBAS
-        if(strcmp(gbtstatus.RECEIVER,prior_receiver) != 0 ||
+        if(strcmp(gbtstatus.IFV1TNCI,prior_receiver) != 0 ||
                   gbtstatus.WEBCNTRL == 0  ||
 #endif
                   run_always      != prior_run_always  ||
@@ -217,7 +237,7 @@ static void *run(hashpipe_thread_args_t * args)
 //                         total_missed_pkts[4], total_missed_pkts[5], total_missed_pkts[6]);
 #endif
 
-//fprintf(stderr, "prior receiver %s (%ld)  status receiver %s (%ld)\n", prior_receiver, strlen(prior_receiver),gbtstatus.RECEIVER, strlen(gbtstatus.RECEIVER));
+//fprintf(stderr, "prior receiver %s (%ld)  status receiver %s (%ld)\n", prior_receiver, strlen(prior_receiver),gbtstatus.IFV1TNCI, strlen(gbtstatus.IFV1TNCI));
 //fprintf(stderr, "prior run_always %ld  run_always %ld\n", prior_run_always, run_always);
 //fprintf(stderr, "prior num_coarse_chan %ld  num_coarse_chan %ld\n", num_coarse_chan, db->block[block_idx].header.num_coarse_chan);
 //fprintf(stderr, "prior webcntrl %ld\n", gbtstatus.WEBCNTRL);
@@ -226,7 +246,7 @@ static void *run(hashpipe_thread_args_t * args)
 #ifdef SOURCE_S6
                           num_coarse_chan, receiver[scram.receiver]);
 #elif SOURCE_DIBAS
-                          num_coarse_chan, gbtstatus.RECEIVER);
+                          num_coarse_chan, gbtstatus.IFV1TNCI);
 #endif
 
             // change files
@@ -238,7 +258,7 @@ static void *run(hashpipe_thread_args_t * args)
 #ifdef SOURCE_S6
             prior_receiver   = scram.receiver;
 #elif SOURCE_DIBAS
-            strcpy(prior_receiver,gbtstatus.RECEIVER);
+            strcpy(prior_receiver,gbtstatus.IFV1TNCI);
 #endif
             num_coarse_chan  = db->block[block_idx].header.num_coarse_chan; 
             prior_run_always = run_always;
