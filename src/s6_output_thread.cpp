@@ -21,6 +21,9 @@
 #include "s6_obs_data_gbt.h"
 #include "s6_etfits.h"
 
+#define SET_BIT(val, bitIndex) val |= (1 << bitIndex)
+#define CLEAR_BIT(val, bitIndex) val &= ~(1 << bitIndex)
+#define BIT_IS_SET(val, bitIndex) (val & (1 << bitIndex))
 
 static int init(hashpipe_thread_args_t *args)
 {
@@ -59,6 +62,11 @@ static void *run(hashpipe_thread_args_t * args)
     int run_always, prior_run_always=0;                 // 1 = run even if no receiver
 
     int idle=0;                                         // 1 = idle output, 0 = good to go
+    uint32_t idle_flag=0;                               // bit field for data driven idle conditions    
+
+    // data driven idle bit indexes
+    int idle_redis_error = 1; 
+    int idle_zero_IFV1BW = 2; 
 
     size_t num_coarse_chan = 0;
 
@@ -123,37 +131,47 @@ static void *run(hashpipe_thread_args_t * args)
         rv = get_obs_gbt_info_from_redis(gbtstatus_p, (char *)"redishost", 6379);
 #endif
 
-        // generic redis error check.  A specific error message should precede this.
+    // Start idle checking
+        // generic redis error check. 
         if(rv) {
-            if(!idle) {    // if not already idling
-                hashpipe_warn(__FUNCTION__, "error returned from get_obs_info_from_redis() - idling");
-                idle = 1;
-                hputi4(st.buf, "IDLE", idle);
+            if(!BIT_IS_SET(idle_flag, idle_redis_error)) {   // if bit not already set
+                hashpipe_warn(__FUNCTION__, "error returned from get_obs_info_from_redis() -  adding as an idle condition");
+                SET_BIT(idle_flag, idle_redis_error);
             }
         } else {
-            if(idle) {    // if currently idling
-                hashpipe_warn(__FUNCTION__, "OK returned from get_obs_info_from_redis() - de-idling");
-                idle = 0;
-                hputi4(st.buf, "IDLE", idle);
+            if(BIT_IS_SET(idle_flag, idle_redis_error)) {   // if bit not already set
+                hashpipe_warn(__FUNCTION__, "OK returned from get_obs_info_from_redis() - removing as an idle condition");
+                CLEAR_BIT(idle_flag, idle_redis_error);
             }
         }
-
 #ifdef SOURCE_DIBAS
-        // DiBAS specific receiver check
+        // receiver check
         if(!atoi(gbtstatus.IFV1BW)) {
-            if(!idle) {    // if not already idling
-                hashpipe_warn(__FUNCTION__, "Receiver not properly set up (bandwidth is zero) - idling");
-                idle = 1;
-                hputi4(st.buf, "IDLE", idle);
+            if(!BIT_IS_SET(idle_flag, idle_zero_IFV1BW)) {   // if bit not already set
+                hashpipe_warn(__FUNCTION__, "Receiver not properly set up (bandwidth is zero) - adding as an idle condition");
+                SET_BIT(idle_flag, idle_zero_IFV1BW);
             }
         } else {
-            if(idle) {    // if currently idling
-                hashpipe_warn(__FUNCTION__, "Receiver properly set up - de-idling");
-                idle = 0;
-                hputi4(st.buf, "IDLE", idle);
+            if(BIT_IS_SET(idle_flag, idle_zero_IFV1BW)) {    // if bit is currently set
+                hashpipe_warn(__FUNCTION__, "Receiver properly set up - removing as an idle condition");
+                CLEAR_BIT(idle_flag, idle_zero_IFV1BW);
             }
         }
 #endif
+        if(idle_flag) {
+            if(!idle) {    // if not already idling
+                hashpipe_info(__FUNCTION__, "Data acquisition is idled");
+                idle = 1;
+            }
+        } else {
+            if(idle) {    // if currently idling
+                hashpipe_info(__FUNCTION__, "Data acquisition is de-idled");
+                idle = 0;
+            }
+        }
+
+        hputi4(st.buf, "IDLE", idle);   // finally, make our idle condition live
+    // End idle checking
 
 #ifdef SOURCE_S6
         scram.coarse_chan_id = db->block[block_idx].header.coarse_chan_id;
