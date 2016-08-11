@@ -53,8 +53,12 @@ instances=(
   #
   #                               GPU NET GPU OUT
   # mask  bind_host               DEV CPU CPU CPU
-  "0x000e ${hostname}-3.tenge.pvt  0   1   2   3 $log_timestamp" # Instance 0, eth3
-  "0x0380 ${hostname}-5.tenge.pvt  1   7   8   9 $log_timestamp" # Instance 2, eth5
+  # AO
+  "0x000e ${hostname}-2.tenge.pvt  0   1   2   3 $log_timestamp" # Instance 0, eth2
+  "0x0380 ${hostname}-4.tenge.pvt  1   7   8   9 $log_timestamp" # Instance 1, eth4
+  #GBT
+  #"0x000e ${hostname}-3.tenge.pvt  0   1   2   3 $log_timestamp" # Instance 0, eth3
+  #"0x0380 ${hostname}-5.tenge.pvt  1   7   8   9 $log_timestamp" # Instance 1, eth5
 );
 
 function init() {
@@ -81,7 +85,10 @@ function init() {
 
   if [ $net_thread == 's6_pktsock_thread' ]
   then
-    bindhost="eth$((3+2*instance))"
+    # AO
+    bindhost="eth$((2+2*instance))"
+    # GBT
+    #bindhost="eth$((3+2*instance))"
     echo "binding $net_thread to $bindhost"
   fi
 
