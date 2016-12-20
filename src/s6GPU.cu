@@ -606,17 +606,14 @@ int spectroscopy(int n_subband,         // N coarse chan
     if(use_timer) timer.reset();
     // ...end reduce coarse channels to mean power
 
-    // done with the timeseries and FFTs - delete the associated GPU memory
-    //delete(dv_p->raw_timeseries_p);         
-    //delete(dv_p->fft_data_p);         
-    //delete(dv_p->fft_data_out_p);     
-    // and allocate GPU memory for power normalization
+    // Allocate GPU memory for power normalization
     dv_p->baseline_p         = new thrust::device_vector<float>(n_element);
     if(track_gpu_memory) get_gpu_mem_info("right after baseline vector allocation");
     dv_p->normalised_p       = new thrust::device_vector<float>(n_element);
     if(track_gpu_memory) get_gpu_mem_info("right after normalized vector allocation");
     dv_p->scanned_p          = new thrust::device_vector<float>(n_element);
     if(track_gpu_memory) get_gpu_mem_info("right after scanned vector allocation");
+    // Power normalization
     compute_baseline            (dv_p, n_chan, n_element, smooth_scale);        // not enough mem for this with 128m pt fft
     if(track_gpu_memory) get_gpu_mem_info("right after baseline computation");
     delete(dv_p->scanned_p);          
@@ -655,7 +652,6 @@ int spectroscopy(int n_subband,         // N coarse chan
         
     // delete remaining GPU memory
     delete(dv_p->powspec_p);          
-    //delete(dv_p->scanned_p);          
     delete(dv_p->baseline_p);         
     delete(dv_p->normalised_p);       
        
