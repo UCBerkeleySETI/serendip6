@@ -37,7 +37,7 @@ static void *run(hashpipe_thread_args_t * args)
     int block_idx = 0;
     int error_count = 0, max_error_count = 0;
     float error, max_error = 0.0;
-    int gen_fake = 0;
+    int gen_fake = 1;
 
     hashpipe_status_lock_safe(&st);
     //hashpipe_status_lock_safe(p_st);
@@ -103,17 +103,23 @@ static void *run(hashpipe_thread_args_t * args)
         if(gen_fake) {
             gen_fake = 0;
             // gen fake data for all beams, all blocks   
+            // All blocks will contain same fake data.
             // TODO vary data by beam
             fprintf(stderr, "generating fake data to block 0 beam 0...");
             gen_fake_data(&(db->block[0].data[0]));
             fprintf(stderr, " done\n");
-            fprintf(stderr, "copying to block 0 beam");
-            for(int beam_i = 1; beam_i < N_BEAMS; beam_i++) {
-                fprintf(stderr, " %d", beam_i);
-                memcpy((void *)&db->block[0].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)], 
-                    (void *)&db->block[0].data[0], 
-                    N_BYTES_PER_BEAM);
-            }
+//for(int jeffc2=0; jeffc2 < 8; jeffc2++) {
+//fprintf(stderr, "bors %d pol %d ++++++++++++ in fake net +++++++++++++++++++++\n", bors_i, input_i);
+//for(int jeffc=0; jeffc<20; jeffc++) {
+//fprintf(stderr, ">>>> %d %d %d %d\n", c2data[jeffc].x, c2data[jeffc].y, c2data[jeffc].x, c2data[jeffc].y);
+//}
+            //fprintf(stderr, "copying to block 0 beam");
+            //for(int beam_i = 1; beam_i < N_BEAMS; beam_i++) {
+            //    fprintf(stderr, " %d", beam_i);
+            //    memcpy((void *)&db->block[0].data[beam_i*N_BYTES_PER_BEAM/sizeof(uint64_t)], 
+            //        (void *)&db->block[0].data[0], 
+            //        N_BYTES_PER_BEAM);
+            //}
             fprintf(stderr, " done\n");
             fprintf(stderr, "copying to block");
             for(int block_i = 1; block_i < N_INPUT_BLOCKS; block_i++) {

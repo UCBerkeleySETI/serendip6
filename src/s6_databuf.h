@@ -40,13 +40,13 @@
 #define N_SUBSPECTRA_PER_SPECTRUM   8
 #define N_SAMPLES_PER_BLOCK         (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM)
 #define N_BORS                      N_SUBSPECTRA_PER_SPECTRUM
-#define N_COARSE_CHAN_PER_BORS      N_COARSE_CHAN/N_BORS
 #define N_SOURCE_NODES              8
 #endif
 
 //#define N_COARSE_CHAN_PER_SUBSPECTRUM   (N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM) 
 //#define N_BYTES_PER_SUBSPECTRUM         (N_COARSE_CHAN_PER_SUBSPECTRUM * N_BYTES_PER_SAMPLE * N_POLS_PER_BEAM)
 
+#define N_COARSE_CHAN_PER_BORS  (N_COARSE_CHAN / N_BORS)
 #define N_SAMPLES_PER_BEAM      (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM)
 #define N_BYTES_PER_BEAM        (N_BYTES_PER_SAMPLE * N_SAMPLES_PER_BEAM)
 #define N_BYTES_PER_SUBSPECTRUM (N_BYTES_PER_SAMPLE * N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM * N_POLS_PER_BEAM)
@@ -65,11 +65,11 @@
 // The following 3 #define's are needed only by s6_gen_fake_data.
 // Perhaps they should be removed at some point (with a change to
 // s6_gen_fake_data).
-#define N_SUBBANDS              1
-#define N_SUBBAND_CHAN          (N_COARSE_CHAN / N_SUBBANDS)
-#define N_GPU_ELEMENTS          (N_FINE_CHAN * N_SUBBAND_CHAN)
+//#define N_SUBBANDS              1
+//#define N_SUBBAND_CHAN          (N_COARSE_CHAN / N_SUBBANDS)          // N_COARSE_CHAN (512)
+//#define N_GPU_ELEMENTS          (N_FINE_CHAN * N_SUBBAND_CHAN)        // N_FINE_CHAN * N_COARSE_CHAN (512 * (512*1024))   = 268435456 
+#define N_GPU_ELEMENTS          (N_FINE_CHAN * N_COARSE_CHAN_PER_BORS)  // (512*1024) * 64                                  =  33554432 (/8)
 //#define N_SAMPLES_PER_SUBBAND   (N_FINE_CHAN * N_COARSE_CHAN/N_SUBBANDS * N_POLS_PER_BEAM)
-
 // Used to pad after hashpipe_databuf_t to maintain cache alignment
 typedef uint8_t hashpipe_databuf_cache_alignment[
   CACHE_ALIGNMENT - (sizeof(hashpipe_databuf_t)%CACHE_ALIGNMENT)
