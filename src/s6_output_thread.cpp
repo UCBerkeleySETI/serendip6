@@ -63,6 +63,11 @@ static void *run(hashpipe_thread_args_t * args)
 
     int idle=0;                                         // 1 = idle output, 0 = good to go
     uint32_t idle_flag=0;                               // bit field for data driven idle conditions    
+    int testmode=0;                                     // 1 = write output file regardless of other
+                                                        //   flags and do not attempt to obtain observatory
+                                                        //   status data (in fact, write zeros to the obs
+                                                        //   status structure).  0 = operate normally and
+                                                        //   respect other flags.
 
     // data driven idle bit indexes
     int idle_redis_error = 1; 
@@ -125,11 +130,21 @@ static void *run(hashpipe_thread_args_t * args)
 
         // get metadata
         hgeti4(st.buf, "IDLE", &idle);
+        hgeti4(st.buf, "TESTMODE", &testmode);
+        if(!testmode) {
 #ifdef SOURCE_S6
-        rv = get_obs_info_from_redis(scram_p, (char *)"redishost", 6379);
+            rv = get_obs_info_from_redis(scram_p, (char *)"redishost", 6379);
 #elif SOURCE_DIBAS
-        rv = get_obs_gbt_info_from_redis(gbtstatus_p, (char *)"redishost", 6379);
+            rv = get_obs_gbt_info_from_redis(gbtstatus_p, (char *)"redishost", 6379);
 #endif
+        } else {
+#ifdef SOURCE_S6
+            memset((void *)scram_p, 0, sizeof(scram_t));            // test mode - zero entire scram
+#elif SOURCE_DIBAS
+            memset((void *)gbtstatus_p, 0, sizeof(gbtstatus_t));    // test mode - zero entire gbtstatus
+            gbtstatus.WEBCNTRL = 1;                                 // ... except for WEBCNTRL!
+#endif
+        }
 
     // Start idle checking
         // generic redis error check. 
@@ -285,10 +300,11 @@ static void *run(hashpipe_thread_args_t * args)
 #ifdef SOURCE_S6
         // write hits and metadata to etFITS file only if there is a receiver
         // in focus or the run_always flag in on
-        if(scram.receiver || run_always) {
+        if(testmode || scram.receiver || run_always) {
 #elif SOURCE_DIBAS
 // TODO - put GBT acquisition trigger logic, if any, here
-        if(run_always && gbtstatus.WEBCNTRL == 1 && !idle) {
+        //if(run_always && gbtstatus.WEBCNTRL == 1 && !idle) {
+        if(testmode || run_always && gbtstatus.WEBCNTRL) {
 #endif
 #ifdef SOURCE_S6
             etf.file_chan = scram.coarse_chan_id;          
