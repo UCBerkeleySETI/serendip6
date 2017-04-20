@@ -57,6 +57,12 @@ static void *run(hashpipe_thread_args_t * args)
     gbtstatus_t * gbtstatus_p = &gbtstatus;
     char *prior_receiver = (char *)malloc(32);
     strcpy(prior_receiver,"");
+#elif SOURCE_FAST
+// TODO all of the SOURCE_FAST sections are copies of SOURCE_DIBAS sections as place holders.
+    gbtstatus_t gbtstatus;
+    gbtstatus_t * gbtstatus_p = &gbtstatus;
+    char *prior_receiver = (char *)malloc(32);
+    strcpy(prior_receiver,"");
 #endif    
 
     int run_always, prior_run_always=0;                 // 1 = run even if no receiver
@@ -250,6 +256,9 @@ static void *run(hashpipe_thread_args_t * args)
 #elif SOURCE_DIBAS
         if(strcmp(gbtstatus.IFV1TNCI,prior_receiver) != 0 ||
                   gbtstatus.WEBCNTRL == 0  ||
+#elif SOURCE_FAST
+        if(strcmp(gbtstatus.IFV1TNCI,prior_receiver) != 0 ||
+                  gbtstatus.WEBCNTRL == 0  ||
 #endif
                   run_always      != prior_run_always  ||
                   num_coarse_chan != db->block[block_idx].header.num_coarse_chan) {
@@ -280,6 +289,8 @@ static void *run(hashpipe_thread_args_t * args)
                           num_coarse_chan, receiver[scram.receiver]);
 #elif SOURCE_DIBAS
                           num_coarse_chan, gbtstatus.IFV1TNCI);
+#elif SOURCE_FAST
+                          num_coarse_chan, gbtstatus.IFV1TNCI);
 #endif
 
             // change files
@@ -291,6 +302,8 @@ static void *run(hashpipe_thread_args_t * args)
 #ifdef SOURCE_S6
             prior_receiver   = scram.receiver;
 #elif SOURCE_DIBAS
+            strcpy(prior_receiver,gbtstatus.IFV1TNCI);
+#elif SOURCE_FAST
             strcpy(prior_receiver,gbtstatus.IFV1TNCI);
 #endif
             num_coarse_chan  = db->block[block_idx].header.num_coarse_chan; 
@@ -305,6 +318,8 @@ static void *run(hashpipe_thread_args_t * args)
 // TODO - put GBT acquisition trigger logic, if any, here
         //if(run_always && gbtstatus.WEBCNTRL == 1 && !idle) {
         if(testmode || run_always && gbtstatus.WEBCNTRL) {
+#elif SOURCE_FAST
+        if(testmode || run_always && gbtstatus.WEBCNTRL) {
 #endif
 #ifdef SOURCE_S6
             etf.file_chan = scram.coarse_chan_id;          
@@ -312,6 +327,8 @@ static void *run(hashpipe_thread_args_t * args)
 #elif SOURCE_DIBAS
             etf.file_chan = gbtstatus.coarse_chan_id;           // TODO - sensible for GBT?
             rv = write_etfits_gbt(db, block_idx, &etf, gbtstatus_p);
+#elif SOURCE_FAST
+            etf.file_chan = gbtstatus.coarse_chan_id;           // TODO - sensible for GBT?
 #endif
             if(rv) {
                 hashpipe_error(__FUNCTION__, "error error returned from write_etfits()");
