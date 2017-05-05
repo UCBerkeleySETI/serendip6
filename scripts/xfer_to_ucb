@@ -1,12 +1,14 @@
 #! /bin/csh -b
 
 set REMOTE_USER = aodata
-set REMOTE_HOST = khan.ssl.berkeley.edu
-set REMOTE_DIR = /setistor1/users/aodata/serendip6_data
+#set REMOTE_HOST = khan.ssl.berkeley.edu
+set REMOTE_HOST = 208.68.240.117
+set REMOTE_DIR = /disks/bucket/b/users/seti/serendip6_data/ao
 set XFER_SUFFIX = .xfer_to_ucb
 set DONE_SUFFIX = .at_ucb
 set SLEEP_SECS = 300 # how many seconds to sleep if no files to xfer
 set BWLIMIT = 2500 # KBps throttle (2500 KBps jjjjG= 20 Mbps)
+set YEAR = `date | awk '{print $NF}'`
 
 # first check to see if s6c* mounts exist, otherwise don't bother.
 
@@ -146,8 +148,8 @@ while (1)
     if (! -f ${DO_THIS_FILE}${XFER_SUFFIX}) then 
       mv $DO_THIS_FILE ${DO_THIS_FILE}${XFER_SUFFIX}
     endif
-    echo command: rsync -av --bwlimit=$BWLIMIT ${DO_THIS_FILE}${XFER_SUFFIX} ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/${SEND_TO_SUBDIR}/$BASENAME
-    rsync -av --bwlimit=$BWLIMIT ${DO_THIS_FILE}${XFER_SUFFIX} ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/${SEND_TO_SUBDIR}/$BASENAME
+    echo command: rsync -av --bwlimit=$BWLIMIT ${DO_THIS_FILE}${XFER_SUFFIX} ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/${SEND_TO_SUBDIR}/$YEAR/$BASENAME
+    rsync -av --bwlimit=$BWLIMIT ${DO_THIS_FILE}${XFER_SUFFIX} ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/${SEND_TO_SUBDIR}/$YEAR/$BASENAME
     if ($status > 0) then
       echo "error during rsync! bailing out!!"
       mv ${DO_THIS_FILE}${XFER_SUFFIX} $DO_THIS_FILE
