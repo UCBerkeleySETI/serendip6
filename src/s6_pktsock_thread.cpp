@@ -713,6 +713,8 @@ static int init(hashpipe_thread_args_t *args)
     int bindport = 21302;
 #elif SOURCE_DIBAS
     int bindport = 60000;
+#elif SOURCE_FAST
+    int bindport = 60000;
 #endif
 
     strcpy(bindhost, "eth3");
