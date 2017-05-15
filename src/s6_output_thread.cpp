@@ -250,44 +250,46 @@ static void *run(hashpipe_thread_args_t * args)
 #endif
 
         // test for and handle file change events
-
+        // no such events exit while in test mode
+        if(!testmode) {
 #ifdef SOURCE_S6
-        if(scram.receiver  != prior_receiver    ||
+            if(scram.receiver  != prior_receiver              ||
 #elif SOURCE_DIBAS
-        if(strcmp(gbtstatus.IFV1TNCI,prior_receiver) != 0 ||
-                  gbtstatus.WEBCNTRL == 0  ||
+            if(strcmp(gbtstatus.IFV1TNCI,prior_receiver) != 0 ||
+               gbtstatus.WEBCNTRL == 0                        ||
 #elif SOURCE_FAST
-        if(strcmp(gbtstatus.IFV1TNCI,prior_receiver) != 0 ||
-                  gbtstatus.WEBCNTRL == 0  ||
+            if(strcmp(gbtstatus.IFV1TNCI,prior_receiver) != 0 ||
+               gbtstatus.WEBCNTRL == 0                        ||
 #endif
-                  run_always      != prior_run_always  ||
-                  num_coarse_chan != db->block[block_idx].header.num_coarse_chan) {
+               run_always      != prior_run_always            ||
+               num_coarse_chan != db->block[block_idx].header.num_coarse_chan) {
 
-            hashpipe_info(__FUNCTION__, "Initializing output for %ld coarse channels, using receiver %s\n",
+                // change files
+                hashpipe_info(__FUNCTION__, "Initializing output for %ld coarse channels, using receiver %s\n",
 #ifdef SOURCE_S6
-                          num_coarse_chan, receiver[scram.receiver]);
+                              num_coarse_chan, receiver[scram.receiver]);
 #elif SOURCE_DIBAS
-                          num_coarse_chan, gbtstatus.IFV1TNCI);
+                              num_coarse_chan, gbtstatus.IFV1TNCI);
 #elif SOURCE_FAST
-                          num_coarse_chan, gbtstatus.IFV1TNCI);
+                              num_coarse_chan, gbtstatus.IFV1TNCI);
 #endif
 
-            // change files
-            if(etf.file_open) {
-                etfits_close(&etf);     
+                if(etf.file_open) {
+                    etfits_close(&etf);     
+                }
+                etf.new_file = 1; 
+                // re-init
+#ifdef SOURCE_S6
+                prior_receiver   = scram.receiver;
+#elif SOURCE_DIBAS
+                strcpy(prior_receiver,gbtstatus.IFV1TNCI);
+#elif SOURCE_FAST
+                strcpy(prior_receiver,gbtstatus.IFV1TNCI);
+#endif
+                num_coarse_chan  = db->block[block_idx].header.num_coarse_chan; 
+                prior_run_always = run_always;
             }
-            etf.new_file = 1; 
-            // re-init
-#ifdef SOURCE_S6
-            prior_receiver   = scram.receiver;
-#elif SOURCE_DIBAS
-            strcpy(prior_receiver,gbtstatus.IFV1TNCI);
-#elif SOURCE_FAST
-            strcpy(prior_receiver,gbtstatus.IFV1TNCI);
-#endif
-            num_coarse_chan  = db->block[block_idx].header.num_coarse_chan; 
-            prior_run_always = run_always;
-        }
+        }   // end test for and handle file change events
 
 #ifdef SOURCE_S6
         // write hits and metadata to etFITS file only if there is a receiver
