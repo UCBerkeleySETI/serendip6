@@ -250,65 +250,46 @@ static void *run(hashpipe_thread_args_t * args)
 #endif
 
         // test for and handle file change events
-
+        // no such events exit while in test mode
+        if(!testmode) {
 #ifdef SOURCE_S6
-        if(scram.receiver  != prior_receiver    ||
+            if(scram.receiver  != prior_receiver              ||
 #elif SOURCE_DIBAS
-        if(strcmp(gbtstatus.IFV1TNCI,prior_receiver) != 0 ||
-                  gbtstatus.WEBCNTRL == 0  ||
+            if(strcmp(gbtstatus.IFV1TNCI,prior_receiver) != 0 ||
+               gbtstatus.WEBCNTRL == 0                        ||
 #elif SOURCE_FAST
-        if(strcmp(gbtstatus.IFV1TNCI,prior_receiver) != 0 ||
-                  gbtstatus.WEBCNTRL == 0  ||
+            if(strcmp(gbtstatus.IFV1TNCI,prior_receiver) != 0 ||
+               gbtstatus.WEBCNTRL == 0                        ||
 #endif
-                  run_always      != prior_run_always  ||
-                  num_coarse_chan != db->block[block_idx].header.num_coarse_chan) {
+               run_always      != prior_run_always            ||
+               num_coarse_chan != db->block[block_idx].header.num_coarse_chan) {
 
-#if 0
-//            uint32_t total_missed_pkts[N_BEAM_SLOTS];
-//
-//            char missed_key[9] = "MISSPKBX";
-//            const char missed_beam[7] = {'0', '1', '2', '3', '4', '5', '6'};
-//            for(int i=0; i < N_BEAMS; i++) {
-//                missed_key[7] = missed_beam[i];
-//                hgetu4(st.buf, missed_key, &total_missed_pkts[i]);
-//                hputu4(st.buf, missed_key, 0);
-//            }
-//
-//            hashpipe_info(__FUNCTION__, "Missed packet totals : beam0 %lu beam1 %lu beam2 %lu beam3 %lu beam4 %lu beam5 %lu beam6 %lu \n",
-//                         total_missed_pkts[0], total_missed_pkts[1], total_missed_pkts[2], total_missed_pkts[3], 
-//                         total_missed_pkts[4], total_missed_pkts[5], total_missed_pkts[6]);
-#endif
-
-//fprintf(stderr, "prior receiver %s (%ld)  status receiver %s (%ld)\n", prior_receiver, strlen(prior_receiver),gbtstatus.IFV1TNCI, strlen(gbtstatus.IFV1TNCI));
-//fprintf(stderr, "prior run_always %ld  run_always %ld\n", prior_run_always, run_always);
-//fprintf(stderr, "prior num_coarse_chan %ld  num_coarse_chan %ld\n", num_coarse_chan, db->block[block_idx].header.num_coarse_chan);
-//fprintf(stderr, "prior webcntrl %ld\n", gbtstatus.WEBCNTRL);
-
-            hashpipe_info(__FUNCTION__, "Initializing output for %ld coarse channels, using receiver %s\n",
+                // change files
+                hashpipe_info(__FUNCTION__, "Initializing output for %ld coarse channels, using receiver %s\n",
 #ifdef SOURCE_S6
-                          num_coarse_chan, receiver[scram.receiver]);
+                              num_coarse_chan, receiver[scram.receiver]);
 #elif SOURCE_DIBAS
-                          num_coarse_chan, gbtstatus.IFV1TNCI);
+                              num_coarse_chan, gbtstatus.IFV1TNCI);
 #elif SOURCE_FAST
-                          num_coarse_chan, gbtstatus.IFV1TNCI);
+                              num_coarse_chan, gbtstatus.IFV1TNCI);
 #endif
 
-            // change files
-            if(etf.file_open) {
-                etfits_close(&etf);     
+                if(etf.file_open) {
+                    etfits_close(&etf);     
+                }
+                etf.new_file = 1; 
+                // re-init
+#ifdef SOURCE_S6
+                prior_receiver   = scram.receiver;
+#elif SOURCE_DIBAS
+                strcpy(prior_receiver,gbtstatus.IFV1TNCI);
+#elif SOURCE_FAST
+                strcpy(prior_receiver,gbtstatus.IFV1TNCI);
+#endif
+                num_coarse_chan  = db->block[block_idx].header.num_coarse_chan; 
+                prior_run_always = run_always;
             }
-            etf.new_file = 1; 
-            // re-init
-#ifdef SOURCE_S6
-            prior_receiver   = scram.receiver;
-#elif SOURCE_DIBAS
-            strcpy(prior_receiver,gbtstatus.IFV1TNCI);
-#elif SOURCE_FAST
-            strcpy(prior_receiver,gbtstatus.IFV1TNCI);
-#endif
-            num_coarse_chan  = db->block[block_idx].header.num_coarse_chan; 
-            prior_run_always = run_always;
-        }
+        }   // end test for and handle file change events
 
 #ifdef SOURCE_S6
         // write hits and metadata to etFITS file only if there is a receiver
