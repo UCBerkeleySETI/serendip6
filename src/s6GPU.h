@@ -45,7 +45,21 @@ void create_fft_plan_1d_c2c(cufftHandle* plan,
                             size_t       nfft_,
                             size_t       nbatch);
 
-int spectroscopy(int n_subband,
+int spectroscopy_two_pols(int n_subband,
+                 int n_chan,
+                 int n_input,
+                 int beam,
+                 size_t maxhits,
+                 size_t maxgpuhits,
+                 float power_thresh,
+                 float smooth_scale,
+                 uint64_t * input_data,
+                 size_t n_input_data_bytes,
+                 s6_output_block_t *s6_output_block,
+                 device_vectors_t    *dv_p,
+                 cufftHandle *fft_plan);
+
+int spectroscopy_one_pol(int n_subband,
                  int n_chan,
                  int n_input,
                  int beam,

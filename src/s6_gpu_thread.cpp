@@ -54,17 +54,26 @@ int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHand
     *dv_p = init_device_vectors(num_channels_max, num_channels_utilized, N_POLS_PER_BEAM);
 
     // Configure cuFFT...
-    size_t  nfft_     = N_FINE_CHAN;                      // FFT length
-    size_t  nbatch    = num_coarse_chan*N_POLS_PER_BEAM;  // number of FFT batches to do 
-                                                          //    (only work on utilized coarse channels)
-    //int     istride   = N_COARSE_CHAN*N_POLS_PER_BEAM;    // this effectively transposes the input data
+    size_t  nfft_     = N_FINE_CHAN;                                    // FFT length
+#ifdef SOURCE_FAST
+    // one pol at a time
+    size_t  nbatch    = (num_coarse_chan);                              // number of FFT batches to do      
+    int     istride   = N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM;      // this effectively transposes the input data
+#else
+    // two pols at a time
+    size_t  nbatch    = (num_coarse_chan*N_POLS_PER_BEAM);              // number of FFT batches to do    
     int     istride   = N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM * N_POLS_PER_BEAM;    // this effectively transposes the input data
+#endif
+                                                          //    (only work on utilized coarse channels)
+    //int     istride   = N_COARSE_CHAN*N_POLS_PER_BEAM;    // this effectively transposes the input data   // THIS SHOULD GO AWAY
+
+
     int     ostride   = 1;                                // no transpose needed on the output
     int     idist     = 1;                                // distance between 1st input elements of consecutive batches
     int     odist     = nfft_;                            // distance between 1st output elements of consecutive batches
     create_fft_plan_1d_c2c(fft_plan_p, istride, idist, ostride, odist, nfft_, nbatch);
 
-    fprintf(stderr, "done\n");
+    fprintf(stderr, "done : nfft : %lu nbatch : %lu istride : %d \n", nfft_, nbatch, istride);
 
     return 0;
 }
@@ -204,7 +213,12 @@ static void *run(hashpipe_thread_args_t * args)
             // At GBT, data are arrayed by subspectra
             int n_bors = N_SUBSPECTRA_PER_SPECTRUM;
             //int n_bytes_per_bors  = N_BYTES_PER_SUBSPECTRUM;
-            uint64_t n_bytes_per_bors  = N_BYTES_PER_SUBSPECTRUM*N_FINE_CHAN;
+            uint64_t n_bytes_per_bors  = N_BYTES_PER_SUBSPECTRUM * N_FINE_CHAN;
+#elif SOURCE_FAST
+            // At FAST, data are arrayed by TBD
+            int n_bors = N_SUBSPECTRA_PER_SPECTRUM;
+            //int n_bytes_per_bors  = N_BYTES_PER_SUBSPECTRUM;
+            uint64_t n_bytes_per_bors  = N_BYTES_PER_SUBSPECTRUM * N_FINE_CHAN;
 #endif
             for(int bors_i = 0; bors_i < n_bors; bors_i++) {
                 size_t nhits = 0; 
@@ -214,19 +228,37 @@ static void *run(hashpipe_thread_args_t * args)
 fprintf(stderr, "num_coarse_chan = %lu n_bytes_per_bors = %lu  bors addr = %p\n", 
         num_coarse_chan, n_bytes_per_bors, &db_in->block[curblock_in].data[bors_i*n_bytes_per_bors/sizeof(uint64_t)]);
 #endif
-                nhits = spectroscopy(num_coarse_chan/N_SUBSPECTRA_PER_SPECTRUM,
-                                     N_FINE_CHAN,
-                                     N_POLS_PER_BEAM,
-                                     bors_i,
-                                     maxhits,
-                                     MAXGPUHITS,
-                                     POWER_THRESH,
-                                     SMOOTH_SCALE,
-                                     &db_in->block[curblock_in].data[bors_i*n_bytes_per_bors/sizeof(uint64_t)],
-                                     n_bytes_per_bors,
-                                     &db_out->block[curblock_out],
-                                     dv_p,
-                                     fft_plan_p);
+
+#ifdef SOURCE_FAST
+                nhits = spectroscopy_one_pol(num_coarse_chan/N_SUBSPECTRA_PER_SPECTRUM,     // n_subband   
+                                     N_FINE_CHAN,                                   // n_chan     
+                                     N_POLS_PER_BEAM,                               // n_input     
+                                     bors_i,                                        // bors         
+                                     maxhits,                                       // maxhits
+                                     MAXGPUHITS,                                    // maxgpuhits
+                                     POWER_THRESH,                                  // power_thresh
+                                     SMOOTH_SCALE,                                  // smooth_scale
+                                     &db_in->block[curblock_in].data[bors_i*n_bytes_per_bors/sizeof(uint64_t)], // input_data   0,1
+                                     n_bytes_per_bors,                              // input_data_bytes                         /2
+                                     &db_out->block[curblock_out],                  // s6_output_block
+                                     dv_p,                                          // dv_p
+                                     fft_plan_p);                                   // fft_plan
+#else
+                nhits = spectroscopy_two_pols(num_coarse_chan/N_SUBSPECTRA_PER_SPECTRUM,     // n_subband   
+                                     N_FINE_CHAN,                                   // n_chan     
+                                     N_POLS_PER_BEAM,                               // n_input     
+                                     bors_i,                                        // bors         
+                                     maxhits,                                       // maxhits
+                                     MAXGPUHITS,                                    // maxgpuhits
+                                     POWER_THRESH,                                  // power_thresh
+                                     SMOOTH_SCALE,                                  // smooth_scale
+                                     &db_in->block[curblock_in].data[bors_i*n_bytes_per_bors/sizeof(uint64_t)], // input_data   0,1
+                                     n_bytes_per_bors,                              // input_data_bytes                         /2
+                                     &db_out->block[curblock_out],                  // s6_output_block
+                                     dv_p,                                          // dv_p
+                                     fft_plan_p);                                   // fft_plan
+#endif
+
 //fprintf(stderr, "spectroscopy() returned %ld for beam %d\n", nhits, beam_i);
                 total_hits += nhits;
                 clock_gettime(CLOCK_MONOTONIC, &stop);
