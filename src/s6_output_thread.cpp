@@ -326,6 +326,17 @@ static void *run(hashpipe_thread_args_t * args)
         hputi4(st.buf, "OUTMXECT", max_error_count);
         // put a few selected coarse channel powers to the status buffer
 #ifdef SOURCE_S6
+        // first, 1/3, 2/3, final, skipping to new subspectrum for each
+        // Number of coarse channels should never change with the DiBAS design!
+        hputr4(st.buf, "CCS0FSTX", db->block[block_idx].cc_pwrs_x[0][0]);
+        hputr4(st.buf, "CCS0FSTY", db->block[block_idx].cc_pwrs_y[0][0]);
+        hputr4(st.buf, "CCS2.33X", db->block[block_idx].cc_pwrs_x[2][(int)(N_COARSE_CHAN_PER_BORS*0.33)]);
+        hputr4(st.buf, "CCS2.33Y", db->block[block_idx].cc_pwrs_y[2][(int)(N_COARSE_CHAN_PER_BORS*0.33)]);
+        hputr4(st.buf, "CCS4.67X", db->block[block_idx].cc_pwrs_x[4][(int)(N_COARSE_CHAN_PER_BORS*0.67)]);
+        hputr4(st.buf, "CCS4.67Y", db->block[block_idx].cc_pwrs_y[4][(int)(N_COARSE_CHAN_PER_BORS*0.67)]);
+        hputr4(st.buf, "CCS6LSTX", db->block[block_idx].cc_pwrs_x[6][N_COARSE_CHAN_PER_BORS-1]);
+        hputr4(st.buf, "CCS6LSTY", db->block[block_idx].cc_pwrs_y[6][N_COARSE_CHAN_PER_BORS-1]);
+#if 0
         hputr4(st.buf, "CCAV000X", db->block[block_idx].cc_pwrs_x[0]);
         hputr4(st.buf, "CCAV000Y", db->block[block_idx].cc_pwrs_y[0]);
         hputr4(st.buf, "CCAV060X", db->block[block_idx].cc_pwrs_x[60]);
@@ -339,6 +350,7 @@ static void *run(hashpipe_thread_args_t * args)
         hputr4(st.buf, "CCAV319X", db->block[block_idx].cc_pwrs_x[319]);
         hputr4(st.buf, "CCAV319Y", db->block[block_idx].cc_pwrs_y[319]);
 #endif
+#endif
 #ifdef SOURCE_DIBAS
         // first, 1/3, 2/3, final, skipping to new subspectrum for each
         // Number of coarse channels should never change with the DiBAS design!
@@ -350,8 +362,6 @@ static void *run(hashpipe_thread_args_t * args)
         hputr4(st.buf, "CCS4.67Y", db->block[block_idx].cc_pwrs_y[4][(int)(N_COARSE_CHAN_PER_BORS*0.67)]);
         hputr4(st.buf, "CCS7LSTX", db->block[block_idx].cc_pwrs_x[7][N_COARSE_CHAN_PER_BORS-1]);
         hputr4(st.buf, "CCS7LSTY", db->block[block_idx].cc_pwrs_y[7][N_COARSE_CHAN_PER_BORS-1]);
-
-
 #if 0
         hputr4(st.buf, "CCAV100X", db->block[block_idx].cc_pwrs_x[100]);
         hputr4(st.buf, "CCAV100Y", db->block[block_idx].cc_pwrs_y[100]);
