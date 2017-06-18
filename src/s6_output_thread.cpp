@@ -20,6 +20,7 @@
 #include "s6_obs_data.h"
 #include "s6_obs_data_gbt.h"
 #include "s6_etfits.h"
+#include "s6_redis.h"
 
 #define SET_BIT(val, bitIndex) val |= (1 << bitIndex)
 #define CLEAR_BIT(val, bitIndex) val &= ~(1 << bitIndex)
@@ -141,7 +142,7 @@ static void *run(hashpipe_thread_args_t * args)
 #ifdef SOURCE_S6
             rv = get_obs_info_from_redis(scram_p, (char *)"redishost", 6379);
 #elif SOURCE_DIBAS
-            rv = get_obs_gbt_info_from_redis(gbtstatus_p, (char *)"redishost", 6379);
+            rv = get_obs_gbt_info_from_redis(gbtstatus_p, (char *)REDISHOST, 6379);
 #endif
         } else {
 #ifdef SOURCE_S6
@@ -366,7 +367,7 @@ static void *run(hashpipe_thread_args_t * args)
         if(strcmp(etf.filename_working, current_filename) != 0) {     // check for filename change
             strcpy(current_filename, etf.filename_working);
             hashpipe_info(__FUNCTION__, "New file : %s", current_filename);
-            rv = put_obs_gbt_info_to_redis(current_filename, st.instance_id, (char *)"redishost", 6379);
+            rv = put_obs_gbt_info_to_redis(current_filename, st.instance_id, (char *)REDISHOST, 6379);
             if(rv) {
                 hashpipe_error(__FUNCTION__, "error returned from put_obs_info_to_redis()");
                 pthread_exit(NULL);
