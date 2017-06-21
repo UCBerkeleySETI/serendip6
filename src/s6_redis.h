@@ -5,7 +5,10 @@
 extern "C" {
 #endif
 
-#define REDISHOST ("redishost")
+// In production environments REDISHOST is often set to "redishost" 
+// (resolved via name resolution).  In test environments REDISHOST 
+// is often set to "localhost". 
+#define REDISHOST ("localhost")
 
 #ifdef __cplusplus
 }
