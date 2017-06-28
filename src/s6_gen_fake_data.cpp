@@ -27,6 +27,7 @@
 
 #include "s6_databuf.h"
 #include "s6_fake_data.h"
+#include "hashpipe.h"
 
 // Functors
 // -----------------------------------------------------------------------------
@@ -55,9 +56,9 @@ void gen_time_series(int f_factor, int input_i, std::vector<char2> &h_raw_timese
     std::generate(h_raw_timeseries.begin(), h_raw_timeseries.end(), generate_gaussian_complex_8b);
 
     // put signals in the quarter way points in the coarse channel range
-    for( size_t cc=0; cc<N_COARSE_CHAN_PER_BORS; cc += floor(N_COARSE_CHAN_PER_BORS/4)) {   
+    for( size_t cc=0; cc<N_COARSE_CHAN_PER_BORS; cc += ceil((double)N_COARSE_CHAN_PER_BORS/4.0)) {   
         for( size_t t=0; t<N_FINE_CHAN; t++ ) {               // for each time (ie, fine channel in freq domain)
-            int locator     = t*N_COARSE_CHAN_PER_BORS + cc;  // stay in this "time"      
+            int locator     = t*N_COARSE_CHAN_PER_BORS + cc;  // stay in this "time", ie stride by N_CC * cc offset      
             float f         = f_factor*3.14159265 * t/N_FINE_CHAN;
             float amplitude = 10.0;
             // put signals at the quarter way points in the "fine channel" range
@@ -82,6 +83,9 @@ void gen_fake_data(uint64_t *data) {
     std::vector<char2>   h_raw_timeseries_gen(N_GPU_ELEMENTS);
     char2 * c2data = (char2 *)data;     // input buffer pointer cast to char2 pointer
     int bors_i;
+
+	hashpipe_info(__FUNCTION__, "Generating %lu random samples", 
+				  (unsigned long)(N_BORS * N_POLS_PER_BEAM * N_COARSE_CHAN_PER_BORS * N_FINE_CHAN));
 
     for(bors_i=0; bors_i<N_BORS; bors_i++) {
         for(int pol=0; pol<N_POLS_PER_BEAM; pol++) {
