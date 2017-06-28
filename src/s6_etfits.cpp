@@ -282,6 +282,8 @@ int etfits_create(etfits_t * etf) {
     sprintf(template_file, "%s/%s", etf->s6_dir, ETFITS_TEMPLATE);
 #elif SOURCE_DIBAS
     sprintf(template_file, "%s/%s", etf->s6_dir, ETFITS_GBT_TEMPLATE);
+#elif SOURCE_FAST
+    sprintf(template_file, "%s/%s", etf->s6_dir, ETFITS_GBT_TEMPLATE);
 #endif
     if(! *status_p) fits_create_template(&(etf->fptr), etf->filename_working, template_file, status_p);
 
