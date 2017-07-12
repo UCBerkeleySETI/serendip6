@@ -79,13 +79,14 @@ void delete_device_vectors( device_vectors_t * dv_p) {
     delete(dv_p);
 }
 
-void create_fft_plan_1d_c2c(cufftHandle* plan,
+void create_fft_plan_1d(cufftHandle* plan,
                             int          istride,
                             int          idist,
                             int          ostride,
                             int          odist,
                             size_t       nfft_,
-                            size_t       nbatch) {
+                            size_t       nbatch,
+							cufftType    fft_type) {
     int rank      = 1;
     int nfft[]    = {nfft_};
     int inembed[] = {nfft[0]};
@@ -96,7 +97,7 @@ void create_fft_plan_1d_c2c(cufftHandle* plan,
                                         rank, nfft,
                                         inembed, istride, idist,
                                         onembed, ostride, odist,
-                                        CUFFT_C2C, nbatch);
+                                        fft_type, nbatch);
     if( fft_ret != CUFFT_SUCCESS ) {
         throw std::runtime_error("cufftPlanMany failed");
     }
@@ -108,7 +109,7 @@ inline void get_gpu_mem_info(const char * comment) {
     double free_gb, total_gb, allocated_gb;
     rv = cudaMemGetInfo(&free, &total);
     if(rv) {
-        fprintf(stderr, "Error from cudaMemGetInfo() : %d\n", rv);
+        fprintf(stderr, "Error from cudaMemGetInfo() : %d : %s\n", rv, cudaGetErrorString(cudaGetLastError()));
     } else {
         total_gb = (double)total/(1024*1024*1024);
         free_gb =  (double)free/(1024*1024*1024);
@@ -131,6 +132,18 @@ void execute_fft_plan_c2c(cufftHandle   *plan,
     }
 }
 
+// Note: input == output is not ok
+void execute_fft_plan_r2c(cufftHandle   *plan,
+                          const float*  input,
+                          float2*       output) {
+	cufftResult fft_ret = cufftExecR2C(*plan, 
+									   (cufftReal*) input, 
+									   (cufftComplex*) output);
+    if( fft_ret != CUFFT_SUCCESS ) {
+        throw std::runtime_error("cufftExecR2C failed");
+    }
+}
+
 // Functors
 // --------
 struct convert_complex_8b_to_float
@@ -138,6 +151,13 @@ struct convert_complex_8b_to_float
     inline __host__ __device__
     float2 operator()(char2 a) const {
         return make_float2(a.x, a.y);
+    }
+};
+struct convert_real_8b_to_float
+    : public thrust::unary_function<char,float> {
+    inline __host__ __device__
+    float operator()(char a) const {
+        return (float)a;
     }
 };
 struct compute_complex_power
@@ -311,6 +331,15 @@ void do_fft(cufftHandle *fft_plan, float2* &fft_input_ptr, float2* &fft_output_p
     Stopwatch timer;
     if(use_timer) timer.start();
     execute_fft_plan_c2c(fft_plan, fft_input_ptr, fft_output_ptr);
+    cudaThreadSynchronize();
+    if(use_timer) timer.stop();
+    if(use_timer) cout << "FFT execution time:\t" << timer.getTime() << endl;
+    if(use_timer) timer.reset();
+}
+void do_r2c_fft(cufftHandle *fft_plan, float* &fft_input_ptr, float2* &fft_output_ptr) {
+    Stopwatch timer;
+    if(use_timer) timer.start();
+    execute_fft_plan_r2c(fft_plan, fft_input_ptr, fft_output_ptr);
     cudaThreadSynchronize();
     if(use_timer) timer.stop();
     if(use_timer) cout << "FFT execution time:\t" << timer.getTime() << endl;
@@ -527,7 +556,8 @@ inline int dibas_coarse_chan(long spectrum_index, int sub_spectrum_i) {
     return((long)floor((double)spectrum_index/2) + sub_spectrum_i * N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM);
 }
 
-int spectroscopy_two_pols(int n_subband, // N coarse chan
+#ifndef SOURCE_FAST
+int spectroscopy(int n_subband,         // N coarse chan
                  int n_chan,            // N fine chan
                  int n_input,           // N pols
                  int bors,              // beam or subspectrum
@@ -559,7 +589,7 @@ int spectroscopy_two_pols(int n_subband, // N coarse chan
 
     if(track_gpu_memory) {
         char comment[256];
-        sprintf(comment, "on entry to spectroscopy() : n_element = %d n_input_data_bytes = %d raw_timeseries_length in char2 = %d", 
+        sprintf(comment, "on entry to non-FAST spectroscopy() : n_element = %d n_input_data_bytes = %d raw_timeseries_length in char2 = %d", 
                 n_element, n_input_data_bytes, N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM * N_FINE_CHAN * N_POLS_PER_BEAM);
         get_gpu_mem_info((const char *)comment);
     }
@@ -680,10 +710,12 @@ int spectroscopy_two_pols(int n_subband, // N coarse chan
     
     return total_nhits;
 }
-    
-int spectroscopy_one_pol(int n_subband, // N coarse chan
-                 int n_chan,            // N fine chan
-                 int n_input,           // N pols
+#endif
+
+#ifdef SOURCE_FAST    
+int spectroscopy(int n_cc, 				// N coarse chan
+                 int n_fine_chan,    	// N fine chan
+                 int n_pols,           	// N pols
                  int bors,              // beam or subspectrum
                  size_t maxhits,
                  size_t maxgpuhits,
@@ -706,38 +738,27 @@ int spectroscopy_one_pol(int n_subband, // N coarse chan
 
     Stopwatch timer; 
     Stopwatch total_gpu_timer;
-    //int n_element = n_subband*n_chan*n_input;     // two pols
-    int n_element = n_subband*n_chan;       // one pol
+    int n_total_chan = n_cc*n_fine_chan;       // one pol - was n_element
     size_t nhits;
-    //size_t prior_nhits=0;
     size_t total_nhits=0;
                                                                                                              
-//GPU memory total : 7.92 GB    allocated : 0.66 GB (8.29%)    free : 7.27 GB    (on entry to spectroscopy() : n_element = 67108864 1  n_input_data_bytes = 268435456 4  raw_timeseries_length in char2 = 134217728 2)
-
     if(track_gpu_memory) {
         char comment[256];
-        sprintf(comment, "on entry to spectroscopy() : n_element = %d n_input_data_bytes = %d raw_timeseries_length in char2 = %d", 
-                n_element, n_input_data_bytes, N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM * N_FINE_CHAN * N_POLS_PER_BEAM);
+        sprintf(comment, "on entry to FAST spectroscopy() : n_total_chan = %d n_input_data_bytes = %d raw_timeseries_length in bytes = %d input data located at %p", 
+                n_total_chan, n_input_data_bytes,  n_input_data_bytes, input_data);
         get_gpu_mem_info((const char *)comment);
     }
 
-    char2 * h_raw_timeseries = (char2 *)input_data;
+    char * h_raw_timeseries = (char *)input_data;
 
     if(use_total_gpu_timer) total_gpu_timer.start();
 
-    // allocate GPU memory for the timeseries, FFTs and power spectra (now done per pol - see below)
-    //dv_p->fft_data_p         = new thrust::device_vector<float2>(n_element);
-    //dv_p->fft_data_out_p     = new thrust::device_vector<float2>(n_element);
-    //dv_p->powspec_p          = new thrust::device_vector<float>(n_element);
-    //dv_p->raw_timeseries_p   = new thrust::device_vector<char2>(N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM * N_FINE_CHAN);
-
     // we allocate the device raw data vector for both pols at once so that we can do the copy in one go
-    dv_p->raw_timeseries_p   = new thrust::device_vector<char2>(N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM * N_FINE_CHAN * N_POLS_PER_BEAM);   // two pols
+    dv_p->raw_timeseries_p   = new thrust::device_vector<char>(n_input_data_bytes);   // two pols
 
     // Copy to the device
     if(use_timer) timer.start();
-    thrust::copy(h_raw_timeseries, h_raw_timeseries + n_input_data_bytes / sizeof(char2),
-                 //d_raw_timeseries.begin());
+    thrust::copy(h_raw_timeseries, h_raw_timeseries + n_input_data_bytes / sizeof(char),
                  dv_p->raw_timeseries_p->begin());
     if(track_gpu_memory) get_gpu_mem_info("right after time series copy");
     if(use_timer) timer.stop();
@@ -745,37 +766,34 @@ int spectroscopy_one_pol(int n_subband, // N coarse chan
     if(use_timer) timer.reset();
 
     // all processing done per pol
-    for(int pol=0; pol < n_input; pol++) {
+    for(int pol=0; pol < n_pols; pol++) {
 
-fprintf(stderr, "starting on pol %d\n", pol);
         // allocate (and delete - see below) for each pol
         dv_p->hit_indices_p      = new thrust::device_vector<int>();                        // 0 initial size
         dv_p->hit_powers_p       = new thrust::device_vector<float>;                        // "
         dv_p->hit_baselines_p    = new thrust::device_vector<float>;                        // "
-        dv_p->fft_data_p         = new thrust::device_vector<float2>(n_element);            // FFT input
+        dv_p->fft_data_p         = new thrust::device_vector<float>(N_TIME_SAMPLES);             // FFT input
         if(track_gpu_memory) get_gpu_mem_info("right after FFT input vector allocation");
-        dv_p->fft_data_out_p     = new thrust::device_vector<float2>(n_element);            // FFT output
-        if(track_gpu_memory) get_gpu_mem_info("right after FFT output vector allocation");
-        dv_p->powspec_p          = new thrust::device_vector<float>(n_element);             // power spectrum
-        if(track_gpu_memory) get_gpu_mem_info("right after powerspec vector allocation");
-        if(use_timer) timer.start();
 
-        // Unpack from 8-bit to floats - both pols version
-        //thrust::transform(dv_p->raw_timeseries_p->begin(),    // two pols
-        //                  dv_p->raw_timeseries_p->end(),
-        //                  dv_p->fft_data_p->begin(),
-        //                  convert_complex_8b_to_float());
+        dv_p->fft_data_out_p     = new thrust::device_vector<float2>(n_total_chan);            // FFT output
+        if(track_gpu_memory) get_gpu_mem_info("right after FFT output vector allocation");
+
+        dv_p->powspec_p          = new thrust::device_vector<float>(n_total_chan);             // power spectrum
+        if(track_gpu_memory) get_gpu_mem_info("right after powerspec vector allocation");
+
+        if(use_timer) timer.start();
 
         // fluff 8 bit data to float while loading FFT input, one pol at a time via a strided iterator
         // see https://github.com/thrust/thrust/blob/master/examples/strided_range.cu
         // TODO : TEST
-        typedef thrust::device_vector<char2>::iterator Iterator;
+        typedef thrust::device_vector<char>::iterator Iterator;
         strided_range<Iterator> this_pol(dv_p->raw_timeseries_p->begin() + pol, dv_p->raw_timeseries_p->end(), 2);
+        if(track_gpu_memory) get_gpu_mem_info("right after 8bit to float strided iterator allocation");
         thrust::transform(
                       this_pol.begin(),  
                       this_pol.end(),
                       dv_p->fft_data_p->begin(),
-                      convert_complex_8b_to_float());
+                      convert_real_8b_to_float());
         cudaThreadSynchronize();
         if(track_gpu_memory) get_gpu_mem_info("right after 8bit to float transform");
         if(use_timer) timer.stop();
@@ -788,23 +806,12 @@ fprintf(stderr, "starting on pol %d\n", pol);
         // This is not true anymore - we analyze all inputs in one go. These
         // comments and this way of assigning fft_input_ptr and fft_output_ptr
         // are left as is in case we need to go back to one-input-at-a-time.
-        float2* fft_input_ptr  = thrust::raw_pointer_cast(&((*dv_p->fft_data_p)[0]));
+        float*  fft_input_ptr  = thrust::raw_pointer_cast(&((*dv_p->fft_data_p)[0]));
         float2* fft_output_ptr = thrust::raw_pointer_cast(&((*dv_p->fft_data_out_p)[0]));
 
-        do_fft                      (fft_plan, fft_input_ptr, fft_output_ptr);      // compute FFT
+        do_r2c_fft                      (fft_plan, fft_input_ptr, fft_output_ptr);      // compute FFT
         if(track_gpu_memory) get_gpu_mem_info("right after FFT");
         compute_power_spectrum      (dv_p);                                         // compute power spectrum
-
-
-//std::vector<float> local_powspec;
-//thrust::copy(dv_p->powspec_p->begin(),    dv_p->powspec_p->end(),    &local_powspec);      
-//for(int jeffc=0; jeffc < 100; jeffc++) { 
-//    printf_functor((*dv_p->powspec_p)[jeffc]);
-//}
-//thrust::for_each(dv_p->powspec_p->begin(), dv_p->powspec_p->end(), printf_functor());
-//    fprintf(stderr, "[%d] %f  ", jeffc, local_powspec[jeffc]);
-//    } 
-//fprintf(stderr, "\n");
 
         // done with the timeseries and FFTs - delete the associated GPU memory
         if(track_gpu_memory) get_gpu_mem_info("right after compute power spectrum");
@@ -815,24 +822,24 @@ fprintf(stderr, "starting on pol %d\n", pol);
 
         // reduce coarse channels to mean power...
         // TODO : this has to be modified for per pol 
-        //reduce_coarse_channels(dv_p, s6_output_block,  n_subband, n_input, n_chan, bors);
+        //reduce_coarse_channels(dv_p, s6_output_block,  n_cc, n_pols, n_fine_chan, bors);
 
         // Allocate GPU memory for power normalization
-        dv_p->baseline_p         = new thrust::device_vector<float>(n_element);
+        dv_p->baseline_p         = new thrust::device_vector<float>(n_total_chan);
         if(track_gpu_memory) get_gpu_mem_info("right after baseline vector allocation");
-        dv_p->normalised_p       = new thrust::device_vector<float>(n_element);
+        dv_p->normalised_p       = new thrust::device_vector<float>(n_total_chan);
         if(track_gpu_memory) get_gpu_mem_info("right after normalized vector allocation");
-        dv_p->scanned_p          = new thrust::device_vector<float>(n_element);
+        dv_p->scanned_p          = new thrust::device_vector<float>(n_total_chan);
         if(track_gpu_memory) get_gpu_mem_info("right after scanned vector allocation");
 
         // Power normalization
-        compute_baseline            (dv_p, n_chan, n_element, smooth_scale);        // not enough mem for this with 128m pt fft
+        compute_baseline            (dv_p, n_fine_chan, n_total_chan, smooth_scale);        // not enough mem for this with 128m pt fft
         if(track_gpu_memory) get_gpu_mem_info("right after baseline computation");
         delete(dv_p->scanned_p);          
         if(track_gpu_memory) get_gpu_mem_info("right after scanned vector deletion");
         normalize_power_spectrum    (dv_p);
         if(track_gpu_memory) get_gpu_mem_info("right after spectrum normalization");
-        nhits = find_hits           (dv_p, n_element, maxhits, power_thresh);
+        nhits = find_hits           (dv_p, n_total_chan, maxhits, power_thresh);
         if(track_gpu_memory) get_gpu_mem_info("right after find hits");
         // TODO should probably report if nhits == maxgpuhits, ie overflow
     
@@ -843,15 +850,13 @@ fprintf(stderr, "starting on pol %d\n", pol);
         s6_output_block->header.nhits[bors] = nhits;
         // We output both detected and mean powers (not S/N).
 # if 1  // two pols
-fprintf(stderr, "Output : %d hits\n", nhits);
         // TODO : modify for per pol - currently the second pol's data will overwrite the first!
         thrust::copy(dv_p->hit_powers_p->begin(),    dv_p->hit_powers_p->end(),    &s6_output_block->power[bors][0]);      
         thrust::copy(dv_p->hit_baselines_p->begin(), dv_p->hit_baselines_p->end(), &s6_output_block->baseline[bors][0]);
         thrust::copy(dv_p->hit_indices_p->begin(),   dv_p->hit_indices_p->end(),   &s6_output_block->hit_indices[bors][0]);
-fprintf(stderr, "HERE 1\n");
         for(size_t i=0; i<nhits; ++i) {
             long hit_index                        = s6_output_block->hit_indices[bors][i]; 
-            long spectrum_index                   = (long)floor((double)hit_index/n_chan);
+            long spectrum_index                   = (long)floor((double)hit_index/n_fine_chan);
 #ifdef SOURCE_S6
             s6_output_block->pol[bors][i]         = ao_pol(spectrum_index);
             s6_output_block->coarse_chan[bors][i] = ao_coarse_chan(spectrum_index);
@@ -863,7 +868,7 @@ fprintf(stderr, "HERE 1\n");
             s6_output_block->pol[bors][i]         = dibas_pol(spectrum_index);    
             s6_output_block->coarse_chan[bors][i] = dibas_coarse_chan(spectrum_index, bors);
 #endif
-            s6_output_block->fine_chan[bors][i]   = hit_index % n_chan;
+            s6_output_block->fine_chan[bors][i]   = hit_index % n_fine_chan;
             //fprintf(stderr, "hit_index %ld spectrum_index %ld pol %d cchan %d fchan %d power %f\n", 
             //        hit_index, spectrum_index, s6_output_block->pol[bors][i], s6_output_block->coarse_chan[bors][i], 
             //        s6_output_block->fine_chan[bors][i], s6_output_block->power[bors][i]);
@@ -871,14 +876,12 @@ fprintf(stderr, "HERE 1\n");
 #endif
         
         // delete remaining GPU memory
-fprintf(stderr, "HERE 2\n");
         delete(dv_p->powspec_p);          
         delete(dv_p->baseline_p);         
         delete(dv_p->normalised_p);       
         delete(dv_p->hit_baselines_p);  
         delete(dv_p->hit_indices_p);  
         delete(dv_p->hit_powers_p); 
-//fprintf(stderr, "HERE 3\n");
 
     } // end loop through pols
 
@@ -894,3 +897,4 @@ fprintf(stderr, "HERE 2\n");
     
     return total_nhits;
 }
+#endif

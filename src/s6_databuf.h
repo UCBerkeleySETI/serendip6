@@ -18,13 +18,16 @@
 // ("row" of coarse chans) to be 256 bit aligned.  256 bit alignment is required by
 // the "non-temporal" memory copy. 
 #define N_POLS_PER_BEAM         2
-#define N_BYTES_PER_SAMPLE      2
+//#define N_BYTES_PER_SAMPLE      2
 
 #ifdef SOURCE_S6
+// channelized complex input
+#define N_BYTES_PER_SAMPLE      	2
 #define N_BEAMS                     7
 #define N_BEAM_SLOTS                8
 #define N_COARSE_CHAN               320 
 #define N_FINE_CHAN                 ((uint64_t)128*1024)               
+#define N_TIME_SAMPLES				N_FINE_CHAN                
 #define N_SPECTRA_PER_PACKET        1
 #define N_SUBSPECTRA_PER_SPECTRUM   1
 #define N_SAMPLES_PER_BLOCK         (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM * N_BEAM_SLOTS)
@@ -33,10 +36,13 @@
 #define N_COARSE_CHAN_PER_BORS      (N_COARSE_CHAN)
 
 #elif SOURCE_DIBAS
+// channelized complex input
+#define N_BYTES_PER_SAMPLE      	2
 #define N_BEAMS                     1
 #define N_BEAM_SLOTS                1
 #define N_COARSE_CHAN               512 
 #define N_FINE_CHAN                 ((uint64_t) 512*1024)               
+#define N_TIME_SAMPLES				N_FINE_CHAN                
 #define N_SPECTRA_PER_PACKET        4
 #define N_SUBSPECTRA_PER_SPECTRUM   8
 #define N_SAMPLES_PER_BLOCK         (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM)
@@ -45,13 +51,16 @@
 #define N_COARSE_CHAN_PER_BORS      (N_COARSE_CHAN/N_BORS)
 
 #elif SOURCE_FAST
+// non-channelized real input
+#define N_BYTES_PER_SAMPLE      	1
 #define N_BEAMS                     1
 #define N_BEAM_SLOTS                1
 #define N_COARSE_CHAN               1
-#define N_FINE_CHAN                 ((uint64_t) 128*1024*1024)               
+#define N_TIME_SAMPLES              ((uint64_t) 128*1024*1024)               
+#define N_FINE_CHAN 				(N_TIME_SAMPLES/2 + 1)                
 #define N_SPECTRA_PER_PACKET        4
 #define N_SUBSPECTRA_PER_SPECTRUM   1
-#define N_SAMPLES_PER_BLOCK         (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM)
+#define N_SAMPLES_PER_BLOCK         (N_TIME_SAMPLES * N_COARSE_CHAN * N_POLS_PER_BEAM)
 #define N_BORS                      (N_SUBSPECTRA_PER_SPECTRUM)
 #define N_SOURCE_NODES              8
 #define N_COARSE_CHAN_PER_BORS      (N_COARSE_CHAN/N_BORS)
@@ -80,7 +89,7 @@
 // s6_gen_fake_data).
 #define N_SUBBANDS              1
 #define N_SUBBAND_CHAN          (N_COARSE_CHAN / N_SUBBANDS)
-#define N_GPU_ELEMENTS          (N_FINE_CHAN * N_COARSE_CHAN_PER_BORS)
+//#define N_GPU_ELEMENTS          (N_FINE_CHAN * N_COARSE_CHAN_PER_BORS)
 
 // Used to pad after hashpipe_databuf_t to maintain cache alignment
 typedef uint8_t hashpipe_databuf_cache_alignment[

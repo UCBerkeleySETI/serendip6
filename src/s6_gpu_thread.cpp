@@ -21,6 +21,7 @@
 #include <s6GPU.h>
 #include "hashpipe.h"
 #include "s6_databuf.h"
+#include "s6GPU.h"
 
 #define ELAPSED_NS(start,stop) \
   (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
@@ -31,12 +32,14 @@ int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHand
 
     const char * re[2] = {"re", ""};
 
+get_gpu_mem_info("on entry to init_gpu_memory()");
+
     if(num_coarse_chan == 0) {  
         hashpipe_error(__FUNCTION__, "Cannot initialize GPU memory with 0 coarse channels");
         return -1;
     }
 
-    fprintf(stderr, "%sinitializing GPU structures for %ld coarse channels...", initial ? re[1] : re[0], num_coarse_chan);
+    fprintf(stderr, "%sinitializing GPU structures for %ld coarse channels...\n", initial ? re[1] : re[0], num_coarse_chan);
 
     if(!initial) {
         delete_device_vectors(*dv_p);
@@ -56,10 +59,14 @@ int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHand
     // Configure cuFFT...
     size_t  nfft_     = N_FINE_CHAN;                                    // FFT length
 #ifdef SOURCE_FAST
+	cufftType fft_type = CUFFT_R2C;										// real to complex
+	fprintf(stderr, "configuring cuFFT for real to complex transforms (cufftType %d)\n", fft_type);
     // one pol at a time
     size_t  nbatch    = (num_coarse_chan);                              // number of FFT batches to do      
-    int     istride   = N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM;      // this effectively transposes the input data
+    int     istride   = N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM * N_POLS_PER_BEAM;      // this effectively transposes the input data
 #else
+	cufftType fft_type = CUFFT_C2C;										// complex to complex
+	fprintf(stderr, "configuring cuFFT for complex to complex transforms (cufftType %d)\n", fft_type);
     // two pols at a time
     size_t  nbatch    = (num_coarse_chan*N_POLS_PER_BEAM);              // number of FFT batches to do    
     int     istride   = N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM * N_POLS_PER_BEAM;    // this effectively transposes the input data
@@ -71,9 +78,10 @@ int init_gpu_memory(uint64_t num_coarse_chan, device_vectors_t **dv_p, cufftHand
     int     ostride   = 1;                                // no transpose needed on the output
     int     idist     = 1;                                // distance between 1st input elements of consecutive batches
     int     odist     = nfft_;                            // distance between 1st output elements of consecutive batches
-    create_fft_plan_1d_c2c(fft_plan_p, istride, idist, ostride, odist, nfft_, nbatch);
+    create_fft_plan_1d(fft_plan_p, istride, idist, ostride, odist, nfft_, nbatch, fft_type);
 
-    fprintf(stderr, "done : nfft : %lu nbatch : %lu istride : %d \n", nfft_, nbatch, istride);
+    fprintf(stderr, "...done : nfft : %lu nbatch : %lu istride : %d \n", nfft_, nbatch, istride);
+get_gpu_mem_info("on exit from init_gpu_memory()");
 
     return 0;
 }
@@ -218,7 +226,7 @@ static void *run(hashpipe_thread_args_t * args)
             // At FAST, data are arrayed by TBD
             int n_bors = N_SUBSPECTRA_PER_SPECTRUM;
             //int n_bytes_per_bors  = N_BYTES_PER_SUBSPECTRUM;
-            uint64_t n_bytes_per_bors  = N_BYTES_PER_SUBSPECTRUM * N_FINE_CHAN;
+            uint64_t n_bytes_per_bors  = N_BYTES_PER_SUBSPECTRUM * N_TIME_SAMPLES;
 #endif
             for(int bors_i = 0; bors_i < n_bors; bors_i++) {
                 size_t nhits = 0; 
@@ -230,8 +238,8 @@ fprintf(stderr, "num_coarse_chan = %lu n_bytes_per_bors = %lu  bors addr = %p\n"
 #endif
 
 #ifdef SOURCE_FAST
-                nhits = spectroscopy_one_pol(num_coarse_chan/N_SUBSPECTRA_PER_SPECTRUM,     // n_subband   
-                                     N_FINE_CHAN,                                   // n_chan     
+                nhits = spectroscopy(num_coarse_chan/N_SUBSPECTRA_PER_SPECTRUM,     // n_subband   
+                                     N_TIME_SAMPLES,                                   // n_chan     
                                      N_POLS_PER_BEAM,                               // n_input     
                                      bors_i,                                        // bors         
                                      maxhits,                                       // maxhits
@@ -244,7 +252,7 @@ fprintf(stderr, "num_coarse_chan = %lu n_bytes_per_bors = %lu  bors addr = %p\n"
                                      dv_p,                                          // dv_p
                                      fft_plan_p);                                   // fft_plan
 #else
-                nhits = spectroscopy_two_pols(num_coarse_chan/N_SUBSPECTRA_PER_SPECTRUM,     // n_subband   
+                nhits = spectroscopy(num_coarse_chan/N_SUBSPECTRA_PER_SPECTRUM,     // n_subband   
                                      N_FINE_CHAN,                                   // n_chan     
                                      N_POLS_PER_BEAM,                               // n_input     
                                      bors_i,                                        // bors         

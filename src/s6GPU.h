@@ -13,11 +13,24 @@
 #include "s6_databuf.h"
 
 typedef struct {
-    thrust::device_vector<char2>  * raw_timeseries_p;       // input time series, correctly ordered
-#ifdef TRANSPOSE
-    thrust::device_vector<char2>  * raw_timeseries_rowmaj_p;    // temp time series if we are transposing    
-#endif
+#ifdef SOURCE_FAST
+    thrust::device_vector<float> * fft_data_p;              // 
+    thrust::device_vector<char>  * raw_timeseries_p;       // input time series, correctly ordered
+
+//#ifdef TRANSPOSE
+//    thrust::device_vector<char>  * raw_timeseries_rowmaj_p;    // temp time series if we are transposing    
+//#endif
+
+#else	// not SOURCE_FAST
     thrust::device_vector<float2> * fft_data_p;             // 
+    thrust::device_vector<char2>  * raw_timeseries_p;       // input time series, correctly ordered
+
+//#ifdef TRANSPOSE
+//    thrust::device_vector<char2>  * raw_timeseries_rowmaj_p;    // temp time series if we are transposing    
+//#endif
+
+#endif	// ifdef SOURCE_FAST
+
     thrust::device_vector<float2> * fft_data_out_p;         // 
     thrust::device_vector<float>  * powspec_p;              // detected power spectra
     thrust::device_vector<float>  * scanned_p;              // mean powers
@@ -35,17 +48,20 @@ device_vectors_t * init_device_vectors(int n_element_physical, int n_element_uti
 
 void delete_device_vectors( device_vectors_t * dv_p);
 
+void get_gpu_mem_info(const char * comment);
+
 int init_device(int gpu_dev);
 
-void create_fft_plan_1d_c2c(cufftHandle* plan,
+void create_fft_plan_1d(cufftHandle* plan,
                             int          istride,
                             int          idist,
                             int          ostride,
                             int          odist,
                             size_t       nfft_,
-                            size_t       nbatch);
+                            size_t       nbatch,
+							cufftType    fft_type);
 
-int spectroscopy_two_pols(int n_subband,
+int spectroscopy(int n_subband,
                  int n_chan,
                  int n_input,
                  int beam,
@@ -59,6 +75,7 @@ int spectroscopy_two_pols(int n_subband,
                  device_vectors_t    *dv_p,
                  cufftHandle *fft_plan);
 
+#if 0
 int spectroscopy_one_pol(int n_subband,
                  int n_chan,
                  int n_input,
@@ -72,5 +89,6 @@ int spectroscopy_one_pol(int n_subband,
                  s6_output_block_t *s6_output_block,
                  device_vectors_t    *dv_p,
                  cufftHandle *fft_plan);
+#endif
 
 #endif  // _S6GPU_TEST_H
