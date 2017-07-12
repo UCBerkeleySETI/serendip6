@@ -149,7 +149,13 @@ static void *run(hashpipe_thread_args_t * args)
             memset((void *)scram_p, 0, sizeof(scram_t));            // test mode - zero entire scram
 #elif SOURCE_DIBAS
             memset((void *)gbtstatus_p, 0, sizeof(gbtstatus_t));    // test mode - zero entire gbtstatus
-            gbtstatus.WEBCNTRL = 1;                                 // ... except for WEBCNTRL!
+            gbtstatus.WEBCNTRL = 1;                                 // ... except for WEBCNTRL
+			strcpy(gbtstatus.RECEIVER, "S6TEST");					// 	   and RECEIVER (which indicates
+#elif SOURCE_FAST
+            memset((void *)gbtstatus_p, 0, sizeof(gbtstatus_t));    // test mode - zero entire gbtstatus
+            gbtstatus.WEBCNTRL = 1;                                 // ... except for WEBCNTRL
+			strcpy(gbtstatus.RECEIVER, "S6TEST");					// 	   and RECEIVER (which indicates
+																	//     test mode for downstream processes
 #endif
         }
 
@@ -311,6 +317,7 @@ static void *run(hashpipe_thread_args_t * args)
             rv = write_etfits_gbt(db, block_idx, &etf, gbtstatus_p);
 #elif SOURCE_FAST
             etf.file_chan = gbtstatus.coarse_chan_id;           // TODO - sensible for GBT?
+            rv = write_etfits_gbt(db, block_idx, &etf, gbtstatus_p);
 #endif
             if(rv) {
                 hashpipe_error(__FUNCTION__, "error error returned from write_etfits()");
