@@ -26,8 +26,8 @@
 #define N_BEAMS                     7
 #define N_BEAM_SLOTS                8
 #define N_COARSE_CHAN               320 
-#define N_FINE_CHAN                 ((uint64_t)128*1024)               
-#define N_TIME_SAMPLES				N_FINE_CHAN                
+#define N_TIME_SAMPLES              ((uint64_t)128*1024)               
+#define N_FINE_CHAN					N_TIME_SAMPLES                
 #define N_SPECTRA_PER_PACKET        1
 #define N_SUBSPECTRA_PER_SPECTRUM   1
 #define N_SAMPLES_PER_BLOCK         (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM * N_BEAM_SLOTS)
@@ -41,8 +41,8 @@
 #define N_BEAMS                     1
 #define N_BEAM_SLOTS                1
 #define N_COARSE_CHAN               512 
-#define N_FINE_CHAN                 ((uint64_t) 512*1024)               
-#define N_TIME_SAMPLES				N_FINE_CHAN                
+#define N_TIME_SAMPLES              ((uint64_t) 512*1024)               
+#define N_FINE_CHAN 				N_TIME_SAMPLES               
 #define N_SPECTRA_PER_PACKET        4
 #define N_SUBSPECTRA_PER_SPECTRUM   8
 #define N_SAMPLES_PER_BLOCK         (N_FINE_CHAN * N_COARSE_CHAN * N_POLS_PER_BEAM)
@@ -56,7 +56,7 @@
 #define N_BEAMS                     1
 #define N_BEAM_SLOTS                1
 #define N_COARSE_CHAN               1
-#define N_TIME_SAMPLES              ((uint64_t) 128*1024*1024)               
+#define N_TIME_SAMPLES              ((uint64_t) 256*1024*1024)               
 #define N_FINE_CHAN 				(N_TIME_SAMPLES/2 + 1)                
 #define N_SPECTRA_PER_PACKET        4
 #define N_SUBSPECTRA_PER_SPECTRUM   1

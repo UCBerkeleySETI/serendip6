@@ -57,24 +57,24 @@ get_gpu_mem_info("on entry to init_gpu_memory()");
     *dv_p = init_device_vectors(num_channels_max, num_channels_utilized, N_POLS_PER_BEAM);
 
     // Configure cuFFT...
-    size_t  nfft_     = N_FINE_CHAN;                                    // FFT length
+    size_t  nfft_     = N_TIME_SAMPLES;                                 // FFT length
 #ifdef SOURCE_FAST
 	cufftType fft_type = CUFFT_R2C;										// real to complex
 	fprintf(stderr, "configuring cuFFT for real to complex transforms (cufftType %d)\n", fft_type);
-    // one pol at a time
-    size_t  nbatch    = (num_coarse_chan);                              // number of FFT batches to do      
-    int     istride   = N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM * N_POLS_PER_BEAM;      // this effectively transposes the input data
+    																	// one pol at a time
+    size_t  nbatch    = (num_coarse_chan);                              // number of FFT batches to do 
+																		// (only FFT the utilized chans)      
+    int     istride   = N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM;      // this effectively transposes the input data
+																		// (must stride over all (max) chans)
 #else
-	cufftType fft_type = CUFFT_C2C;										// complex to complex
+	cufftType fft_type = CUFFT_C2C;														// complex to complex
 	fprintf(stderr, "configuring cuFFT for complex to complex transforms (cufftType %d)\n", fft_type);
-    // two pols at a time
-    size_t  nbatch    = (num_coarse_chan*N_POLS_PER_BEAM);              // number of FFT batches to do    
+    																					// two pols at a time
+    size_t  nbatch    = (num_coarse_chan*N_POLS_PER_BEAM);              				// number of FFT batches to do  
+																						// (only FFT the utilized chans)   
     int     istride   = N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM * N_POLS_PER_BEAM;    // this effectively transposes the input data
+																						// (must stride over all (max) chans)
 #endif
-                                                          //    (only work on utilized coarse channels)
-    //int     istride   = N_COARSE_CHAN*N_POLS_PER_BEAM;    // this effectively transposes the input data   // THIS SHOULD GO AWAY
-
-
     int     ostride   = 1;                                // no transpose needed on the output
     int     idist     = 1;                                // distance between 1st input elements of consecutive batches
     int     odist     = nfft_;                            // distance between 1st output elements of consecutive batches
