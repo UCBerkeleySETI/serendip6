@@ -235,9 +235,10 @@ fprintf(stderr, "num_coarse_chan = %lu n_bytes_per_bors = %lu  bors addr = %p\n"
 #endif
 
 #ifdef SOURCE_FAST
-                nhits = spectroscopy(num_coarse_chan/N_SUBSPECTRA_PER_SPECTRUM,     // n_subband   
-                                     N_TIME_SAMPLES,                                   // n_chan     
-                                     N_POLS_PER_BEAM,                               // n_input     
+                nhits = spectroscopy(num_coarse_chan/N_SUBSPECTRA_PER_SPECTRUM,     // n_cc  
+                                     N_FINE_CHAN,                                   // n_fc    
+                                     N_TIME_SAMPLES,                                // n_ts
+                                     N_POLS_PER_BEAM,                               // n_pol     
                                      bors_i,                                        // bors         
                                      maxhits,                                       // maxhits
                                      MAXGPUHITS,                                    // maxgpuhits
@@ -249,9 +250,10 @@ fprintf(stderr, "num_coarse_chan = %lu n_bytes_per_bors = %lu  bors addr = %p\n"
                                      dv_p,                                          // dv_p
                                      fft_plan_p);                                   // fft_plan
 #else
-                nhits = spectroscopy(num_coarse_chan/N_SUBSPECTRA_PER_SPECTRUM,     // n_subband   
-                                     N_FINE_CHAN,                                   // n_chan     
-                                     N_POLS_PER_BEAM,                               // n_input     
+                nhits = spectroscopy(num_coarse_chan/N_SUBSPECTRA_PER_SPECTRUM,     // n_cc   
+                                     N_FINE_CHAN,                                   // n_fc     
+                                     N_TIME_SAMPLES,                                // n_ts     
+                                     N_POLS_PER_BEAM,                               // n_pol     
                                      bors_i,                                        // bors         
                                      maxhits,                                       // maxhits
                                      MAXGPUHITS,                                    // maxgpuhits

@@ -61,9 +61,10 @@ void create_fft_plan_1d(cufftHandle* plan,
                             size_t       nbatch,
 							cufftType    fft_type);
 
-int spectroscopy(int n_subband,
-                 int n_chan,
-                 int n_input,
+int spectroscopy(int n_cc,
+                 int n_fc,
+                 int n_ts,
+                 int n_pol,
                  int beam,
                  size_t maxhits,
                  size_t maxgpuhits,

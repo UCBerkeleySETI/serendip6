@@ -397,7 +397,7 @@ void reduce_power_spectra(device_vectors_t *dv_p, int n_subband_pols, int n_chan
     //thrust::for_each(dv_p->spectra_sums_p->begin(), dv_p->spectra_sums_p->end(), printf_functor());
 }
 
-void compute_baseline(device_vectors_t *dv_p, int n_chan, int n_element, float smooth_scale) {
+void compute_baseline(device_vectors_t *dv_p, int n_fc, int n_element, float smooth_scale) {
 // Compute smoothed power spectrum baseline
 
     using thrust::make_transform_iterator;
@@ -407,11 +407,11 @@ void compute_baseline(device_vectors_t *dv_p, int n_chan, int n_element, float s
     Stopwatch timer;
     if(use_timer) timer.start();
     thrust::exclusive_scan_by_key(make_transform_iterator(make_counting_iterator<int>(0),
-                                                          //_1 / n_chan),
-                                                          divide_by<int>(n_chan)),
+                                                          //_1 / n_fc),
+                                                          divide_by<int>(n_fc)),
                                   make_transform_iterator(make_counting_iterator<int>(n_element),
-                                                          //_1 / n_chan),
-                                                          divide_by<int>(n_chan)),
+                                                          //_1 / n_fc),
+                                                          divide_by<int>(n_fc)),
                                   dv_p->powspec_p->begin(),
                                   dv_p->scanned_p->begin());
     cudaThreadSynchronize();
@@ -427,7 +427,7 @@ void compute_baseline(device_vectors_t *dv_p, int n_chan, int n_element, float s
                       make_counting_iterator<uint>(n_element),
                       dv_p->baseline_p->begin(),
                       running_mean_by_region(smooth_scale,
-                                             n_chan,
+                                             n_fc,
                                              d_scanned_ptr));
     cudaThreadSynchronize();
     if(use_timer) timer.stop();
@@ -502,9 +502,9 @@ size_t find_hits(device_vectors_t *dv_p, int n_element, size_t maxhits, float po
 #ifdef SOURCE_FAST
 int reduce_coarse_channels(device_vectors_t * dv_p, 
                            s6_output_block_t *s6_output_block,  
-                           int n_subband, 
+                           int n_cc, 
                            int pol, 
-                           int n_chan, 
+                           int n_fc, 
                            int bors) {
 
     Stopwatch timer;
@@ -512,13 +512,13 @@ int reduce_coarse_channels(device_vectors_t * dv_p,
     if(use_timer) timer.start();
 
     // allocate working vectors to accomodate all power spectra for this block :
-    // all coarse channels (n_subbands) x 1 pol
-    dv_p->spectra_sums_p      = new thrust::device_vector<float>(n_subband);
-    dv_p->spectra_indices_p   = new thrust::device_vector<int>(n_subband);
+    // all coarse channels (n_cc) x 1 pol
+    dv_p->spectra_sums_p      = new thrust::device_vector<float>(n_cc);
+    dv_p->spectra_indices_p   = new thrust::device_vector<int>(n_cc);
     if(track_gpu_memory) get_gpu_mem_info("right after vector allocation for coarse channel reduction");
 
     // do the reduce
-    reduce_power_spectra(dv_p, n_subband, n_chan);
+    reduce_power_spectra(dv_p, n_cc, n_fc);
     if(track_gpu_memory) get_gpu_mem_info("right after coarse channel reduction");
 
     // copy the result to the output buffer. Easy copy with just one pol - no strided ranges.
@@ -546,9 +546,9 @@ int reduce_coarse_channels(device_vectors_t * dv_p,
 
 int reduce_coarse_channels(device_vectors_t * dv_p, 
                            s6_output_block_t *s6_output_block,  
-                           int n_subband, 
-                           int n_input, 
-                           int n_chan, 
+                           int n_cc, 
+                           int n_pol, 
+                           int n_fc, 
                            int bors) {
 
     Stopwatch timer;
@@ -556,13 +556,13 @@ int reduce_coarse_channels(device_vectors_t * dv_p,
     if(use_timer) timer.start();
 
     // allocate working vectors to accomodate all power spectra for this block :
-    // all coarse channels (n_subbands) x both pols (n_input)
-    dv_p->spectra_sums_p      = new thrust::device_vector<float>(n_subband*n_input);
-    dv_p->spectra_indices_p   = new thrust::device_vector<int>(n_subband*n_input);
+    // all coarse channels (n_cc) x both pols (n_pol)
+    dv_p->spectra_sums_p      = new thrust::device_vector<float>(n_cc*n_pol);
+    dv_p->spectra_indices_p   = new thrust::device_vector<int>(n_cc*n_pol);
     if(track_gpu_memory) get_gpu_mem_info("right after vector allocation for coarse channel reduction");
 
     // do the reduce
-    reduce_power_spectra(dv_p, n_subband*n_input, n_chan);
+    reduce_power_spectra(dv_p, n_cc*n_pol, n_fc);
     if(track_gpu_memory) get_gpu_mem_info("right after coarse channel reduction");
 
     // copy the result to the output buffer, separating the pols. First, create the 
@@ -614,9 +614,10 @@ inline int dibas_coarse_chan(long spectrum_index, int sub_spectrum_i) {
 }
 
 #ifndef SOURCE_FAST
-int spectroscopy(int n_subband,         // N coarse chan
-                 int n_chan,            // N fine chan
-                 int n_input,           // N pols
+int spectroscopy(int n_cc,         		// N coarse chans
+                 int n_fc,       		// N fine chans (== n_ts in this case)
+                 int n_ts,       		// N time samples
+                 int n_pol,           	// N pols
                  int bors,              // beam or subspectrum
                  size_t maxhits,
                  size_t maxgpuhits,
@@ -639,7 +640,7 @@ int spectroscopy(int n_subband,         // N coarse chan
 
     Stopwatch timer; 
     Stopwatch total_gpu_timer;
-    int n_element = n_subband*n_chan*n_input;
+    int n_element = n_cc*n_fc*n_pol;	// number of elements in GPU vectors
     size_t nhits;
     //size_t prior_nhits=0;
     size_t total_nhits=0;
@@ -706,7 +707,7 @@ int spectroscopy(int n_subband,         // N coarse chan
     if(track_gpu_memory) get_gpu_mem_info("right after post power spectrum deletes");
 
     // reduce coarse channels to mean power...
-    reduce_coarse_channels(dv_p, s6_output_block,  n_subband, n_input, n_chan, bors);
+    reduce_coarse_channels(dv_p, s6_output_block,  n_cc, n_pol, n_fc, bors);
 
     // Allocate GPU memory for power normalization
     dv_p->baseline_p         = new thrust::device_vector<float>(n_element);
@@ -716,7 +717,7 @@ int spectroscopy(int n_subband,         // N coarse chan
     dv_p->scanned_p          = new thrust::device_vector<float>(n_element);
     if(track_gpu_memory) get_gpu_mem_info("right after scanned vector allocation");
     // Power normalization
-    compute_baseline            (dv_p, n_chan, n_element, smooth_scale);        // not enough mem for this with 128m pt fft
+    compute_baseline            (dv_p, n_fc, n_element, smooth_scale);        
     if(track_gpu_memory) get_gpu_mem_info("right after baseline computation");
     delete(dv_p->scanned_p);          
     if(track_gpu_memory) get_gpu_mem_info("right after scanned vector deletion");
@@ -738,7 +739,7 @@ int spectroscopy(int n_subband,         // N coarse chan
     thrust::copy(dv_p->hit_indices_p->begin(),   dv_p->hit_indices_p->end(),   &s6_output_block->hit_indices[bors][0]);
     for(size_t i=0; i<nhits; ++i) {
         long hit_index                        = s6_output_block->hit_indices[bors][i]; 
-        long spectrum_index                   = (long)floor((double)hit_index/n_chan);
+        long spectrum_index                   = (long)floor((double)hit_index/n_fc);
 #ifdef SOURCE_S6
         s6_output_block->pol[bors][i]         = ao_pol(spectrum_index);
         s6_output_block->coarse_chan[bors][i] = ao_coarse_chan(spectrum_index);
@@ -746,7 +747,7 @@ int spectroscopy(int n_subband,         // N coarse chan
         s6_output_block->pol[bors][i]         = dibas_pol(spectrum_index);    
         s6_output_block->coarse_chan[bors][i] = dibas_coarse_chan(spectrum_index, bors);
 #endif
-        s6_output_block->fine_chan[bors][i]   = hit_index % n_chan;
+        s6_output_block->fine_chan[bors][i]   = hit_index % n_fc;
         //fprintf(stderr, "hit_index %ld spectrum_index %ld pol %d cchan %d fchan %d power %f\n", 
         //        hit_index, spectrum_index, s6_output_block->pol[bors][i], s6_output_block->coarse_chan[bors][i], 
         //        s6_output_block->fine_chan[bors][i], s6_output_block->power[bors][i]);
@@ -770,9 +771,10 @@ int spectroscopy(int n_subband,         // N coarse chan
 #endif
 
 #ifdef SOURCE_FAST    
-int spectroscopy(int n_cc, 				// N coarse chan
-                 int n_fine_chan,    	// N fine chan
-                 int n_pols,           	// N pols
+int spectroscopy(int n_cc, 				// N coarse chans
+                 int n_fc,    			// N fine chans
+                 int n_ts,    			// N time samples
+                 int n_pol,           	// N pols
                  int bors,              // beam or subspectrum
                  size_t maxhits,
                  size_t maxgpuhits,
@@ -795,14 +797,14 @@ int spectroscopy(int n_cc, 				// N coarse chan
 
     Stopwatch timer; 
     Stopwatch total_gpu_timer;
-    int n_total_chan = n_cc*n_fine_chan;       // one pol - was n_element
+    int n_element = n_cc*n_fc;       // number of elements in GPU structures
     size_t nhits;
     size_t total_nhits=0;
                                                                                                              
     if(track_gpu_memory) {
         char comment[256];
-        sprintf(comment, "on entry to FAST spectroscopy() : n_total_chan = %d n_input_data_bytes = %d raw_timeseries_length in bytes = %d input data located at %p", 
-                n_total_chan, n_input_data_bytes,  n_input_data_bytes, input_data);
+        sprintf(comment, "on entry to FAST spectroscopy() : n_element = %d n_input_data_bytes = %d raw_timeseries_length in bytes = %d input data located at %p", 
+                n_element, n_input_data_bytes,  n_input_data_bytes, input_data);
         get_gpu_mem_info((const char *)comment);
     }
 
@@ -823,19 +825,19 @@ int spectroscopy(int n_cc, 				// N coarse chan
     if(use_timer) timer.reset();
 
     // all processing done per pol
-    for(int pol=0; pol < n_pols; pol++) {
+    for(int pol=0; pol < n_pol; pol++) {
 
         // allocate (and delete - see below) for each pol
         dv_p->hit_indices_p      = new thrust::device_vector<int>();                        // 0 initial size
         dv_p->hit_powers_p       = new thrust::device_vector<float>;                        // "
         dv_p->hit_baselines_p    = new thrust::device_vector<float>;                        // "
-        dv_p->fft_data_p         = new thrust::device_vector<float>(N_TIME_SAMPLES);             // FFT input
+        dv_p->fft_data_p         = new thrust::device_vector<float>(n_ts);         			// FFT input
         if(track_gpu_memory) get_gpu_mem_info("right after FFT input vector allocation");
 
-        dv_p->fft_data_out_p     = new thrust::device_vector<float2>(n_total_chan);            // FFT output
+        dv_p->fft_data_out_p     = new thrust::device_vector<float2>(n_element);            // FFT output
         if(track_gpu_memory) get_gpu_mem_info("right after FFT output vector allocation");
 
-        dv_p->powspec_p          = new thrust::device_vector<float>(n_total_chan);             // power spectrum
+        dv_p->powspec_p          = new thrust::device_vector<float>(n_element);             // power spectrum
         if(track_gpu_memory) get_gpu_mem_info("right after powerspec vector allocation");
 
         if(use_timer) timer.start();
@@ -879,24 +881,24 @@ int spectroscopy(int n_cc, 				// N coarse chan
 
         // reduce coarse channels to mean power...
         // TODO : this has to be modified for per pol 
-        reduce_coarse_channels(dv_p, s6_output_block,  n_cc, pol, n_fine_chan, bors);
+        reduce_coarse_channels(dv_p, s6_output_block,  n_cc, pol, n_fc, bors);
 
         // Allocate GPU memory for power normalization
-        dv_p->baseline_p         = new thrust::device_vector<float>(n_total_chan);
+        dv_p->baseline_p         = new thrust::device_vector<float>(n_element);
         if(track_gpu_memory) get_gpu_mem_info("right after baseline vector allocation");
-        dv_p->normalised_p       = new thrust::device_vector<float>(n_total_chan);
+        dv_p->normalised_p       = new thrust::device_vector<float>(n_element);
         if(track_gpu_memory) get_gpu_mem_info("right after normalized vector allocation");
-        dv_p->scanned_p          = new thrust::device_vector<float>(n_total_chan);
+        dv_p->scanned_p          = new thrust::device_vector<float>(n_element);
         if(track_gpu_memory) get_gpu_mem_info("right after scanned vector allocation");
 
         // Power normalization
-        compute_baseline            (dv_p, n_fine_chan, n_total_chan, smooth_scale);        // not enough mem for this with 128m pt fft
+        compute_baseline            (dv_p, n_fc, n_element, smooth_scale);        // not enough mem for this with 128m pt fft
         if(track_gpu_memory) get_gpu_mem_info("right after baseline computation");
         delete(dv_p->scanned_p);          
         if(track_gpu_memory) get_gpu_mem_info("right after scanned vector deletion");
         normalize_power_spectrum    (dv_p);
         if(track_gpu_memory) get_gpu_mem_info("right after spectrum normalization");
-        nhits = find_hits           (dv_p, n_total_chan, maxhits, power_thresh);
+        nhits = find_hits           (dv_p, n_element, maxhits, power_thresh);
         if(track_gpu_memory) get_gpu_mem_info("right after find hits");
         // TODO should probably report if nhits == maxgpuhits, ie overflow
     
@@ -913,7 +915,7 @@ int spectroscopy(int n_cc, 				// N coarse chan
         thrust::copy(dv_p->hit_indices_p->begin(),   dv_p->hit_indices_p->end(),   &s6_output_block->hit_indices[bors][0]);
         for(size_t i=0; i<nhits; ++i) {
             long hit_index                        = s6_output_block->hit_indices[bors][i]; 
-            long spectrum_index                   = (long)floor((double)hit_index/n_fine_chan);
+            long spectrum_index                   = (long)floor((double)hit_index/n_fc);
 #ifdef SOURCE_S6
             s6_output_block->pol[bors][i]         = ao_pol(spectrum_index);
             s6_output_block->coarse_chan[bors][i] = ao_coarse_chan(spectrum_index);
@@ -925,7 +927,7 @@ int spectroscopy(int n_cc, 				// N coarse chan
             s6_output_block->pol[bors][i]         = dibas_pol(spectrum_index);    
             s6_output_block->coarse_chan[bors][i] = dibas_coarse_chan(spectrum_index, bors);
 #endif
-            s6_output_block->fine_chan[bors][i]   = hit_index % n_fine_chan;
+            s6_output_block->fine_chan[bors][i]   = hit_index % n_fc;
             //fprintf(stderr, "hit_index %ld spectrum_index %ld pol %d cchan %d fchan %d power %f\n", 
             //        hit_index, spectrum_index, s6_output_block->pol[bors][i], s6_output_block->coarse_chan[bors][i], 
             //        s6_output_block->fine_chan[bors][i], s6_output_block->power[bors][i]);
