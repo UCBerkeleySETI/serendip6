@@ -87,6 +87,9 @@ void create_fft_plan_1d(cufftHandle* plan,
                             size_t       nfft_,
                             size_t       nbatch,
 							cufftType    fft_type) {
+
+	if(track_gpu_memory) get_gpu_mem_info("on entry to create_fft_plan_1d()");
+
     int rank      = 1;
     int nfft[]    = {nfft_};
     int inembed[] = {nfft[0]};
@@ -101,6 +104,8 @@ void create_fft_plan_1d(cufftHandle* plan,
     if( fft_ret != CUFFT_SUCCESS ) {
         throw std::runtime_error("cufftPlanMany failed");
     }
+
+	if(track_gpu_memory) get_gpu_mem_info("on exit from create_fft_plan_1d()");
 }
 
 inline void get_gpu_mem_info(const char * comment) {
@@ -494,6 +499,51 @@ size_t find_hits(device_vectors_t *dv_p, int n_element, size_t maxhits, float po
     return nhits;
 }    
 
+#ifdef SOURCE_FAST
+int reduce_coarse_channels(device_vectors_t * dv_p, 
+                           s6_output_block_t *s6_output_block,  
+                           int n_subband, 
+                           int pol, 
+                           int n_chan, 
+                           int bors) {
+
+    Stopwatch timer;
+
+    if(use_timer) timer.start();
+
+    // allocate working vectors to accomodate all power spectra for this block :
+    // all coarse channels (n_subbands) x 1 pol
+    dv_p->spectra_sums_p      = new thrust::device_vector<float>(n_subband);
+    dv_p->spectra_indices_p   = new thrust::device_vector<int>(n_subband);
+    if(track_gpu_memory) get_gpu_mem_info("right after vector allocation for coarse channel reduction");
+
+    // do the reduce
+    reduce_power_spectra(dv_p, n_subband, n_chan);
+    if(track_gpu_memory) get_gpu_mem_info("right after coarse channel reduction");
+
+    // copy the result to the output buffer. Easy copy with just one pol - no strided ranges.
+	if(pol == 0) {
+    	thrust::copy(dv_p->spectra_sums_p->begin(), dv_p->spectra_sums_p->end(), &(s6_output_block->cc_pwrs_x[bors][0]));
+	} else if (pol == 1) {
+    	thrust::copy(dv_p->spectra_sums_p->begin(), dv_p->spectra_sums_p->end(), &(s6_output_block->cc_pwrs_y[bors][0]));
+	} else {
+		fprintf(stderr, "In reduce_coarse_channels() - bad pol index!\n");
+	}
+
+    // delete working vectors
+    delete(dv_p->spectra_sums_p);
+    delete(dv_p->spectra_indices_p);
+    if(track_gpu_memory) get_gpu_mem_info("right after vector deletion for coarse channel reduction");
+
+    if(use_timer) timer.stop();
+    if(use_timer) cout << "Reduce coarse channels time:\t" << timer.getTime() << endl;
+    if(use_timer) timer.reset();
+
+    return(0);
+}
+
+#else
+
 int reduce_coarse_channels(device_vectors_t * dv_p, 
                            s6_output_block_t *s6_output_block,  
                            int n_subband, 
@@ -504,14 +554,17 @@ int reduce_coarse_channels(device_vectors_t * dv_p,
     Stopwatch timer;
 
     if(use_timer) timer.start();
+
     // allocate working vectors to accomodate all power spectra for this block :
     // all coarse channels (n_subbands) x both pols (n_input)
     dv_p->spectra_sums_p      = new thrust::device_vector<float>(n_subband*n_input);
     dv_p->spectra_indices_p   = new thrust::device_vector<int>(n_subband*n_input);
     if(track_gpu_memory) get_gpu_mem_info("right after vector allocation for coarse channel reduction");
+
     // do the reduce
     reduce_power_spectra(dv_p, n_subband*n_input, n_chan);
     if(track_gpu_memory) get_gpu_mem_info("right after coarse channel reduction");
+
     // copy the result to the output buffer, separating the pols. First, create the 
     // strided ranges (2 pols, so a stride of 2) then copy to the output block area
     // for this bors. Note: the "begin() + 1" is to get to the Y pol. 
@@ -520,16 +573,20 @@ int reduce_coarse_channels(device_vectors_t * dv_p,
     strided_range<Iterator> polY(dv_p->spectra_sums_p->begin() + 1, dv_p->spectra_sums_p->end(), 2);
     thrust::copy(polX.begin(), polX.end(), &(s6_output_block->cc_pwrs_x[bors][0]));
     thrust::copy(polY.begin(), polY.end(), &(s6_output_block->cc_pwrs_y[bors][0]));
+
     // delete working vectors
     delete(dv_p->spectra_sums_p);
     delete(dv_p->spectra_indices_p);
     if(track_gpu_memory) get_gpu_mem_info("right after vector deletion for coarse channel reduction");
+
     if(use_timer) timer.stop();
     if(use_timer) cout << "Reduce coarse channels time:\t" << timer.getTime() << endl;
     if(use_timer) timer.reset();
 
     return(0);
 }
+
+#endif
 
 // AO spectra order goes as pol0chan0 pol0chan1    pol1chan0 pol1chan1    pol0chan2 pol0chan3    pol1chan2 pol1chan3... 
 // (S0-C0-P0-Re), (S0-C0-P0-Im), (S0-C1-P0-Re), (S0-C1-P0-Im), (S0-C0-P1-Re), (S0-C0-P1-Im), (S0-C1-P1-Re), (S0-C1-P1-Im)
@@ -822,7 +879,7 @@ int spectroscopy(int n_cc, 				// N coarse chan
 
         // reduce coarse channels to mean power...
         // TODO : this has to be modified for per pol 
-        //reduce_coarse_channels(dv_p, s6_output_block,  n_cc, n_pols, n_fine_chan, bors);
+        reduce_coarse_channels(dv_p, s6_output_block,  n_cc, pol, n_fine_chan, bors);
 
         // Allocate GPU memory for power normalization
         dv_p->baseline_p         = new thrust::device_vector<float>(n_total_chan);
