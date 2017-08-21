@@ -647,7 +647,7 @@ int spectroscopy(int n_cc,         		// N coarse chans
 
     if(track_gpu_memory) {
         char comment[256];
-        sprintf(comment, "on entry to non-FAST spectroscopy() : n_element = %d n_input_data_bytes = %d raw_timeseries_length in char2 = %d", 
+        sprintf(comment, "on entry to non-FAST spectroscopy() : n_element = %d n_input_data_bytes = %lu raw_timeseries_length in char2 = %lu", 
                 n_element, n_input_data_bytes, N_COARSE_CHAN / N_SUBSPECTRA_PER_SPECTRUM * N_FINE_CHAN * N_POLS_PER_BEAM);
         get_gpu_mem_info((const char *)comment);
     }
@@ -803,7 +803,7 @@ int spectroscopy(int n_cc, 				// N coarse chans
                                                                                                              
     if(track_gpu_memory) {
         char comment[256];
-        sprintf(comment, "on entry to FAST spectroscopy() : n_element = %d n_input_data_bytes = %d raw_timeseries_length in bytes = %d input data located at %p", 
+        sprintf(comment, "on entry to FAST spectroscopy() : n_element = %d n_input_data_bytes = %lu raw_timeseries_length in bytes = %lu input data located at %p", 
                 n_element, n_input_data_bytes,  n_input_data_bytes, input_data);
         get_gpu_mem_info((const char *)comment);
     }

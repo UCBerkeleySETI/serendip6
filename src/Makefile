@@ -6,9 +6,10 @@ CC          = gcc
 # or
 # S6_LOCATION="-D SOURCE_S6"
 S6_LOCATION = 
-S6_LIB_CCFLAGS     = -g -O3 -fPIC -shared -lstdc++ -mavx -msse4 \
-		     -I. -I$(CUDA_DIR)/include -I/usr/local/include \
-		     -L. -L/usr/local/lib \
+#S6_LIB_CCFLAGS     = -g -O3 -fPIC -shared -lstdc++ -mavx -msse4 
+S6_LIB_CCFLAGS     = -g -O3 -fPIC -shared -lstdc++ \
+		     -I. -I$(CUDA_DIR)/include -I/usr/local/include -I/usr/include/cfitsio -I. \
+		     -L. -L/usr/local/lib -L/usr/lib64 -L/usr/local/lib/hiredis \
 		     -lhashpipe -lS6GPU -lrt -lhiredis -lcfitsio -lazzatoradec -laoscram -lm
 S6OBS_AO_PROG_CCFLAGS = -g -lstdc++ \
 		     -I/usr/include/tcl \
@@ -34,7 +35,7 @@ S6GPUTEST_CCFLAGS  = -g \
 		     -L. -L/usr/local/cuda/lib64 \
 		     -lcudart -lrt -lcufft -lS6GPU  \
 		     -lcfitsio serendip6.so
-S6EXTRACT_PROG_CCFLAGS  = -g \
+S6EXTRACT_PROG_CCFLAGS  = -g -lstdc++ \
 		     -I. -I/usr/local/cuda/include
 S6_CHAN2IF_CCFLAGS = -g -lstdc++
 
@@ -51,9 +52,6 @@ S6_LIB_TARGET   = serendip6.so
 S6_LIB_SOURCES  = s6_databuf.cpp \
 		  s6_gen_fake_data.cpp \
 		  s6_fake_net_thread.cpp \
-		  s6_net_thread.cpp \
-		  s6_net_null_thread.cpp \
-		  s6_pktsock_thread.cpp \
 		  s6_gpu_thread.cpp \
 		  s6_output_thread.cpp \
 		  s6_obs_data.cpp \
