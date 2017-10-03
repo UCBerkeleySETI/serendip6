@@ -52,6 +52,8 @@ void get_gpu_mem_info(const char * comment);
 
 int init_device(int gpu_dev);
 
+void gpu_fini();
+
 void create_fft_plan_1d(cufftHandle* plan,
                             int          istride,
                             int          idist,

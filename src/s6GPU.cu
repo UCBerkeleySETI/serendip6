@@ -7,6 +7,8 @@ using std::endl;
 
 #include <cuda.h>
 #include <cufft.h>
+#include <cuda_runtime_api.h>
+#include <cuda_profiler_api.h> 
 
 #include <thrust/device_vector.h>
 #include <thrust/transform.h>
@@ -48,6 +50,16 @@ device_vectors_t * init_device_vectors(int n_element_max, int n_element_utilized
 
     device_vectors_t * dv_p  = new device_vectors_t;
 
+	dv_p->fft_data_p=0;          
+	dv_p->fft_data_out_p=0;          
+	dv_p->powspec_p=0;          
+    dv_p->baseline_p=0;         
+    dv_p->normalised_p=0;       
+    dv_p->scanned_p=0;       
+    dv_p->hit_baselines_p=0;  
+    dv_p->hit_indices_p=0;  
+    dv_p->hit_powers_p=0; 
+
 #ifdef TRANSPOSE
     dv_p->raw_timeseries_rowmaj_p   = new thrust::device_vector<char2>(n_element_max*n_input);
 #endif
@@ -62,7 +74,25 @@ device_vectors_t * init_device_vectors(int n_element_max, int n_element_utilized
 }
 
 int init_device(int gpu_dev) {
+
+#define PRINT_DEVICE_PROPERTIES
+#ifdef PRINT_DEVICE_PROPERTIES
+  	int nDevices;
+  	cudaGetDeviceCount(&nDevices);
+	fprintf(stderr, "\nGPUs on this system:\n");
+  	for (int i = 0; i < nDevices; i++) {
+    	cudaDeviceProp prop;
+    	cudaGetDeviceProperties(&prop, i);
+    	fprintf(stderr, "Device Number: %d\n", i);
+    	fprintf(stderr, "  Device name: %s\n", prop.name);
+    	fprintf(stderr, "  Memory Clock Rate (KHz): %d\n", prop.memoryClockRate);
+    	fprintf(stderr, "  Memory Bus Width (bits): %d\n", prop.memoryBusWidth);
+    	fprintf(stderr, "  Peak Memory Bandwidth (GB/s): %f\n\n", 2.0*prop.memoryClockRate*(prop.memoryBusWidth/8)/1.0e6);
+  	}
+#endif
+
     int rv = cudaSetDevice(gpu_dev);
+
     // TODO error checking
     return rv;
 }
@@ -77,6 +107,10 @@ void delete_device_vectors( device_vectors_t * dv_p) {
     delete(dv_p->hit_baselines_p);    
 
     delete(dv_p);
+}
+
+void gpu_fini() {
+    cudaProfilerStop();  
 }
 
 void create_fft_plan_1d(cufftHandle* plan,
@@ -794,17 +828,23 @@ int spectroscopy(int n_cc, 				// N coarse chans
 // Note - GPU memory allocation.  Our total memory needs are larger than the
 // capcity of our current GPU (GeForce GTX 780 Ti with 3071MB). So we allocate 
 // as needed and delete memory as soon as it is no longer needed.
+//#define USE_CLEAR_AND_SWAP
+#ifdef USE_CLEAR_AND_SWAP
+	fprintf(stderr, "Using clear & swap memory de/re-allocation\n");
+#else
+	fprintf(stderr, "Using conventional memory de/re-allocation\n");
+#endif
 
     Stopwatch timer; 
     Stopwatch total_gpu_timer;
     int n_element = n_cc*n_fc;       // number of elements in GPU structures
     size_t nhits;
     size_t total_nhits=0;
-                                                                                                             
+
     if(track_gpu_memory) {
         char comment[256];
-        sprintf(comment, "on entry to FAST spectroscopy() : n_element = %d n_input_data_bytes = %lu raw_timeseries_length in bytes = %lu input data located at %p", 
-                n_element, n_input_data_bytes,  n_input_data_bytes, input_data);
+        sprintf(comment, "on entry to FAST spectroscopy() : n_pol = %d n_element = %d n_input_data_bytes = %lu raw_timeseries_length in bytes = %lu input data located at %p", 
+                n_pol, n_element, n_input_data_bytes,  n_input_data_bytes, input_data);
         get_gpu_mem_info((const char *)comment);
     }
 
@@ -828,16 +868,35 @@ int spectroscopy(int n_cc, 				// N coarse chans
     for(int pol=0; pol < n_pol; pol++) {
 
         // allocate (and delete - see below) for each pol
+#ifdef USE_CLEAR_AND_SWAP
+        if(!dv_p->hit_indices_p)  dv_p->hit_indices_p     = new thrust::device_vector<int>();                        // 0 initial size
+        if(!dv_p->hit_powers_p)  dv_p->hit_powers_p      = new thrust::device_vector<float>;                        // "
+        if(!dv_p->hit_baselines_p) dv_p->hit_baselines_p    = new thrust::device_vector<float>;                        // "
+#else
         dv_p->hit_indices_p      = new thrust::device_vector<int>();                        // 0 initial size
         dv_p->hit_powers_p       = new thrust::device_vector<float>;                        // "
         dv_p->hit_baselines_p    = new thrust::device_vector<float>;                        // "
+#endif
+
+#ifdef USE_CLEAR_AND_SWAP
+        if(!dv_p->fft_data_p) dv_p->fft_data_p = new thrust::device_vector<float>();  dv_p->fft_data_p->resize(n_ts);  // FFT input
+#else
         dv_p->fft_data_p         = new thrust::device_vector<float>(n_ts);         			// FFT input
+#endif
         if(track_gpu_memory) get_gpu_mem_info("right after FFT input vector allocation");
 
+#ifdef USE_CLEAR_AND_SWAP
+        if(!dv_p->fft_data_out_p) dv_p->fft_data_out_p = new thrust::device_vector<float2>();  dv_p->fft_data_out_p->resize(n_element);  // FFT output
+#else
         dv_p->fft_data_out_p     = new thrust::device_vector<float2>(n_element);            // FFT output
+#endif
         if(track_gpu_memory) get_gpu_mem_info("right after FFT output vector allocation");
 
-        dv_p->powspec_p          = new thrust::device_vector<float>(n_element);             // power spectrum
+#ifdef USE_CLEAR_AND_SWAP
+        if(!dv_p->powspec_p) dv_p->powspec_p = new thrust::device_vector<float>();  dv_p->powspec_p->resize(n_element);             // power spectrum
+#else
+        dv_p->powspec_p = new thrust::device_vector<float>(n_element);             // power spectrum
+#endif
         if(track_gpu_memory) get_gpu_mem_info("right after powerspec vector allocation");
 
         if(use_timer) timer.start();
@@ -875,8 +934,16 @@ int spectroscopy(int n_cc, 				// N coarse chans
         // done with the timeseries and FFTs - delete the associated GPU memory
         if(track_gpu_memory) get_gpu_mem_info("right after compute power spectrum");
         //delete(dv_p->raw_timeseries_p);   // two pols        
+cudaThreadSynchronize();
+#ifdef USE_CLEAR_AND_SWAP
+		dv_p->fft_data_p->clear();
+		thrust::device_vector<float>().swap(*(dv_p->fft_data_p));
+		dv_p->fft_data_out_p->clear();
+		thrust::device_vector<float2>().swap(*(dv_p->fft_data_out_p));
+#else
         delete(dv_p->fft_data_p);         
         delete(dv_p->fft_data_out_p);     
+#endif
         if(track_gpu_memory) get_gpu_mem_info("right after post power spectrum deletes");
 
         // reduce coarse channels to mean power...
@@ -884,17 +951,35 @@ int spectroscopy(int n_cc, 				// N coarse chans
         reduce_coarse_channels(dv_p, s6_output_block,  n_cc, pol, n_fc, bors);
 
         // Allocate GPU memory for power normalization
+#ifdef USE_CLEAR_AND_SWAP
+        if(!dv_p->baseline_p)   dv_p->baseline_p  = new thrust::device_vector<float>(); dv_p->baseline_p->resize(n_element);
+#else
         dv_p->baseline_p         = new thrust::device_vector<float>(n_element);
+#endif
         if(track_gpu_memory) get_gpu_mem_info("right after baseline vector allocation");
+#ifdef USE_CLEAR_AND_SWAP
+        if(!dv_p->normalised_p)  dv_p->normalised_p      = new thrust::device_vector<float>();  dv_p->normalised_p->resize(n_element);
+#else
         dv_p->normalised_p       = new thrust::device_vector<float>(n_element);
+#endif
         if(track_gpu_memory) get_gpu_mem_info("right after normalized vector allocation");
+#ifdef USE_CLEAR_AND_SWAP
+        if(!dv_p->scanned_p) dv_p->scanned_p          = new thrust::device_vector<float>(); dv_p->scanned_p->resize(n_element); 
+#else
         dv_p->scanned_p          = new thrust::device_vector<float>(n_element);
+#endif
         if(track_gpu_memory) get_gpu_mem_info("right after scanned vector allocation");
 
         // Power normalization
         compute_baseline            (dv_p, n_fc, n_element, smooth_scale);        // not enough mem for this with 128m pt fft
         if(track_gpu_memory) get_gpu_mem_info("right after baseline computation");
+cudaThreadSynchronize();
+#ifdef USE_CLEAR_AND_SWAP
+		dv_p->scanned_p->clear();
+		thrust::device_vector<float>().swap(*(dv_p->scanned_p));
+#else
         delete(dv_p->scanned_p);          
+#endif
         if(track_gpu_memory) get_gpu_mem_info("right after scanned vector deletion");
         normalize_power_spectrum    (dv_p);
         if(track_gpu_memory) get_gpu_mem_info("right after spectrum normalization");
@@ -935,12 +1020,33 @@ int spectroscopy(int n_cc, 				// N coarse chans
 #endif
         
         // delete remaining GPU memory
-        delete(dv_p->powspec_p);          
-        delete(dv_p->baseline_p);         
+cudaThreadSynchronize();
+#ifdef USE_CLEAR_AND_SWAP
+		dv_p->powspec_p->clear();
+		thrust::device_vector<float>().swap(*(dv_p->powspec_p));
+
+		dv_p->baseline_p->clear();
+		thrust::device_vector<float>().swap(*(dv_p->baseline_p));
+
+		dv_p->normalised_p->clear();
+		thrust::device_vector<float>().swap(*(dv_p->normalised_p));
+
+		dv_p->hit_baselines_p->clear();
+		thrust::device_vector<float>().swap(*(dv_p->hit_baselines_p));
+
+		dv_p->hit_powers_p->clear();
+		thrust::device_vector<float>().swap(*(dv_p->hit_powers_p));
+
+		dv_p->hit_indices_p->clear();
+		thrust::device_vector<int>().swap(*(dv_p->hit_indices_p));
+#else
+        delete dv_p->powspec_p;          
+        delete dv_p->baseline_p;         
         delete(dv_p->normalised_p);       
         delete(dv_p->hit_baselines_p);  
         delete(dv_p->hit_indices_p);  
         delete(dv_p->hit_powers_p); 
+#endif
 
     } // end loop through pols
 

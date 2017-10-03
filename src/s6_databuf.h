@@ -56,7 +56,7 @@
 #define N_BEAMS                     1
 #define N_BEAM_SLOTS                1
 #define N_COARSE_CHAN               1
-#define N_TIME_SAMPLES              ((uint64_t) 256*1024*1024)               
+#define N_TIME_SAMPLES              ((uint64_t) 512*1024*1024)               
 #define N_FINE_CHAN 				(N_TIME_SAMPLES/2 + 1)                
 #define N_SPECTRA_PER_PACKET        4
 #define N_SUBSPECTRA_PER_SPECTRUM   1

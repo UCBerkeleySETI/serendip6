@@ -15,6 +15,7 @@
 
 #include <cuda.h>
 #include <cufft.h>
+#include <cuda_runtime_api.h>
 
 #include <sched.h>
 
@@ -294,6 +295,7 @@ fprintf(stderr, "num_coarse_chan = %lu n_bytes_per_bors = %lu  bors addr = %p\n"
     }
 
     // Thread success!
+    gpu_fini();		// take care of any gpu cleanup, eg profiler flushing
     // unpin the databufs from cudu's point of view
     cudaHostUnregister((void *) db_in);
     cudaHostUnregister((void *) db_out);
