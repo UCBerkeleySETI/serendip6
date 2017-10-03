@@ -1,5 +1,5 @@
 NVCC        = nvcc
-NVCCFLAGS   = -O3 --compiler-options '-fPIC' --shared -Xcompiler -Wall -arch=sm_35 -lrt -lcudart -lcufft
+NVCCFLAGS   = -O3 --compiler-options '-fPIC' --shared -Xcompiler -Wall -arch=sm_35 -lrt -lcudart -lcufft -lineinfo
 CC          = gcc
 # The user should specify, on the 'make' command line :
 # S6_LOCATION="-D SOURCE_DIBAS"
