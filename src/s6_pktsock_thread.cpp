@@ -42,7 +42,7 @@
 
 // Number of mcnts per block
 // TODO - put these in s6_databuf.h ?
-static const uint64_t     Nm = N_FINE_CHAN / N_SPECTRA_PER_PACKET;
+static const uint64_t     Nm = N_TIME_SAMPLES / N_SPECTRA_PER_PACKET;
 static const unsigned int N_PACKETS_PER_BLOCK = Nm * N_BEAMS;           // for GBT, this is just Nm
 static const unsigned int N_BYTES_PER_CHAN = 4;
 
@@ -596,8 +596,8 @@ static inline uint64_t process_packet(
     }
 #elif SOURCE_FAST	// end SOURCE_DIBAS 
     const uint64_t *src_p = payload_p;
-	dest_p = s6_input_databuf_p->block[pkt_block_i].data    // start of block
-        + pkt_mcnt % Nm;					// offset within block 
+    dest_p = s6_input_databuf_p->block[pkt_block_i].data    // start of block
+       	+ pkt_mcnt % Nm;				// offset within block 
 			
     // Use length from packet (minus UDP header and minus HEADER word and minus CRC word)
     memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame) - 8 - 8 - 8);
