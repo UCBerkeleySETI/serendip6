@@ -194,17 +194,24 @@ static inline void get_header(unsigned char *p_frame, packet_header_t * pkt_head
     pkt_header->pchan       = (raw_header >>  4) & 0x0000000000000FFF;
     pkt_header->sid         =  raw_header        & 0x000000000000000F;
 #elif SOURCE_DIBAS
-    pkt_header->pchan       =  (raw_header >> 56) * N_COARSE_CHAN;  // node ID converted to phcan. 
+    pkt_header->pchan       =  (raw_header >> 56) * N_COARSE_CHAN;  // node ID converted to pchan. 
     pkt_header->mcnt        =  raw_header & 0x00FFFFFFFFFFFFFF;
     pkt_header->sid         =  raw_header >> 56;
+#elif SOURCE_FAST
+    pkt_header->pchan       =  0;				// not coarse channelized, ie 1 coarse channel
+    pkt_header->mcnt        =  raw_header & 0x00FFFFFFFFFFFFFF;	// "serial number" in FAST parlance
+    pkt_header->sid         =  raw_header >> 56;		// source ID
 #endif
 
 #ifdef SOURCE_S6
-    // Compute nchan from packet size (minus UDP header and S6 header and CRC words)
+    // Compute nchan from packet size (minus UDP header and S6 header and CRC words == 3 words of overhead)
     pkt_header->nchan = (PKT_UDP_SIZE(p_frame) - 3*8)/ N_BYTES_PER_CHAN / N_SPECTRA_PER_PACKET; 
 #elif SOURCE_DIBAS
-    // Compute nchan from packet size (minus UDP header and S6 header and CRC words, and two interframe gaps)
+    // Compute nchan from packet size (minus UDP header and S6 header and CRC words, and two interframe gaps == 5 words of overhead)
     pkt_header->nchan = (PKT_UDP_SIZE(p_frame) - 5*8)/ N_BYTES_PER_CHAN / N_SPECTRA_PER_PACKET; 
+#elif SOURCE_FAST
+    // Compute nchan from packet size (minus UDP header and S6 header and CRC words)
+    pkt_header->nchan = (PKT_UDP_SIZE(p_frame) - 3*8)/ N_BYTES_PER_CHAN / N_SPECTRA_PER_PACKET; 
 #endif
 
 #ifdef LOG_MCNTS
@@ -569,7 +576,7 @@ static inline uint64_t process_packet(
     payload_p        = (uint64_t *)(PKT_NET(p_frame)+16);
     s6_memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame));
 #endif
-#elif SOURCE_DIBAS
+#elif SOURCE_DIBAS	// end SOURCE_S6
     const uint64_t *src_p = payload_p;  // TODO - get beyond the header?
 
     // for each spectrum in packet...
@@ -627,6 +634,13 @@ static inline uint64_t process_packet(
 #endif
         }
     }
+#elif SOURCE_FAST		// end SOURCE_DIBAS 
+    const uint64_t *src_p = payload_p;
+	dest_p = s6_input_databuf_p->block[pkt_block_i].data    // start of block
+        + pkt_mcnt % Nm;					// offset within block 
+			
+    // Use length from packet (minus UDP header and minus HEADER word and minus CRC word)
+    memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame) - 8 - 8 - 8);
 #endif
 
     // TODO - this should probably be moved into the SOURCE_ sections, above
