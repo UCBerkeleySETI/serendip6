@@ -568,14 +568,8 @@ static inline uint64_t process_packet(
 	    + (pkt_header.sid * Nm                                  // offset of the destination beam
         + (pkt_mcnt       % Nm))                                // offset within the destination beam 
         * N_COARSE_CHAN * N_BYTES_PER_CHAN / sizeof(uint64_t);  // units of offset, in 64 bit words
-#if 1
     // Use length from packet (minus UDP header and minus HEADER word and minus CRC word)
     memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame) - 8 - 8 - 8);
-#else
-    // Copy "extra" packet preface data to maintain alignment
-    payload_p        = (uint64_t *)(PKT_NET(p_frame)+16);
-    s6_memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame));
-#endif
 #elif SOURCE_DIBAS	// end SOURCE_S6
     const uint64_t *src_p = payload_p;  // TODO - get beyond the header?
 
@@ -594,47 +588,13 @@ static inline uint64_t process_packet(
                 + (sub_spectrum_i    * N_FINE_CHAN                      // offset of the destination sub-spectrum
                 +  pkt_spectrum_mcnt % N_FINE_CHAN)                     // offset within the destination sub-spectrum TODO - this can br above this for loop 
                 * N_BYTES_PER_SUBSPECTRUM/sizeof(uint64_t);             // units of offset, in 64 bit words
-#if 0
-            // log debugging information
-            char log_message[256];
-            static int net_log_lines = 1000;
-            //int first_log_line = 1;
-            static uint64_t test_memcpy_counter;
-            static uint64_t *prior_src_p, *prior_dest_p, prior_pkt_mcnt, prior_pkt_spectrum_mcnt;
-            test_memcpy_counter++;
-            uint64_t offset = (sub_spectrum_i    * N_FINE_CHAN   +  pkt_spectrum_mcnt % N_FINE_CHAN)  * N_BYTES_PER_SUBSPECTRUM/sizeof(uint64_t);
-            //if(offset == 0) {
-            if(net_log_lines) {
-                sprintf(log_message, "%9lu %d %d %d src_p = %p (%lu)  dest_p = %p (%lu)  pkt_mcnt = %lu (%lu)  pkt_spectrum_mcnt = %lu (%lu) (%lu)  offset64 = %lu", 
-                        test_memcpy_counter, pkt_block_i, pkt_spectrum_i, sub_spectrum_i, 
-                        src_p, src_p-prior_src_p, 
-                        dest_p, dest_p-prior_dest_p,
-                        pkt_mcnt, pkt_mcnt-prior_pkt_mcnt, 
-                        pkt_spectrum_mcnt, pkt_spectrum_mcnt-prior_pkt_spectrum_mcnt, pkt_spectrum_mcnt % N_FINE_CHAN,
-                        offset);
-                if(logger(log_message, net_log_lines) == net_log_lines) {
-                    net_log_lines  = 0;     // stop logging after writing out the current log
-                    //first_log_line = 1;     // re-init for next log run
-                }       
-            }
-            //}
-            prior_src_p = (uint64_t*)src_p;
-            prior_dest_p = (uint64_t*)dest_p;
-            prior_pkt_mcnt = pkt_mcnt;
-            prior_pkt_spectrum_mcnt = pkt_spectrum_mcnt;
-#endif
-#if 1
+
 	        // Use length from packet (minus UDP header and minus HEADER word and minus CRC word)
 	        //memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame) - 8 - 8 - 8);
 	        memcpy(dest_p, src_p, N_BYTES_PER_SUBSPECTRUM);
-#else
-	        // Copy "extra" packet preface data to maintain alignment
-	        payload_p        = (uint64_t *)(PKT_NET(p_frame)+16);
-	        s6_memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame));
-#endif
         }
     }
-#elif SOURCE_FAST		// end SOURCE_DIBAS 
+#elif SOURCE_FAST	// end SOURCE_DIBAS 
     const uint64_t *src_p = payload_p;
 	dest_p = s6_input_databuf_p->block[pkt_block_i].data    // start of block
         + pkt_mcnt % Nm;					// offset within block 
@@ -642,10 +602,6 @@ static inline uint64_t process_packet(
     // Use length from packet (minus UDP header and minus HEADER word and minus CRC word)
     memcpy(dest_p, payload_p, PKT_UDP_SIZE(p_frame) - 8 - 8 - 8);
 #endif
-
-    // TODO - this should probably be moved into the SOURCE_ sections, above
-	//memset(dest_p, 0, N_COARSE_CHAN*N_BYTES_PER_CHAN);
-	//dest_p[0] = be64toh(*(uint64_t *)(p->data));
 
 	return netmcnt;
     }
