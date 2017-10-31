@@ -50,6 +50,7 @@ S6EXTRACT_PROG_INCLUDES = s6_databuf.h
 
 S6_LIB_TARGET   = serendip6.so
 S6_LIB_SOURCES  = s6_databuf.cpp \
+		  s6_pktsock_thread.cpp \
 		  s6_gen_fake_data.cpp \
 		  s6_fake_net_thread.cpp \
 		  s6_gpu_thread.cpp \
