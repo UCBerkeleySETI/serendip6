@@ -1,3 +1,8 @@
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <semaphore.h>
+
 #include <iostream>
 using std::cout;
 using std::endl;
@@ -818,7 +823,8 @@ int spectroscopy(int n_cc, 				// N coarse chans
                  size_t n_input_data_bytes,
                  s6_output_block_t *s6_output_block,
                  device_vectors_t    *dv_p,
-                 cufftHandle *fft_plan) {
+                 cufftHandle *fft_plan,
+				 sem_t * gpu_sem) {
 
 // Note - beam or subspectra. Sometimes we are passed a beam's worth of coarse 
 // channels (eg, at AO). At other times we are passed a subspectrum of channels  
@@ -864,6 +870,8 @@ int spectroscopy(int n_cc, 				// N coarse chans
     if(use_timer) cout << "H2D time:\t" << timer.getTime() << endl;
     if(use_timer) timer.reset();
 
+	sem_wait(gpu_sem);
+
     // all processing done per pol
     for(int pol=0; pol < n_pol; pol++) {
 
@@ -904,9 +912,11 @@ int spectroscopy(int n_cc, 				// N coarse chans
         // fluff 8 bit data to float while loading FFT input, one pol at a time via a strided iterator
         // see https://github.com/thrust/thrust/blob/master/examples/strided_range.cu
         // TODO : TEST
+        // TODO : Am I actaully getting the 2nd pol here???
+fprintf(stderr, "on pol %d\n", pol);
         typedef thrust::device_vector<char>::iterator Iterator;
         strided_range<Iterator> this_pol(dv_p->raw_timeseries_p->begin() + pol, dv_p->raw_timeseries_p->end(), 2);
-        if(track_gpu_memory) get_gpu_mem_info("right after 8bit to float strided iterator allocation");
+        if(track_gpu_memory) get_gpu_mem_info("right after 8bit to float strided iterator allocation for pol");
         thrust::transform(
                       this_pol.begin(),  
                       this_pol.end(),
@@ -1017,6 +1027,9 @@ cudaThreadSynchronize();
             //        hit_index, spectrum_index, s6_output_block->pol[bors][i], s6_output_block->coarse_chan[bors][i], 
             //        s6_output_block->fine_chan[bors][i], s6_output_block->power[bors][i]);
         } // end for i<nhits 
+    	if(use_timer) timer.stop();
+    	if(use_timer) cout << "Copy to return vector time:\t" << timer.getTime() << endl;
+    	if(use_timer) timer.reset();
 #endif
         
         // delete remaining GPU memory
@@ -1051,14 +1064,12 @@ cudaThreadSynchronize();
     } // end loop through pols
 
     delete(dv_p->raw_timeseries_p);   
-       
-    if(use_timer) timer.stop();
-    if(use_timer) cout << "Copy to return vector time:\t" << timer.getTime() << endl;
-    if(use_timer) timer.reset();
 
     if(use_total_gpu_timer) total_gpu_timer.stop();
     if(use_total_gpu_timer) cout << "Total GPU time:\t" << total_gpu_timer.getTime() << endl;
     if(use_total_gpu_timer) total_gpu_timer.reset();
+
+	sem_post(gpu_sem);
     
     return total_nhits;
 }

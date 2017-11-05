@@ -1,6 +1,11 @@
 #ifndef _S6GPU_H
 #define _S6GPU_H
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <semaphore.h>
+
 #include <vector_functions.h>
 #include <thrust/device_vector.h>
 #include <thrust/transform.h>
@@ -76,7 +81,8 @@ int spectroscopy(int n_cc,
                  size_t n_input_data_bytes,
                  s6_output_block_t *s6_output_block,
                  device_vectors_t    *dv_p,
-                 cufftHandle *fft_plan);
+                 cufftHandle *fft_plan,
+				 sem_t * gpu_sem);
 
 #if 0
 int spectroscopy_one_pol(int n_subband,

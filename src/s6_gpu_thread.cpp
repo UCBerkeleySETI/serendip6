@@ -13,6 +13,12 @@
 #include <sys/resource.h>
 #include <sys/types.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <semaphore.h>
+
+
 #include <cuda.h>
 #include <cufft.h>
 #include <cuda_runtime_api.h>
@@ -128,6 +134,11 @@ static void *run(hashpipe_thread_args_t * args)
     hgeti4(st.buf, "MAXHITS", &maxhits);
     hashpipe_status_unlock_safe(&st);
     init_device(gpu_dev);
+	char gpu_sem_name[256];
+	sem_t * gpu_sem;
+	sprintf(gpu_sem_name, "gpu_sem_device_%d", gpu_dev);
+	gpu_sem = sem_open(gpu_sem_name, O_CREAT, S_IRWXU, 1);
+	
     
     // pin the databufs from cudu's point of view
     cudaHostRegister((void *) db_in, sizeof(s6_input_databuf_t), cudaHostRegisterPortable);
@@ -249,7 +260,8 @@ fprintf(stderr, "num_coarse_chan = %lu n_bytes_per_bors = %lu  bors addr = %p\n"
                                      n_bytes_per_bors,                              // input_data_bytes                         /2
                                      &db_out->block[curblock_out],                  // s6_output_block
                                      dv_p,                                          // dv_p
-                                     fft_plan_p);                                   // fft_plan
+                                     fft_plan_p,                                    // fft_plan
+									 gpu_sem);										// semaphore to serialize GPU access
 #else
                 nhits = spectroscopy(num_coarse_chan/N_SUBSPECTRA_PER_SPECTRUM,     // n_cc   
                                      N_FINE_CHAN,                                   // n_fc     
@@ -299,6 +311,7 @@ fprintf(stderr, "num_coarse_chan = %lu n_bytes_per_bors = %lu  bors addr = %p\n"
     // unpin the databufs from cudu's point of view
     cudaHostUnregister((void *) db_in);
     cudaHostUnregister((void *) db_out);
+	sem_unlink(gpu_sem_name);
     return NULL;
 }
 
